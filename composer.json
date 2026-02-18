@@ -1,0 +1,17 @@
+{
+    "name": "edi/spreadsheet-tool",
+    "description": "spreadsheet",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Edi\\SpreadsheetTool\\": "src/"
+        }
+    },
+    "require": {
+        "phpoffice/phpspreadsheet": "^1.18",
+        "dompdf/dompdf": "^3.0",
+        "tecnickcom/tcpdf": "^6.7",
+        "smalot/pdfparser": "^2.12"
+    }
+}

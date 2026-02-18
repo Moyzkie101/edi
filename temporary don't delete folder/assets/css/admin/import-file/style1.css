@@ -1,0 +1,447 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600&display=swap');
+
+* {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    outline: none;
+    border: none;
+    text-decoration: none;
+}
+.top-content {
+    color: white;
+    display: flex;
+    padding: 0px 20px;
+    background-color: #db120b;
+    justify-content: space-between;
+    align-items: center;
+}
+.navLogo {
+      width: 50px;
+}
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: transparent;
+    width: 100%;
+}
+  
+.nav-list li a {
+    text-decoration: none;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 16px 10px;
+}
+  
+.nav-list li #user {
+    text-decoration: none;
+    color: #db120b;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 10px 20px 10px 20px;
+}
+  
+.nav-list li a:hover {
+    color: #db120b;
+    background-color: whitesmoke;
+}
+  
+.nav-list li #user:hover {
+    color: #fff;
+}
+  
+.header {
+    text-align: center;
+    padding: 0px;
+}
+  
+.logout a {
+    text-decoration: none;
+    background-color: transparent;
+    padding: 5px 10px 5px 10px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    transition: background-color 0.3s ease;
+}
+  
+  
+.logout a:hover {
+     text-decoration: none;
+     background-color: black;
+     padding: 5px 10px 5px 10px;
+     color: #db120b;
+     transition: background-color 0.3s ease;
+}
+
+span{
+    font-size: 22px;
+    color: black;
+}
+
+h1,h2,h3,h4,h5,h6{
+    color: #ED1B24;
+}
+
+center h2{
+    margin: 10px 0 10px 0;
+}
+
+.usernav {
+    display: flex;
+    align-items: center;
+}
+  
+.usernav h4 {
+    margin: 0;
+    font-size: 12px;
+    color: #EFEBEB;
+}
+  
+.usernav h5 {
+    margin: 0;
+    font-size: 14px;
+    margin-left: 5px;
+}
+  
+.btn-nav {
+    display: flex;
+}
+  
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+  
+.nav-list li {
+    display: inline-block;
+    margin-right: 10px;
+}
+  
+.nav-list li a {
+    text-decoration: none;
+    color: #fff;
+    font-size: 12px;
+}
+
+.display_data {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+  
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+.dropdown:hover{
+    background-color: whitesmoke;
+    color: #db120b;
+}
+.dropdown-btn {
+    background-color: transparent;
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 15px 10px;
+}
+.dropdown-btn:hover{
+    color: #db120b;
+    padding: 15px 10px;
+}
+
+.dropdown-group {
+margin-bottom: 10px;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    flex-direction: column;
+    background-color: #f9f9f9;
+    min-width: 230px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+.group-btn {
+background-color: #3262e6;
+color: white;
+padding: 8px 10px;
+width: 100%;
+border: none;
+text-align: left;
+cursor: pointer;
+font-weight: bold;
+}
+.group-btn:hover {
+    background-color: #274bb5;
+}
+
+.group-content {
+display: none;
+flex-direction: column;
+background-color: #f9f9f9;
+padding: 5px;
+border: 1px solid #ddd;
+}
+.group-content a {
+padding: 5px 10px;
+color: #333;
+text-decoration: none;
+}
+.group-content a:hover {
+background-color: #ddd;
+}
+.dropdown-group.show .group-content {
+display: flex;
+}
+  
+.dropdown-content a {
+    display: block;
+    padding: 8px 0;
+    text-decoration: none;
+    color: #333;
+}
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+#user:hover{
+    background-color: #db120b;
+    color: #fff;
+    padding: 10px;
+}
+.opt-group {
+    display: flex;
+    background-color: #3262e6;
+    color: white;
+    width: 100%;
+    align-items: center;
+    height: 35px;
+}
+.card{
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.form{
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: auto;
+    padding: 10px;
+}
+
+.cancel_date label {
+    font-size: 14px;
+    margin-right: 15px;
+    /* color: #333; */
+}
+
+div .cancel_date{
+    margin-right: 15px;
+    color: #000000;
+}
+
+.cdate {
+    border: 1px solid #db120b;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-weight: 500;
+    /* color: #333; */
+}
+.import-file {
+    display: flex;
+}
+select {
+    width: 200px;
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #ccc;
+    border-radius: 15px;
+    background-color: #f9f9f9;
+    -webkit-appearance: none; /* Remove default arrow in WebKit browsers */
+    -moz-appearance: none; /* Remove default arrow in Firefox */
+    appearance: none; /* Remove default arrow in most modern browsers */
+    color: #F14A51;
+}
+.custom-select-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-left: 20px;
+}
+/* .custom-arrow {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin-top: -2px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #333;
+    pointer-events: none;
+} */
+input[type="date"] {
+    width: 200px;
+    padding: 10px;
+    font-size: 14px;
+    border: 2px solid #ccc;
+    border-radius: 15px;
+    background-color: #f9f9f9;
+    margin-right: 20px;
+    color: #F14A51;
+}
+.upload-btn {
+    background-color: #d70c0c;
+    color: #fff;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid #fff;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    width: 100px;
+    margin-right: 25px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.upload-btn:hover {
+    background-color:rgb(180, 31, 31);
+}
+
+.choose-file input[type="file"] {
+    display: block;
+    padding: 5px;
+    cursor: pointer;
+    border: 1px solid  #ccc;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+    margin-left: 25px;
+    background-color: #fff;
+    font-weight: 500;
+    color: #F14A51;
+}
+
+input[type="file"]::file-selector-button {
+    border-radius: 15px;
+    padding: 0 16px;
+    height: 46px;
+    cursor: pointer;
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 0.16);
+    box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.05);
+    margin-right: 16px;
+    transition: background-color 200ms;
+}
+input[type="file"]::file-selector-button:hover {
+    background-color: #f3f4f6;
+}
+input[type="file"]::file-selector-button:active {
+    background-color: #e5e7eb;
+}
+
+/* loading screen */
+#loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.7);
+    z-index: 9999;
+}
+
+.loading-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* empty cells or not empty cells */
+.message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+.export-btn {
+    background-color: #d70c0c;
+    border: none;
+    color: white;
+    padding: 9px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border-radius: 20px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.export-btn:hover {
+    background-color: #8f2c16;
+}
+.print-btn {
+    background-color: #d70c0c;
+    border: none;
+    color: white;
+    padding: 9px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border-radius: 20px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.print-btn:hover {
+    background-color: #423e3d; 
+}
+.override-btn {
+    background-color: #db120b; 
+    border: none;
+    color: white;
+    padding: 9px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border-radius: 20px;
+    display: none;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.override-btn:hover {
+    background-color: #F15A24;
+}

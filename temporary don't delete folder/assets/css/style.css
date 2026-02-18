@@ -1,0 +1,48 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to right, #db342e, #db5a56);
+}
+.welcome-logo {
+    width: 300px;
+    display: absolute;
+    top: 0;
+}
+.welcome-container {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.welcome-message h1 {
+    font-size: 3em;
+    margin: 0;
+    color: #333;
+}
+
+.welcome-message p {
+    font-size: 1.2em;
+    color: #666;
+}
+
+#exploreButton {
+    background-color: #db120b;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-top: 20px;
+}
+
+#exploreButton:hover {
+    background-color: #be2b26;
+}

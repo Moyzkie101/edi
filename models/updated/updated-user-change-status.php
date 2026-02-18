@@ -1,0 +1,91 @@
+<?php
+include '../../config/connection.php';
+
+session_start();
+
+// Set content type to JSON
+header('Content-Type: application/json');
+
+// Check if user is authorized
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] === 'user') {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        // Get JSON input
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        // Validate required fields
+        $required_fields = ['id_number', 'username', 'current_status', 'new_status'];
+        foreach ($required_fields as $field) {
+            if (empty($input[$field])) {
+                echo json_encode(['success' => false, 'message' => "Field '$field' is required"]);
+                exit;
+            }
+        }
+        
+        // Sanitize inputs
+        $id_number = mysqli_real_escape_string($conn, trim($input['id_number']));
+        $username = mysqli_real_escape_string($conn, trim($input['username']));
+        $current_status = mysqli_real_escape_string($conn, trim($input['current_status']));
+        $new_status = mysqli_real_escape_string($conn, trim($input['new_status']));
+        $modified_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'System';
+        $date_modified = date('Y-m-d H:i:s');
+        
+        // Validate status values
+        if (!in_array($new_status, ['Active', 'Inactive'])) {
+            echo json_encode(['success' => false, 'message' => 'Invalid status value']);
+            exit;
+        }
+        
+        // Check if user exists and current status matches
+        $check_query = "SELECT id_number, email, status FROM " . $database[0] . ".user WHERE id_number = '$id_number' AND email = '$username'";
+        $check_result = mysqli_query($conn, $check_query);
+        
+        if (mysqli_num_rows($check_result) === 0) {
+            echo json_encode(['success' => false, 'message' => 'User not found']);
+            exit;
+        }
+        
+        $user_data = mysqli_fetch_assoc($check_result);
+        
+        // Verify current status
+        if ($user_data['status'] !== $current_status) {
+            echo json_encode(['success' => false, 'message' => 'Current status does not match. Please refresh and try again.']);
+            exit;
+        }
+        
+        // Update user status
+        $update_query = "UPDATE " . $database[0] . ".user 
+                        SET status = '$new_status',
+                            date_modified = '$date_modified',
+                            modified_by = '$modified_by'
+                        WHERE id_number = '$id_number' AND email = '$username'";
+        
+        if (mysqli_query($conn, $update_query)) {
+            // Check if any rows were affected
+            if (mysqli_affected_rows($conn) > 0) {
+                echo json_encode([
+                    'success' => true, 
+                    'message' => "User status has been changed from $current_status to $new_status successfully",
+                    'new_status' => $new_status,
+                    'username' => $username
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'No changes were made to the status']);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . mysqli_error($conn)]);
+        }
+        
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+    }
+} else {
+    echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+}
+
+mysqli_close($conn);
+?>

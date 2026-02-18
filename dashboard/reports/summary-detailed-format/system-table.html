@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payroll Summary - Table</title>
+    <style>
+        .table-container {
+            overflow: auto;
+            margin: 20px 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        thead th {
+            background: #f7f7f7;
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        tbody td {
+            padding: 8px;
+            border: 1px solid #eee;
+        }
+
+        .highlight {
+            background-color: #4fc917;
+            font-weight: bold;
+        }
+
+        .muted {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="showBranches" style=" position: absolute; top: 190px; color: red; left: 20px;">Total Number
+        of Branches : 0</div>
+
+    <!-- Payroll Summary Table -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th colspan="3">Payroll Summary - All Branches &amp; All Regions</th>
+                    <th>Basic Pay Regular</th>
+                    <th>Basic Pay Trainee</th>
+                    <th>Allowances</th>
+                    <th>BM Allowance</th>
+                    <th>Overtime Regular</th>
+                    <th>Overtime Trainee</th>
+                    <th>COLA</th>
+                    <th>Excess PB</th>
+                    <th>Other Income</th>
+                    <th>Salary Adjustment</th>
+                    <th>Graveyard</th>
+                    <th>Late Regular</th>
+                    <th>Late Trainee</th>
+                    <th>Leave Regular</th>
+                    <th>Leave Trainee</th>
+                    <th>Total</th>
+                    <th rowspan="3">Cost Center</th>
+                    <th rowspan="3" style="width: 10px;"></th>
+                    <th rowspan="3">Region</th>
+                    <th rowspan="2">All Other Deductions</th>
+                    <th rowspan="3">No. of Branch Employees</th>
+                    <th rowspan="3">No. of Employees Allocated</th>
+                </tr>
+                <tr>
+                    <th colspan="3">Payroll Date - [start] to [end]</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Debit</th>
+                    <th>Credit</th>
+                    <th>Credit</th>
+                    <th>Credit</th>
+                    <th>Credit</th>
+                    <th>Credit</th>
+                </tr>
+                <tr>
+                    <th style="white-space: nowrap">Date</th>
+                    <th style="white-space: nowrap">BOS Code</th>
+                    <th>Branch Name</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                </tr>
+            </thead>
+            <tbody id="payroll-rows">
+                <!-- Data rows to be inserted here -->
+                <tr>
+                    <td colspan="25" style="padding:12px; color:#333;">No records found for the selected filters.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Minimal scripts to toggle download buttons or show containers; replace with actual logic -->
+    <script>
+        // Example: show download buttons when data exists
+        function showDownloadButtons() {
+            const dl = document.getElementById('showdl');
+            const dl1 = document.getElementById('showdl1');
+            if (dl) dl.style.display = 'block';
+            if (dl1) dl1.style.display = 'block';
+        }
+
+        // Placeholder: call showDownloadButtons() when data is loaded
+    </script>
+
+</body>
+
+</html>

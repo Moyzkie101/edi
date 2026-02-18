@@ -1,0 +1,318 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600&display=swap');
+
+* {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    outline: none;
+    border: none;
+    text-decoration: none;
+}
+.top-content {
+    color: white;
+    display: flex;
+    padding: 0px 20px;
+    background-color: #db120b;
+    justify-content: space-between;
+    align-items: center;
+}
+.navLogo {
+      width: 50px;
+}
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: transparent;
+    width: 100%;
+}
+  
+.nav-list li a {
+    text-decoration: none;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 16px 10px;
+}
+  
+.nav-list li #user {
+    text-decoration: none;
+    color: #db120b;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 10px 20px 10px 20px;
+}
+  
+.nav-list li a:hover {
+    color: #db120b;
+    background-color: whitesmoke;
+}
+  
+.nav-list li #user:hover {
+    color: #fff;
+}
+  
+.header {
+    text-align: center;
+    padding: 0px;
+}
+  
+.logout a {
+    text-decoration: none;
+    background-color: transparent;
+    padding: 5px 10px 5px 10px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    transition: background-color 0.3s ease;
+}
+  
+  
+.logout a:hover {
+     text-decoration: none;
+     background-color: black;
+     padding: 5px 10px 5px 10px;
+     color: #db120b;
+     transition: background-color 0.3s ease;
+}
+  
+.usernav {
+    display: flex;
+    align-items: center;
+}
+  
+.usernav h4 {
+    margin: 0;
+    font-size: 12px;
+}
+  
+.usernav h5 {
+    margin: 0;
+    font-size: 14px;
+    margin-left: 5px;
+}
+  
+.btn-nav {
+    display: flex;
+}
+  
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+  
+.nav-list li {
+    display: inline-block;
+    margin-right: 10px;
+}
+  
+.nav-list li a {
+    text-decoration: none;
+    color: #fff;
+    font-size: 12px;
+}
+  
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+.dropdown:hover{
+    background-color: whitesmoke;
+    color: #db120b;
+}
+.dropdown-btn {
+    background-color: transparent;
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 15px 10px;
+}
+.dropdown-btn:hover{
+    color: #db120b;
+    padding: 15px 10px;
+}
+
+.dropdown-group {
+margin-bottom: 10px;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    flex-direction: column;
+    background-color: #f9f9f9;
+    min-width: 230px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+.group-btn {
+background-color: #3262e6;
+color: white;
+padding: 8px 10px;
+width: 100%;
+border: none;
+text-align: left;
+cursor: pointer;
+font-weight: bold;
+}
+.group-btn:hover {
+    background-color: #274bb5;
+}
+
+.group-content {
+display: none;
+flex-direction: column;
+background-color: #f9f9f9;
+padding: 5px;
+border: 1px solid #ddd;
+}
+.group-content a {
+padding: 5px 10px;
+color: #333;
+text-decoration: none;
+}
+.group-content a:hover {
+background-color: #ddd;
+}
+.dropdown-group.show .group-content {
+display: flex;
+}
+
+.dropdown-content a {
+    display: block;
+    padding: 8px 0;
+    text-decoration: none;
+    color: #333;
+}
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+#user:hover{
+    background-color: #db120b;
+    color: #fff;
+    padding: 10px;
+}
+.opt-group {
+    display: flex;
+    background-color: #3262e6;
+    color: white;
+    width: 100%;
+    align-items: center;
+    height: 35px;
+}
+
+.import-file {
+    background-color: #3262e6;
+    height: 100px;
+    width: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+select {
+    width: 200px;
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #ccc;
+    border-radius: 15px;
+    background-color: #f9f9f9;
+    -webkit-appearance: none; /* Remove default arrow in WebKit browsers */
+    -moz-appearance: none; /* Remove default arrow in Firefox */
+    appearance: none; /* Remove default arrow in most modern browsers */
+}
+.custom-select-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-left: 20px;
+}
+.custom-arrow {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin-top: -2px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #333;
+    pointer-events: none;
+}
+input[type="date"] {
+    width: 200px;
+    padding: 10px;
+    font-size: 14px;
+    border: 2px solid #ccc;
+    border-radius: 15px;
+    background-color: #f9f9f9;
+    margin-right: 20px;
+}
+.generate-btn {
+    background-color: #db120b; 
+    border: none;
+    color: white;
+    padding: 9px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border-radius: 20px;
+    margin-left: 30px;
+}
+
+/* for table */
+.table-container {
+    top: 35px;
+    position: relative;
+    max-width: 100%;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    overflow-y: auto; /* Enable vertical scrolling */
+    max-height: calc(100vh - 200px); /* Adjust max-height as needed based on your layout */
+    margin: 20px; /* Adjust margin as needed */
+    border: 1px solid #ccc; /* Optional: Add border around the table container */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #ccc; /* Border around the table */
+    /* white-space: nowrap; */
+    font-size: 12px;
+}
+
+th, td {
+    border: 1px solid #ccc; /* Borders for table cells */
+    padding: 5px; /* Padding inside cells */
+    text-align: center; /* Center-align text in cells */
+}
+
+th {
+    background-color: #f2f2f2; /* Light gray background for headers */
+    font-weight: bold; /* Bold font for headers */
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9; /* Alternating row colors */
+}
+
+tr:hover {
+    background-color: #e0e0e0;
+}
+
+.download-btn {
+    background-color: #4fc917; 
+    border: none;
+    color: white;
+    padding: 9px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border-radius: 20px;
+    margin: 5px;
+}

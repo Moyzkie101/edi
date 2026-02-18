@@ -1,0 +1,21 @@
+.content-item label{
+    font-size: 12px;
+    /* background-color: green; */
+}
+.second-content-wrap .text-center .fw-normal {
+    width: fit-content;
+    background-color: whitesmoke;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+  
+.add_inp {
+    display: flex;
+    padding: 10px 10px;
+    width: 250px;
+    border: 1px solid gray;
+    /* background-color: yellowgreen; */
+    border-radius: 10px;
+    text-align: center;
+}
