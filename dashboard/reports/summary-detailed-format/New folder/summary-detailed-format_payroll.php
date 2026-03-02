@@ -425,7 +425,6 @@
             if (!$result) {
                 header('Content-Type: application/json');
                 echo json_encode([
-                    'success' => false,
                     'error' => mysqli_error($conn),
                     'sql' => $dataResultSql,
                     'rows' => [],
@@ -439,12 +438,61 @@
                 $outputRows[] = $r;
             }
 
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode([
-                'success' => true,
-                'rows' => $outputRows,
-                'totalBranches' => count($outputRows)
-            ]);
+            // Prefer returning an HTML fragment of <tr> rows so the frontend
+            // can inject them directly into the table tbody. JavaScript also
+            // accepts JSON, but returning HTML keeps behavior consistent.
+            header('Content-Type: text/html; charset=utf-8');
+
+            if (empty($outputRows)) {
+                echo '<tr><td colspan="26" style="padding:12px; color:#333;">No records found for the selected filters.</td></tr>';
+                exit;
+            }
+
+            // Define the same column order used by the frontend renderer
+            $columnsOrder = [
+                'payroll_date', 'kp_code', 'branch_name', 'ml_matic_status',
+                'gl_code_basic_pay_regular','basic_pay_regular',
+                'gl_code_basic_pay_trainee','basic_pay_trainee',
+                'gl_code_allowances','allowances',
+                'gl_code_bm_allowance','bm_allowance',
+                'gl_code_overtime_regular','overtime_regular',
+                'gl_code_overtime_trainee','overtime_trainee',
+                'gl_code_cola','cola',
+                'gl_code_excess_pb','excess_pb',
+                'gl_code_other_income','other_income',
+                'gl_code_salary_adjustment','salary_adjustment',
+                'gl_code_graveyard','graveyard',
+                'gl_code_late_regular','late_regular',
+                'gl_code_late_trainee','late_trainee',
+                'gl_code_leave_regular','leave_regular',
+                'gl_code_leave_trainee','leave_trainee',
+                'gl_code_all_other_deductions','all_other_deductions',
+                'gl_code_total','total',
+                'cost_center','region','no_of_branch_employee','no_of_employees_allocated'
+            ];
+
+            $html = '';
+            foreach ($outputRows as $r) {
+                $html .= '<tr>';
+                foreach ($columnsOrder as $key) {
+                    $val = array_key_exists($key, $r) ? $r[$key] : '';
+                    // For GL code fields (keys starting with 'gl_code_'), always treat as plain text
+                    if (is_string($key) && strpos($key, 'gl_code_') === 0) {
+                        $val = htmlspecialchars((string)$val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    } else {
+                        // Format numeric-like values to two decimal places for amount columns only
+                        if (is_numeric($val)) {
+                            $val = number_format((float)$val, 2, '.', ',');
+                        } else {
+                            $val = htmlspecialchars($val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                        }
+                    }
+                    $html .= '<td>' . $val . '</td>';
+                }
+                $html .= '</tr>';
+            }
+
+            echo $html;
             exit;
     }
 
@@ -465,22 +513,20 @@
         $zone = $_SESSION['zone'] ?? '';
         $region = $_SESSION['region'] ?? '';
         $branch = $_SESSION['branch'] ?? '';
-        $status = $_SESSION['status'] ?? '';
         $startDate = $_SESSION['startdate'] ?? '';
         $endDate = $_SESSION['enddate'] ?? '';
 
-        generateDownload($conn, $database, $mainzone, $zone, $region, $branch, $startDate, $endDate, $status);
+        generateDownload($conn, $database, $mainzone, $zone, $region, $branch, $startDate, $endDate);
 
     }
 
 
     // Function to generate the download excel file
-    function generateDownload($conn, $database, $mainzone, $zone, $region, $branch, $startDate, $endDate, $status = '') {
+    function generateDownload($conn, $database, $mainzone, $zone, $region, $branch, $startDate, $endDate) {
         $mainzone = $_SESSION['mainzone'] ?? '';
         $zone = $_SESSION['zone'] ?? '';
         $region = $_SESSION['region'] ?? '';
         $branch = $_SESSION['branch'] ?? '';
-        $status = $_SESSION['status'] ?? $status;
         $startDate = $_SESSION['startdate'] ?? '';
         $endDate = $_SESSION['enddate'] ?? '';
 
@@ -601,56 +647,25 @@
                     FROM " . $database[0] . ".payroll_edi_report per
                     INNER JOIN summarized s ON s.region_code = per.region_code";
 
-                    $dlsql .= " WHERE 1=1";
-
-                    if ($mainzone !== 'ALL') {
-                        $dlsql .= " AND per.mainzone = '$mainzone'";
+                    if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
+                        $dlsql .= " WHERE per.mainzone = '$mainzone'
+                        AND per.ml_matic_region = '$zone'
+                        AND per.zone like '%$region%'";
+                    }else{
+                        $dlsql .= " WHERE per.mainzone = '$mainzone'
+                            AND per.zone = '$zone'
+                            AND per.region_code LIKE '%$region%'
+                            AND per.ml_matic_region != 'LNCR Showroom'
+                            AND per.ml_matic_region != 'VISMIN Showroom'";      
                     }
 
-                    if ($zone !== 'ALL') {
-                        if ($zone !== 'Showroom') {
-                            $dlsql .= " AND per.zone = '$zone'";
-                        }
-                    }
-
-                    if ($region !== 'ALL') {
-                        if($region === 'LZN' || $region === 'NCR'){
-                            if ($zone === 'Showroom') {
-                                $dlsql .= " AND per.zone = '$zone' AND per.ml_matic_region = 'LNCR $zone'";
-                            } else {
-                                $dlsql .= " AND per.zone = '$region' AND per.ml_matic_region = 'LNCR Showroom'";
-                            }
-                        }elseif($region === 'VIS' || $region === 'MIN'){
-                            if ($zone === 'Showroom') {
-                                $dlsql .= " AND per.zone = '$zone' AND per.ml_matic_region = 'VISMIN $zone'";
-                            } else {
-                                $dlsql .= " AND per.zone = '$region' AND per.ml_matic_region = 'VISMIN Showroom'";
-                            }
-                        }else{
-                            $dlsql .= " AND per.region_code = '$region'";
-                        }
-                    }
-
-                    if ($branch !== 'ALL' && !empty($branch)) {
-                        if (ctype_digit((string)$branch)) {
-                            $dlsql .= " AND per.branch_code = " . intval($branch);
-                        } else {
-                            $escaped_branch = mysqli_real_escape_string($conn, $branch);
-                            $dlsql .= " AND per.branch_name = '" . $escaped_branch . "'";
-                        }
+                    if (!empty($branch)) {
+                        $dlsql .= " AND per.branch_code = $branch";
                     }
                     if ($startDate === $endDate) {
                         $dlsql .= " AND per.payroll_date = '$startDate'";
                     } else {
                         $dlsql .= " AND per.payroll_date BETWEEN '$startDate' AND '$endDate'";
-                    }
-
-                    if (!empty($status) && $status !== 'ALL') {
-                        if ($status === 'TBO') {
-                            $dlsql .= " AND per.ml_matic_status IN ('TBO')";
-                        } else {
-                            $dlsql .= " AND per.ml_matic_status = '$status'";
-                        }
                     }
                     
                     $dlsql .= " AND NOT per.ml_matic_status IN ('Pending', 'Inactive')
@@ -669,18 +684,11 @@
                     ";
                     
             $dlresult = mysqli_query($conn, $dlsql);
-
-            if (!$dlresult) {
-                die('Export query failed: ' . mysqli_error($conn));
-            }
                     
             $spreadsheet = new PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
                     
             $first_row = mysqli_fetch_assoc($dlresult);
-            if (!$first_row) {
-                die('No records found for export based on selected filters.');
-            }
             $payroll_date = htmlspecialchars($first_row['payroll_date']);
             $gl_code_basic_pay_regular = htmlspecialchars($first_row['gl_code_basic_pay_regular']);
             $gl_code_basic_pay_trainee = htmlspecialchars($first_row['gl_code_basic_pay_trainee']);
@@ -1468,23 +1476,23 @@
                     <th style="white-space: nowrap">BOS Code</th>
                     <th>Branch Name</th>
                     <th>Branch Status</th>
-                    <th>5100001</th>
-                    <th>5100002</th>
-                    <th>5100001</th>
-                    <th>5212001</th>
-                    <th>5100003</th>
-                    <th>5100002</th>
-                    <th>5210001</th>
-                    <th>5220002</th>
-                    <th>5220001</th>
-                    <th>5100001</th>
-                    <th>5212001</th>
-                    <th>5100001</th>
-                    <th>5100002</th>
-                    <th>5100001</th>
-                    <th>5100002</th>
-                    <th>3100001</th>
-                    <th>3100001</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
+                    <th>GL Code</th>
                 </tr>
             </thead>
             <tbody id="payroll-rows">
@@ -1788,85 +1796,49 @@
         const showBranches = document.getElementById('showBranches');
         const showdl = document.getElementById('showdl');
 
-        function escapeHtml(value) {
-            if (value === null || value === undefined) return '';
-            return String(value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+        function formatNumber(val){
+            if (val === null || val === undefined || val === '') return '';
+            const n = parseFloat(val);
+            if (isNaN(n)) return val;
+            return n.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
         }
 
-        function formatAmount(value) {
-            const num = Number(value);
-            if (!Number.isFinite(num)) return escapeHtml(value);
-            return num.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-
-        function formatCount(value) {
-            const num = Number(value);
-            if (!Number.isFinite(num)) return escapeHtml(value);
-            return num.toLocaleString('en-US');
-        }
-
-        function getRegionValue(per) {
-            if (per.ml_matic_region === 'VISMIN Showroom' || per.ml_matic_region === 'LNCR Showroom') {
-                return per.ml_matic_region;
-            }
-            return per.region;
-        }
-
-        function renderPayrollRows(rows) {
-            if (!Array.isArray(rows) || rows.length === 0) {
-                payrollRows.innerHTML = '<tr><td colspan="26" style="padding:12px; color:#333;">No records found for the selected filters.</td></tr>';
-                return;
-            }
-
-            const html = rows.map(function(per) {
-                return '<tr>' +
-                    '<td>' + escapeHtml(per.payroll_date) + '</td>' +
-                    '<td>' + escapeHtml(per.kp_code) + '</td>' +
-                    '<td>' + escapeHtml(per.branch_name) + '</td>' +
-                    '<td>' + escapeHtml(per.ml_matic_status) + '</td>' +
-
-                    '<td>' + formatAmount(per.basic_pay_regular) + '</td>' +
-                    '<td>' + formatAmount(per.basic_pay_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.allowances) + '</td>' +
-                    '<td>' + formatAmount(per.bm_allowance) + '</td>' +
-                    '<td>' + formatAmount(per.overtime_regular) + '</td>' +
-                    '<td>' + formatAmount(per.overtime_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.cola) + '</td>' +
-                    '<td>' + formatAmount(per.excess_pb) + '</td>' +
-                    '<td>' + formatAmount(per.other_income) + '</td>' +
-                    '<td>' + formatAmount(per.salary_adjustment) + '</td>' +
-                    '<td>' + formatAmount(per.graveyard) + '</td>' +
-                    '<td>' + formatAmount(per.late_regular) + '</td>' +
-                    '<td>' + formatAmount(per.late_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.leave_regular) + '</td>' +
-                    '<td>' + formatAmount(per.leave_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.total) + '</td>' +
-
-                    '<td>' + escapeHtml(per.cost_center) + '</td>' +
-                    '<td></td>' +
-                    '<td>' + escapeHtml(getRegionValue(per)) + '</td>' +
-                    '<td>' + formatAmount(per.all_other_deductions) + '</td>' +
-                    '<td>' + formatCount(per.no_of_branch_employee) + '</td>' +
-                    '<td>' + formatCount(per.no_of_employees_allocated) + '</td>' +
-                '</tr>';
-            }).join('');
-
-            payrollRows.innerHTML = html;
+        function renderRow(item){
+            return `
+                <tr>
+                    <td style="white-space:nowrap">${item.payroll_date ?? ''}</td>
+                    <td>${item.branch_code ?? ''}</td>
+                    <td>${item.branch_name ?? ''}</td>
+                    <td>${item.ml_matic_status ?? item.branch_status ?? ''}</td>
+                    <td>${formatNumber(item.basic_pay_regular)}</td>
+                    <td>${formatNumber(item.basic_pay_trainee)}</td>
+                    <td>${formatNumber(item.allowances)}</td>
+                    <td>${formatNumber(item.bm_allowance)}</td>
+                    <td>${formatNumber(item.overtime_regular)}</td>
+                    <td>${formatNumber(item.overtime_trainee)}</td>
+                    <td>${formatNumber(item.cola)}</td>
+                    <td>${formatNumber(item.excess_pb)}</td>
+                    <td>${formatNumber(item.other_income)}</td>
+                    <td>${formatNumber(item.salary_adjustment)}</td>
+                    <td>${formatNumber(item.graveyard)}</td>
+                    <td>${formatNumber(item.late_regular)}</td>
+                    <td>${formatNumber(item.late_trainee)}</td>
+                    <td>${formatNumber(item.leave_regular)}</td>
+                    <td>${formatNumber(item.leave_trainee)}</td>
+                    <td>${formatNumber(item.total)}</td>
+                    <td>${item.cost_center ?? ''}</td>
+                    <td>${item.region ?? ''}</td>
+                    <td></td>
+                    <td>${formatNumber(item.all_other_deductions)}</td>
+                    <td>${item.no_of_branch_employee ?? ''}</td>
+                    <td>${item.no_of_employees_allocated ?? ''}</td>
+                </tr>
+            `;
         }
 
         function fetchPayrollReport(params){
-            if (!params || !params.startdate || !params.enddate || !params.mainzone || !params.zone || !params.region || !params.branch || !params.status) {
-                payrollRows.innerHTML = '<tr><td colspan="26" style="color:gray">Please complete all filters and click Proceed.</td></tr>';
-                showdl.style.display = 'none';
-                showBranches.textContent = 'Total Number of Branches : 0';
+            if (!params || !params.startdate || !params.enddate) {
+                payrollRows.innerHTML = '<tr><td colspan="26" style="color:gray">Please set both FROM and TO dates and click Proceed.</td></tr>';
                 return;
             }
 
@@ -1877,22 +1849,36 @@
                 type: 'POST',
                 url: window.location.href,
                 data: Object.assign({ action: 'get_data_results' }, params),
-                dataType: 'json',
-                success: function(response){
+                dataType: 'html',
+                success: function(responseHtml){
+                    // stop loader
                     loadingOverlay.style.display = 'none';
 
-                    if (!response || response.success !== true) {
-                        payrollRows.innerHTML = '<tr><td colspan="26" style="color:red">Failed to fetch report data.</td></tr>';
-                        showdl.style.display = 'none';
-                        showBranches.textContent = 'Total Number of Branches : 0';
-                        return;
+                    // try to parse JSON first; if not JSON, treat response as HTML rows
+                    try {
+                        var data = (typeof responseHtml === 'string') ? JSON.parse(responseHtml) : responseHtml;
+                        if (Array.isArray(data)) {
+                            if (data.length === 0) {
+                                payrollRows.innerHTML = '<tr><td colspan="26" style="color:gray">No data found.</td></tr>';
+                                showdl.style.display = 'none';
+                                showBranches.textContent = 'Total Number of Branches : 0';
+                                return;
+                            }
+                            payrollRows.innerHTML = data.map(renderRow).join('');
+                            showdl.style.display = 'block';
+                            showBranches.textContent = 'Total Number of Branches : ' + data.length;
+                            return;
+                        }
+                    } 
+                    catch (e) {
+                        // not JSON — fall through to treat responseHtml as HTML
                     }
 
-                    renderPayrollRows(response.rows || []);
-
-                    const totalBranches = Number(response.totalBranches || 0);
-                    showdl.style.display = totalBranches > 0 ? 'block' : 'none';
-                    showBranches.textContent = 'Total Number of Branches : ' + totalBranches;
+                    // fallback: server returned raw HTML rows
+                    payrollRows.innerHTML = responseHtml && responseHtml.trim() !== '' ? responseHtml : '<tr><td colspan="26" style="color:gray">No data found.</td></tr>';
+                    const rowCount = payrollRows.querySelectorAll('tr').length;
+                    showdl.style.display = rowCount ? 'block' : 'none';
+                    showBranches.textContent = 'Total Number of Branches : ' + (rowCount || 0);
                 },
                 error: function(){
                     payrollRows.innerHTML = '<tr><td colspan="26" style="color:red">Failed to fetch report. Try again.</td></tr>';
