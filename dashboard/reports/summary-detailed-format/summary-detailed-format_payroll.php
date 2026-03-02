@@ -419,7 +419,7 @@
                     per.gl_code_late_regular, per.gl_code_late_trainee,
                     per.gl_code_leave_regular, per.gl_code_leave_trainee,
                     per.gl_code_all_other_deductions, per.gl_code_total, per.cost_center
-            ";
+                    ORDER BY per.payroll_date";
             // Execute the query and return JSON for AJAX requests
             $result = mysqli_query($conn, $dataResultSql);
             if (!$result) {
@@ -666,7 +666,7 @@
                             per.gl_code_late_regular, per.gl_code_late_trainee,
                             per.gl_code_leave_regular, per.gl_code_leave_trainee,
                             per.gl_code_all_other_deductions, per.gl_code_total, per.cost_center
-                    ";
+                        ORDER BY per.payroll_date";
                     
             $dlresult = mysqli_query($conn, $dlsql);
 
