@@ -72,127 +72,60 @@
     
     if (isset($_POST['generate'])) {
 
-        if ($mainzone && empty($region)) { 
-            // Display all records belonging to choosen mainzone for VISMIN or LNCR
-            $payrollquery = "SELECT
-                                mc.id,
-                                mzm.main_zone_code,
-                                rm.region_code, 
-                                rm.region_description, 
-                                rm.zone_code,
-                                MAX(mc.no_employee_mlwallet) AS no_employee_mlwallet, 
-                                MAX(mc.mlwallet_amount) AS mlwallet_amount, 
-                                MAX(mc.no_employee_mlkp) AS no_employee_mlkp, 
-                                MAX(mc.mlkp_amount) AS mlkp_amount,
-                                SUM(
-                                    mc.no_employee_mlwallet+
-                                    mc.no_employee_mlkp
-                                ) AS total_employee,
-                                SUM(
-                                    mc.mlwallet_amount+
-                                    mc.mlkp_amount
-                                ) AS total_amount_per_region 
-                                
-                            FROM 
-                                " . $database[1] . ".main_zone_masterfile AS mzm
-                            JOIN 
-                                " . $database[1] . ".region_masterfile AS rm
-                                ON (
-                                    (rm.zone_code IN ('VIS', 'MIN', 'VISMIN-MANCOMM', 'VISMIN-SUPPORT') AND mzm.main_zone_code = 'VISMIN') 
-                                    OR 
-                                    (rm.zone_code IN ('NCR', 'LZN', 'LNCR-MANCOMM', 'LNCR-SUPPORT') AND mzm.main_zone_code = 'LNCR')
-                                )
-                            LEFT JOIN 
-                                " . $database[0] . ".rfp_payroll AS mc
-                            ON 
-                                rm.region_code = mc.region_code  -- Adjust based on the correct relationship
-                            AND 
-                                mc.payroll_date = '".$date."'  -- Move filtering condition here to keep LEFT JOIN effective
-                            WHERE 
-                                mzm.main_zone_code = '".$mainzone."'
-                            GROUP BY
-                                mc.id,
-                                mzm.main_zone_code,
-                                rm.region_code, 
-                                rm.region_description, 
-                                rm.zone_code
-                            ORDER BY 
-                                mzm.main_zone_code,
-                                rm.region_description;
-                        ";
-            
-        }elseif($mainzone && !empty($region)){
-            // Display all records belonging to choosen mainzone for VISMIN or LNCR, however filter by region
-            $payrollquery = "SELECT
-                                mc.id,
-                                mzm.main_zone_code,
-                                rm.region_code, 
-                                rm.region_description, 
-                                rm.zone_code,
-                                MAX(mc.no_employee_mlwallet) AS no_employee_mlwallet, 
-                                MAX(mc.mlwallet_amount) AS mlwallet_amount, 
-                                MAX(mc.no_employee_mlkp) AS no_employee_mlkp, 
-                                MAX(mc.mlkp_amount) AS mlkp_amount ,
-                                SUM(
-                                    mc.no_employee_mlwallet+
-                                    mc.no_employee_mlkp
-                                ) AS total_employee,
-                                SUM(
-                                    mc.mlwallet_amount+
-                                    mc.mlkp_amount
-                                ) AS total_amount_per_region
-                            FROM 
-                                " . $database[1] . ".main_zone_masterfile AS mzm
-                            JOIN 
-                                " . $database[1] . ".region_masterfile AS rm
-                                ON (
-                                    (rm.zone_code IN ('VIS', 'MIN', 'VISMIN-MANCOMM', 'VISMIN-SUPPORT') AND mzm.main_zone_code = 'VISMIN') 
-                                    OR 
-                                    (rm.zone_code IN ('NCR', 'LZN', 'LNCR-MANCOMM', 'LNCR-SUPPORT') AND mzm.main_zone_code = 'LNCR')
-                                )
-                            LEFT JOIN 
-                                " . $database[0] . ".rfp_payroll AS mc
-                            ON 
-                                rm.region_code = mc.region_code  -- Adjust based on the correct relationship
-                            AND 
-                                mc.payroll_date = '".$date."'  -- Move filtering condition here to keep LEFT JOIN effective
-                            WHERE 
-                                mzm.main_zone_code = '".$mainzone."'
-                                AND
-                                    rm.region_code = '".$region."'
-                            GROUP BY
-                                mc.id,
-                                mzm.main_zone_code,
-                                rm.region_code, 
-                                rm.region_description, 
-                                rm.zone_code
-                            ORDER BY 
-                                mzm.main_zone_code,
-                                rm.region_description;
+        $safeMainzone = mysqli_real_escape_string($conn, $mainzone);
+        $safeRegion = mysqli_real_escape_string($conn, $region);
+        $safeDate = mysqli_real_escape_string($conn, $date);
 
-                ";
-            
-        }else{
-            // Display all records belonging to all mainzones
-            $payrollquery = "SELECT
-                                mc.id,
-                                mzm.main_zone_code,
-                                rm.region_code, 
-                                rm.region_description, 
-                                rm.zone_code
-                            FROM 
-                                " . $database[1] . ".main_zone_masterfile AS mzm
-                            JOIN 
-                                " . $database[1] . ".region_masterfile AS rm
-                            ON 
-                                (rm.zone_code IN ('LZN', 'NCR') AND mzm.main_zone_code = 'LNCR') OR
-                                (rm.zone_code IN ('VIS', 'MIN') AND mzm.main_zone_code = 'VISMIN')
-                            WHERE
-                                rm.region_code = '$region'
-                            ORDER BY 
-                                mzm.main_zone_code, rm.region_description
-                ";
-        }
+        $isAllMainzone = ($mainzone === 'ALL');
+        $isAllRegion = (empty($region) || $region === 'ALL');
+
+        $mainzoneCondition = $isAllMainzone ? '' : " AND mzm.main_zone_code = '" . $safeMainzone . "'";
+        $regionCondition = $isAllRegion ? '' : " AND rm.region_code = '" . $safeRegion . "'";
+
+        // Display records with optional filters for mainzone and region.
+        $payrollquery = "SELECT
+                            mc.id,
+                            mzm.main_zone_code,
+                            rm.region_code,
+                            rm.region_description,
+                            rm.zone_code,
+                            MAX(mc.no_employee_mlwallet) AS no_employee_mlwallet,
+                            MAX(mc.mlwallet_amount) AS mlwallet_amount,
+                            MAX(mc.no_employee_mlkp) AS no_employee_mlkp,
+                            MAX(mc.mlkp_amount) AS mlkp_amount,
+                            SUM(
+                                mc.no_employee_mlwallet +
+                                mc.no_employee_mlkp
+                            ) AS total_employee,
+                            SUM(
+                                mc.mlwallet_amount +
+                                mc.mlkp_amount
+                            ) AS total_amount_per_region
+                        FROM
+                            " . $database[1] . ".main_zone_masterfile AS mzm
+                        JOIN
+                            " . $database[1] . ".region_masterfile AS rm
+                            ON (
+                                (rm.zone_code IN ('VIS', 'MIN', 'VISMIN-MANCOMM', 'VISMIN-SUPPORT') AND mzm.main_zone_code = 'VISMIN')
+                                OR
+                                (rm.zone_code IN ('NCR', 'LZN', 'LNCR-MANCOMM', 'LNCR-SUPPORT') AND mzm.main_zone_code = 'LNCR')
+                            )
+                        LEFT JOIN
+                            " . $database[0] . ".rfp_payroll AS mc
+                            ON rm.region_code = mc.region_code
+                            AND mc.payroll_date = '" . $safeDate . "'
+                        WHERE 1=1
+                            " . $mainzoneCondition . "
+                            " . $regionCondition . "
+                        GROUP BY
+                            mc.id,
+                            mzm.main_zone_code,
+                            rm.region_code,
+                            rm.region_description,
+                            rm.zone_code
+                        ORDER BY
+                            mzm.main_zone_code,
+                            rm.region_description;";
 
         // Execute and check query
         $payrollresult = mysqli_query($conn, $payrollquery);
@@ -531,7 +464,7 @@
                 <label for="mainzone">Mainzone </label>
                 <select name="mainzone" id="mainzone" autocomplete="off" required onchange="updateZone()">
                     <option value="">Select Mainzone</option>
-                    <option value="ALL" <?php echo (isset($_POST['mainzone']) && $_POST['mainzone'] == 'ALL') ? 'selected' : ''; ?>>ALL REGIONS</option>
+                    <!-- <option value="ALL" <?php //echo (isset($_POST['mainzone']) && $_POST['mainzone'] == 'ALL') ? 'selected' : ''; ?>>ALL MAINZONE</option> -->
                     <option value="VISMIN" <?php echo (isset($_POST['mainzone']) && $_POST['mainzone'] == 'VISMIN') ? 'selected' : ''; ?>>VISMIN</option>
                     <option value="LNCR" <?php echo (isset($_POST['mainzone']) && $_POST['mainzone'] == 'LNCR') ? 'selected' : ''; ?>>LNCR</option>
                 </select>
@@ -616,11 +549,11 @@
                                 echo '<td>' . htmlspecialchars($payroll['region_description']) . '</td>';
                                 echo '<td align="right">' . htmlspecialchars($payroll['zone_code']) . '</td>';
                                 echo '<td class="ml-wallet-emp">' . htmlspecialchars($payroll['no_employee_mlwallet'] ?? 0) . '</td>';
-                                echo '<td class="ml-wallet-amount">' . htmlspecialchars(number_format($payroll['mlwallet_amount'] ?? 0, 2)) . '</td>';
+                                echo '<td class="ml-wallet-amount" style="text-align: right">' . htmlspecialchars(number_format($payroll['mlwallet_amount'] ?? 0, 2)) . '</td>';
                                 echo '<td class="ml-kp-emp">' . htmlspecialchars($payroll['no_employee_mlkp'] ?? 0) . '</td>';
-                                echo '<td class="ml-kp-amount">' . htmlspecialchars(number_format($payroll['mlkp_amount'] ?? 0, 2)) . '</td>';
+                                echo '<td class="ml-kp-amount" style="text-align: right">' . htmlspecialchars(number_format($payroll['mlkp_amount'] ?? 0, 2)) . '</td>';
                                 echo '<td class="total-emp">' . htmlspecialchars($payroll['total_employee'] ?? 0) . '</td>';
-                                echo '<td class="total-amount">' . htmlspecialchars(number_format($payroll['total_amount_per_region'] ?? 0, 2)) . '</td>';
+                                echo '<td class="total-amount" style="text-align: right">' . htmlspecialchars(number_format($payroll['total_amount_per_region'] ?? 0, 2)) . '</td>';
                                 echo '</tr>';
 
                                 // Accumulate grand totals
