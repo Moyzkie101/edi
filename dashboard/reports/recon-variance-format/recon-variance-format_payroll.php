@@ -164,28 +164,28 @@
                     rm.zone_code,
                     
                     -- Mcash data
-                    MAX(mc.mlwallet_amount) AS mlwallet_amount,
-                    MAX(mc.mlkp_amount) AS mlkp_amount,
-                    MAX(mc.mlwallet_amount + mc.mlkp_amount) AS total_amount,
+                    COALESCE(MAX(mc.mlwallet_amount), 0) AS mlwallet_amount,
+                    COALESCE(MAX(mc.mlkp_amount), 0) AS mlkp_amount,
+                    COALESCE(MAX(COALESCE(mc.mlwallet_amount, 0) + COALESCE(mc.mlkp_amount, 0)), 0) AS total_amount,
                     
                     -- Payroll total income for each region
-                    SUM(p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) AS P_TOTAL_INCOME,
+                    COALESCE(SUM(COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)), 0) AS P_TOTAL_INCOME,
                     
-                    SUM(p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions) AS P_TOTAL_DEDUCTION,
+                    COALESCE(SUM(COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0)), 0) AS P_TOTAL_DEDUCTION,
                     
-                    SUM((p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) - 
-                        (p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions)) AS P_TOTAL_NET_PAY,
+                    COALESCE(SUM((COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)) - 
+                        (COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0))), 0) AS P_TOTAL_NET_PAY,
                     
                     -- Variance Calculation
-                    MAX(COALESCE(mc.mlwallet_amount, 0) + COALESCE(mc.mlkp_amount, 0)) -
-                    SUM((p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) - 
-                        (p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions)) AS P_VARIANCE,
+                    COALESCE(MAX(COALESCE(mc.mlwallet_amount, 0) + COALESCE(mc.mlkp_amount, 0)), 0) -
+                    COALESCE(SUM((COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)) - 
+                        (COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0))), 0) AS P_VARIANCE,
 
                     MAX(eprab.total_income) AS EPR_TOTAL_INCOME_ACTIVE_BRANCHES,
                     MAX(eprab.total_deduction) AS EPR_TOTAL_DEDUCTION_ACTIVE_BRANCHES,
@@ -197,18 +197,18 @@
                     MAX(eprcjew.total_income) AS EPR_TOTAL_INCOME_CLOSED_JEWELRY,
                     MAX(eprcjew.total_deduction) AS EPR_TOTAL_DEDUCTION_CLOSED_JEWELRY,
 
-                    MAX(eprcadnp.total_cad_netpay) AS EPR_TOTAL_CAD_NET_PAY,
+                    COALESCE(MAX(eprcadnp.total_cad_netpay), 0) AS EPR_TOTAL_CAD_NET_PAY,
                     
                     -- HR EDI NET PAY VS CAD EDI NET PAY Variance Calculation
-                    MAX(
-                        eprcadnp.total_cad_netpay)
+                    COALESCE(MAX(
+                        eprcadnp.total_cad_netpay), 0)
                         -
-                        SUM(
-                        (p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) - 
-                        (p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions)
-                        ) AS EPR_TOTAL_CAD_NET_PAY_VS_P_TOTAL_NET_PAY_VARIANCE
+                        COALESCE(SUM(
+                        (COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)) - 
+                        (COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0))
+                        ), 0) AS EPR_TOTAL_CAD_NET_PAY_VS_P_TOTAL_NET_PAY_VARIANCE
 
                     
                 FROM 
@@ -542,33 +542,158 @@
             mysqli_data_seek($dlresult, 0);
             $rowIndex = 11; // Starting from the 7th row
 
+            $special_zone_code = '';
+            $special_mancomm_name = '';
+            $special_support_name = '';
+            $special_mancomm_mcash = 0;
+            $special_mancomm_mlkp = 0;
+            $special_mancomm_total = 0;
+            $special_mancomm_net_pay = 0;
+            $special_mancomm_variance = 0;
+            $special_support_mcash = 0;
+            $special_support_mlkp = 0;
+            $special_support_total = 0;
+            $special_support_net_pay = 0;
+            $special_support_variance = 0;
+            $special_total_mcash = 0;
+            $special_total_mlkp = 0;
+            $special_total_total = 0;
+            $special_total_net_pay = 0;
+            $special_total_variance = 0;
+
+            if (empty($region) && ($mainzone === 'VISMIN' || $mainzone === 'LNCR')) {
+                $special_mancomm_code = ($mainzone === 'LNCR') ? 'MANCOMM2' : 'MANCOMM1';
+                $special_support_code = ($mainzone === 'LNCR') ? 'LNCRSUP' : 'VISMINSUP';
+                $special_zone_code = ($mainzone === 'LNCR') ? 'LZN' : 'VIS';
+                $special_mancomm_name = ($mainzone === 'LNCR') ? 'MAKATI MANCOM' : 'CEBU MANCOM';
+                $special_support_name = ($mainzone === 'LNCR') ? 'MAKATI SUPPORT' : 'CEBU SUPPORT';
+
+                $special_mancomm_sql = "SELECT 
+                    SUM(COALESCE(mlwallet_amount,0)) AS mlwallet,
+                    SUM(COALESCE(mlkp_amount,0)) AS mlkp
+                    FROM " . $database[0] . ".rfp_payroll
+                    WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "'
+                    AND region_code = '" . mysqli_real_escape_string($conn, $special_mancomm_code) . "'
+                    AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                $special_mancomm_res = mysqli_query($conn, $special_mancomm_sql);
+                $special_mancomm_row = mysqli_fetch_assoc($special_mancomm_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
+
+                $special_support_sql = "SELECT 
+                    SUM(COALESCE(mlwallet_amount,0)) AS mlwallet,
+                    SUM(COALESCE(mlkp_amount,0)) AS mlkp
+                    FROM " . $database[0] . ".rfp_payroll
+                    WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "'
+                    AND region_code = '" . mysqli_real_escape_string($conn, $special_support_code) . "'
+                    AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                $special_support_res = mysqli_query($conn, $special_support_sql);
+                $special_support_row = mysqli_fetch_assoc($special_support_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
+
+                $special_mancomm_net_sql = "SELECT 
+                    SUM(
+                        (COALESCE(basic_pay_regular, 0) + COALESCE(basic_pay_trainee, 0) + COALESCE(allowances, 0) + COALESCE(bm_allowance, 0) +
+                        COALESCE(overtime_regular, 0) + COALESCE(overtime_trainee, 0) + COALESCE(cola, 0) + COALESCE(excess_pb, 0) +
+                        COALESCE(other_income, 0) + COALESCE(salary_adjustment, 0) + COALESCE(graveyard, 0))
+                        -
+                        (COALESCE(late_regular, 0) + COALESCE(late_trainee, 0) + COALESCE(leave_regular, 0) + COALESCE(leave_trainee, 0) + COALESCE(all_other_deductions, 0))
+                    ) AS total_net_pay
+                    FROM " . $database[0] . ".payroll
+                    WHERE payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'
+                    AND description = 'payroll'
+                    AND region_code = '" . mysqli_real_escape_string($conn, $special_mancomm_code) . "'";
+                $special_mancomm_net_res = mysqli_query($conn, $special_mancomm_net_sql);
+                $special_mancomm_net_row = mysqli_fetch_assoc($special_mancomm_net_res) ?: ['total_net_pay' => 0];
+
+                $special_support_net_sql = "SELECT 
+                    SUM(
+                        (COALESCE(basic_pay_regular, 0) + COALESCE(basic_pay_trainee, 0) + COALESCE(allowances, 0) + COALESCE(bm_allowance, 0) +
+                        COALESCE(overtime_regular, 0) + COALESCE(overtime_trainee, 0) + COALESCE(cola, 0) + COALESCE(excess_pb, 0) +
+                        COALESCE(other_income, 0) + COALESCE(salary_adjustment, 0) + COALESCE(graveyard, 0))
+                        -
+                        (COALESCE(late_regular, 0) + COALESCE(late_trainee, 0) + COALESCE(leave_regular, 0) + COALESCE(leave_trainee, 0) + COALESCE(all_other_deductions, 0))
+                    ) AS total_net_pay
+                    FROM " . $database[0] . ".payroll
+                    WHERE payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'
+                    AND description = 'payroll'
+                    AND region_code = '" . mysqli_real_escape_string($conn, $special_support_code) . "'";
+                $special_support_net_res = mysqli_query($conn, $special_support_net_sql);
+                $special_support_net_row = mysqli_fetch_assoc($special_support_net_res) ?: ['total_net_pay' => 0];
+
+                $special_mancomm_mcash = (float)($special_mancomm_row['mlwallet'] ?? 0);
+                $special_mancomm_mlkp = (float)($special_mancomm_row['mlkp'] ?? 0);
+                $special_mancomm_total = $special_mancomm_mcash + $special_mancomm_mlkp;
+                $special_mancomm_net_pay = (float)($special_mancomm_net_row['total_net_pay'] ?? 0);
+                $special_mancomm_variance = $special_mancomm_total - $special_mancomm_net_pay;
+
+                $special_support_mcash = (float)($special_support_row['mlwallet'] ?? 0);
+                $special_support_mlkp = (float)($special_support_row['mlkp'] ?? 0);
+                $special_support_total = $special_support_mcash + $special_support_mlkp;
+                $special_support_net_pay = (float)($special_support_net_row['total_net_pay'] ?? 0);
+                $special_support_variance = $special_support_total - $special_support_net_pay;
+
+                $special_total_mcash = $special_mancomm_mcash + $special_support_mcash;
+                $special_total_mlkp = $special_mancomm_mlkp + $special_support_mlkp;
+                $special_total_total = $special_mancomm_total + $special_support_total;
+                $special_total_net_pay = $special_mancomm_net_pay + $special_support_net_pay;
+                $special_total_variance = $special_mancomm_variance + $special_support_variance;
+            }
+
             
             if($mainzone === 'VISMIN' && empty($region)) {
                 // Seventh row
                 $sheet->setCellValue('A7','-');
-                $sheet->setCellValue('B7','CEBU MANCOM');
-                $sheet->setCellValue('C7', 'VIS');
+                $sheet->setCellValue('B7', $special_mancomm_name);
+                $sheet->setCellValue('C7', $special_zone_code);
+                $sheet->setCellValue('D7', $special_mancomm_mcash);
+                $sheet->setCellValue('E7', $special_mancomm_mlkp);
+                $sheet->setCellValue('F7', $special_mancomm_total);
+                $sheet->setCellValue('I7', $special_mancomm_net_pay);
+                $sheet->setCellValue('J7', $special_mancomm_variance);
 
                 // Eighth row
                 $sheet->setCellValue('A8','-');
-                $sheet->setCellValue('B8','CEBU SUPPORT');
-                $sheet->setCellValue('C8', 'VIS');
+                $sheet->setCellValue('B8', $special_support_name);
+                $sheet->setCellValue('C8', $special_zone_code);
+                $sheet->setCellValue('D8', $special_support_mcash);
+                $sheet->setCellValue('E8', $special_support_mlkp);
+                $sheet->setCellValue('F8', $special_support_total);
+                $sheet->setCellValue('I8', $special_support_net_pay);
+                $sheet->setCellValue('J8', $special_support_variance);
 
                 // Ninth row
                 $sheet->setCellValue('A9','SUB-TOTAL')->mergeCells('A9:C9')->getStyle('A9')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->setCellValue('D9', $special_total_mcash);
+                $sheet->setCellValue('E9', $special_total_mlkp);
+                $sheet->setCellValue('F9', $special_total_total);
+                $sheet->setCellValue('I9', $special_total_net_pay);
+                $sheet->setCellValue('J9', $special_total_variance);
             } elseif($mainzone === 'LNCR' && empty($region)){
                 // Seventh row
                 $sheet->setCellValue('A7','-');
-                $sheet->setCellValue('B7','MAKATI MANCOM');
-                $sheet->setCellValue('C7', 'LZN');
+                $sheet->setCellValue('B7', $special_mancomm_name);
+                $sheet->setCellValue('C7', $special_zone_code);
+                $sheet->setCellValue('D7', $special_mancomm_mcash);
+                $sheet->setCellValue('E7', $special_mancomm_mlkp);
+                $sheet->setCellValue('F7', $special_mancomm_total);
+                $sheet->setCellValue('I7', $special_mancomm_net_pay);
+                $sheet->setCellValue('J7', $special_mancomm_variance);
 
                 // Eighth row
                 $sheet->setCellValue('A8','-');
-                $sheet->setCellValue('B8','MAKATI SUPPORT');
-                $sheet->setCellValue('C8', 'LZN');
+                $sheet->setCellValue('B8', $special_support_name);
+                $sheet->setCellValue('C8', $special_zone_code);
+                $sheet->setCellValue('D8', $special_support_mcash);
+                $sheet->setCellValue('E8', $special_support_mlkp);
+                $sheet->setCellValue('F8', $special_support_total);
+                $sheet->setCellValue('I8', $special_support_net_pay);
+                $sheet->setCellValue('J8', $special_support_variance);
 
                 // Ninth row
                 $sheet->setCellValue('A9','SUB-TOTAL')->mergeCells('A9:C9')->getStyle('A9')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->setCellValue('D9', $special_total_mcash);
+                $sheet->setCellValue('E9', $special_total_mlkp);
+                $sheet->setCellValue('F9', $special_total_total);
+                $sheet->setCellValue('I9', $special_total_net_pay);
+                $sheet->setCellValue('J9', $special_total_variance);
 
             }
             
@@ -1005,51 +1130,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     rm.zone_code,
                     
                     -- Mcash data
-                    MAX(mc.mlwallet_amount) AS mlwallet_amount,
-                    MAX(mc.mlkp_amount) AS mlkp_amount,
-                    MAX(mc.mlwallet_amount + mc.mlkp_amount) AS total_amount,
+                    MAX(COALESCE(mc.mlwallet_amount, 0)) AS mlwallet_amount,
+                    MAX(COALESCE(mc.mlkp_amount, 0)) AS mlkp_amount,
+                    MAX(COALESCE(mc.mlwallet_amount, 0) + COALESCE(mc.mlkp_amount, 0)) AS total_amount,
                     
                     -- Payroll total income for each region
-                    SUM(p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) AS P_TOTAL_INCOME,
+                    SUM(COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)) AS P_TOTAL_INCOME,
                     
-                    SUM(p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions) AS P_TOTAL_DEDUCTION,
+                    SUM(COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0)) AS P_TOTAL_DEDUCTION,
                     
-                    SUM((p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) - 
-                        (p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions)) AS P_TOTAL_NET_PAY,
+                    SUM((COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)) - 
+                        (COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0))) AS P_TOTAL_NET_PAY,
                     
                     -- Variance Calculation
-                    MAX(COALESCE(mc.mlwallet_amount, 0) + COALESCE(mc.mlkp_amount, 0)) -
-                    SUM((p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) - 
-                        (p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions)) AS P_VARIANCE,
+                    COALESCE(MAX(COALESCE(mc.mlwallet_amount, 0) + COALESCE(mc.mlkp_amount, 0)), 0) -
+                    COALESCE(SUM((COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)) - 
+                        (COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0))), 0) AS P_VARIANCE,
 
-                    MAX(eprab.total_income) AS EPR_TOTAL_INCOME_ACTIVE_BRANCHES,
-                    MAX(eprab.total_deduction) AS EPR_TOTAL_DEDUCTION_ACTIVE_BRANCHES,
-                    MAX(eprajew.total_income) AS EPR_TOTAL_INCOME_ACTIVE_JEWELRY,
-                    MAX(eprajew.total_deduction) AS EPR_TOTAL_DEDUCTION_ACTIVE_JEWELRY,
+                    MAX(COALESCE(eprab.total_income, 0)) AS EPR_TOTAL_INCOME_ACTIVE_BRANCHES,
+                    MAX(COALESCE(eprab.total_deduction, 0)) AS EPR_TOTAL_DEDUCTION_ACTIVE_BRANCHES,
+                    MAX(COALESCE(eprajew.total_income, 0)) AS EPR_TOTAL_INCOME_ACTIVE_JEWELRY,
+                    MAX(COALESCE(eprajew.total_deduction, 0)) AS EPR_TOTAL_DEDUCTION_ACTIVE_JEWELRY,
 
-                    MAX(eprcb.total_income) AS EPR_TOTAL_INCOME_CLOSED_BRANCH,
-                    MAX(eprcb.total_deduction) AS EPR_TOTAL_DEDUCTION_CLOSED_BRANCH,
-                    MAX(eprcjew.total_income) AS EPR_TOTAL_INCOME_CLOSED_JEWELRY,
-                    MAX(eprcjew.total_deduction) AS EPR_TOTAL_DEDUCTION_CLOSED_JEWELRY,
+                    MAX(COALESCE(eprcb.total_income, 0)) AS EPR_TOTAL_INCOME_CLOSED_BRANCH,
+                    MAX(COALESCE(eprcb.total_deduction, 0)) AS EPR_TOTAL_DEDUCTION_CLOSED_BRANCH,
+                    MAX(COALESCE(eprcjew.total_income, 0)) AS EPR_TOTAL_INCOME_CLOSED_JEWELRY,
+                    MAX(COALESCE(eprcjew.total_deduction, 0)) AS EPR_TOTAL_DEDUCTION_CLOSED_JEWELRY,
 
-                    MAX(eprcadnp.total_cad_netpay) AS EPR_TOTAL_CAD_NET_PAY,
+                    MAX(COALESCE(eprcadnp.total_cad_netpay, 0)) AS EPR_TOTAL_CAD_NET_PAY,
                     
                     -- HR EDI NET PAY VS CAD EDI NET PAY Variance Calculation
-                    MAX(
-                        eprcadnp.total_cad_netpay)
+                    COALESCE(MAX(eprcadnp.total_cad_netpay), 0)
                         -
-                        SUM(
-                        (p.basic_pay_regular + p.basic_pay_trainee + p.allowances + p.bm_allowance + 
-                        p.overtime_regular + p.overtime_trainee + p.cola + p.excess_pb + 
-                        p.other_income + p.salary_adjustment + p.graveyard) - 
-                        (p.late_regular + p.late_trainee + p.leave_regular + p.leave_trainee + p.all_other_deductions)
-                        ) AS EPR_TOTAL_CAD_NET_PAY_VS_P_TOTAL_NET_PAY_VARIANCE
+                        COALESCE(SUM(
+                        (COALESCE(p.basic_pay_regular, 0) + COALESCE(p.basic_pay_trainee, 0) + COALESCE(p.allowances, 0) + COALESCE(p.bm_allowance, 0) + 
+                        COALESCE(p.overtime_regular, 0) + COALESCE(p.overtime_trainee, 0) + COALESCE(p.cola, 0) + COALESCE(p.excess_pb, 0) + 
+                        COALESCE(p.other_income, 0) + COALESCE(p.salary_adjustment, 0) + COALESCE(p.graveyard, 0)) - 
+                        (COALESCE(p.late_regular, 0) + COALESCE(p.late_trainee, 0) + COALESCE(p.leave_regular, 0) + COALESCE(p.leave_trainee, 0) + COALESCE(p.all_other_deductions, 0))
+                        ), 0) AS EPR_TOTAL_CAD_NET_PAY_VS_P_TOTAL_NET_PAY_VARIANCE
 
                     
                 FROM 
@@ -1313,30 +1437,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
         // $grandtotal_edi_variance_hr_edi_payroll_vs_cad_edi_report_payroll = 0;
 
         foreach($result as $row){
-            $subtotal_mcash_wallet += $row['mlwallet_amount'];
-            $subtotal_mlkp += $row['mlkp_amount'];
-            $subtotal_hrmd_rfp_total += $row['total_amount'];
+            $mlwallet_amount = (float)($row['mlwallet_amount'] ?? 0);
+            $mlkp_amount = (float)($row['mlkp_amount'] ?? 0);
+            $total_amount = (float)($row['total_amount'] ?? 0);
+            $p_total_income = (float)($row['P_TOTAL_INCOME'] ?? 0);
+            $p_total_deduction = (float)($row['P_TOTAL_DEDUCTION'] ?? 0);
+            $p_total_net_pay = (float)($row['P_TOTAL_NET_PAY'] ?? 0);
+            $p_variance = (float)($row['P_VARIANCE'] ?? 0);
+            $epr_total_income_active_branches = (float)($row['EPR_TOTAL_INCOME_ACTIVE_BRANCHES'] ?? 0);
+            $epr_total_deduction_active_branches = (float)($row['EPR_TOTAL_DEDUCTION_ACTIVE_BRANCHES'] ?? 0);
+            $epr_total_income_active_jewelry = (float)($row['EPR_TOTAL_INCOME_ACTIVE_JEWELRY'] ?? 0);
+            $epr_total_deduction_active_jewelry = (float)($row['EPR_TOTAL_DEDUCTION_ACTIVE_JEWELRY'] ?? 0);
+            $epr_total_income_closed_branch = (float)($row['EPR_TOTAL_INCOME_CLOSED_BRANCH'] ?? 0);
+            $epr_total_deduction_closed_branch = (float)($row['EPR_TOTAL_DEDUCTION_CLOSED_BRANCH'] ?? 0);
+            $epr_total_income_closed_jewelry = (float)($row['EPR_TOTAL_INCOME_CLOSED_JEWELRY'] ?? 0);
+            $epr_total_deduction_closed_jewelry = (float)($row['EPR_TOTAL_DEDUCTION_CLOSED_JEWELRY'] ?? 0);
+            $epr_total_cad_net_pay = (float)($row['EPR_TOTAL_CAD_NET_PAY'] ?? 0);
 
-            $subtotal_gross_income_hrmd_edi_payroll += $row['P_TOTAL_INCOME'];
-            $subtotal_gross_deduction_hrmd_edi_payroll += $row['P_TOTAL_DEDUCTION'];
-            $subtotal_hrmd_edi_payroll_net_pay += $row['P_TOTAL_NET_PAY'];
+            $subtotal_mcash_wallet += $mlwallet_amount;
+            $subtotal_mlkp += $mlkp_amount;
+            $subtotal_hrmd_rfp_total += $total_amount;
 
-            $subtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $row['P_VARIANCE'];
+            $subtotal_gross_income_hrmd_edi_payroll += $p_total_income;
+            $subtotal_gross_deduction_hrmd_edi_payroll += $p_total_deduction;
+            $subtotal_hrmd_edi_payroll_net_pay += $p_total_net_pay;
 
-            $subtotal_gross_income_active_branch_cad_edi_report_payroll += $row['EPR_TOTAL_INCOME_ACTIVE_BRANCHES'];
-            $subtotal_gross_deduction_active_branch_cad_edi_report_payroll += $row['EPR_TOTAL_DEDUCTION_ACTIVE_BRANCHES'];
-            $subtotal_gross_income_active_jewelry_cad_edi_report_payroll += $row['EPR_TOTAL_INCOME_ACTIVE_JEWELRY'];
-            $subtotal_gross_deduction_active_jewelry_cad_edi_report_payroll += $row['EPR_TOTAL_DEDUCTION_ACTIVE_JEWELRY'];
+            $subtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $p_variance;
 
-            $subtotal_gross_income_closed_branch_cad_edi_report_payroll += $row['EPR_TOTAL_INCOME_CLOSED_BRANCH'];
-            $subtotal_gross_deduction_closed_branch_cad_edi_report_payroll += $row['EPR_TOTAL_DEDUCTION_CLOSED_BRANCH'];
-            $subtotal_gross_income_closed_jewelry_cad_edi_report_payroll += $row['EPR_TOTAL_INCOME_CLOSED_JEWELRY'];
-            $subtotal_gross_deduction_closed_jewelry_cad_edi_report_payroll += $row['EPR_TOTAL_DEDUCTION_CLOSED_JEWELRY'];
+            $subtotal_gross_income_active_branch_cad_edi_report_payroll += $epr_total_income_active_branches;
+            $subtotal_gross_deduction_active_branch_cad_edi_report_payroll += $epr_total_deduction_active_branches;
+            $subtotal_gross_income_active_jewelry_cad_edi_report_payroll += $epr_total_income_active_jewelry;
+            $subtotal_gross_deduction_active_jewelry_cad_edi_report_payroll += $epr_total_deduction_active_jewelry;
 
-            $subtotal_cad_edi_report_payroll_net_pay += $row['EPR_TOTAL_CAD_NET_PAY'];
+            $subtotal_gross_income_closed_branch_cad_edi_report_payroll += $epr_total_income_closed_branch;
+            $subtotal_gross_deduction_closed_branch_cad_edi_report_payroll += $epr_total_deduction_closed_branch;
+            $subtotal_gross_income_closed_jewelry_cad_edi_report_payroll += $epr_total_income_closed_jewelry;
+            $subtotal_gross_deduction_closed_jewelry_cad_edi_report_payroll += $epr_total_deduction_closed_jewelry;
+
+            $subtotal_cad_edi_report_payroll_net_pay += $epr_total_cad_net_pay;
 
             // Variance Calculation
-            $subtotal_edi_variance_hr_edi_payroll_vs_cad_edi_report_payroll += $row['EPR_TOTAL_CAD_NET_PAY'] - $row['P_TOTAL_NET_PAY'];
+            $subtotal_edi_variance_hr_edi_payroll_vs_cad_edi_report_payroll += $epr_total_cad_net_pay - $p_total_net_pay;
 
 
             $grandtotal_mcash_wallet = $subtotal_mcash_wallet;
@@ -1479,18 +1620,127 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                         // Output the data rows
                         mysqli_data_seek($result, 0); // Reset result pointer to the beginning
 
+                        $mancomm_region_code = ($mainzone === 'LNCR') ? 'MANCOMM2' : 'MANCOMM1';
+                        $support_region_code = ($mainzone === 'LNCR') ? 'LNCRSUP' : 'VISMINSUP';
+
+                        // Fetch amounts for MANCOMM region (VISMIN=MANCOMM1, LNCR=MANCOMM2)
+                            $mancomm_sql = "SELECT 
+                                SUM(COALESCE(mlwallet_amount,0)) AS mlwallet, 
+                                SUM(COALESCE(mlkp_amount,0)) AS mlkp 
+                                FROM " . $database[0] . ".rfp_payroll 
+                                WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "' 
+                                AND region_code = '" . mysqli_real_escape_string($conn, $mancomm_region_code) . "' 
+                                AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                            $mancomm_res = mysqli_query($conn, $mancomm_sql);
+                            $mancomm = mysqli_fetch_assoc($mancomm_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
+                            $mancomm_total = $mancomm['mlwallet'] + $mancomm['mlkp'];
+
+                            $mancomm_netpay_sql = "SELECT 
+                                SUM(
+                                    (COALESCE(basic_pay_regular, 0) + 
+                                    COALESCE(basic_pay_trainee, 0) + 
+                                    COALESCE(allowances, 0) + 
+                                    COALESCE(bm_allowance, 0) + 
+                                    COALESCE(overtime_regular, 0) + 
+                                    COALESCE(overtime_trainee, 0) + 
+                                    COALESCE(cola, 0) + 
+                                    COALESCE(excess_pb, 0) + 
+                                    COALESCE(other_income, 0) + 
+                                    COALESCE(salary_adjustment, 0) + 
+                                    COALESCE(graveyard, 0))
+                                    -
+                                    (COALESCE(late_regular, 0) + 
+                                    COALESCE(late_trainee, 0) + 
+                                    COALESCE(leave_regular, 0) + 
+                                    COALESCE(leave_trainee, 0) + 
+                                    COALESCE(all_other_deductions, 0))
+                                ) AS total_net_pay
+                                FROM " . $database[0] . ".payroll
+                                WHERE payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'
+                                AND description = 'payroll'";
+                                $mancomm_netpay_sql .= " AND region_code = '" . mysqli_real_escape_string($conn, $mancomm_region_code) . "'";
+                            $mancomm_netpay_res = mysqli_query($conn, $mancomm_netpay_sql);
+                            $mancomm_netpay_row = mysqli_fetch_assoc($mancomm_netpay_res) ?: ['total_net_pay' => 0];
+                            $mancomm_net_pay = $mancomm_netpay_row['total_net_pay'] ?? 0;
+                            $mancomm_variance = $mancomm_total - $mancomm_net_pay;
+
+                            // Fetch amounts for SUPPORT region (VISMIN=VISMINSUP, LNCR=LNCRSUP)
+                            $support_sql = "SELECT 
+                                SUM(COALESCE(mlwallet_amount,0)) AS mlwallet, 
+                                SUM(COALESCE(mlkp_amount,0)) AS mlkp 
+                                FROM " . $database[0] . ".rfp_payroll 
+                                WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "' 
+                                AND region_code = '" . mysqli_real_escape_string($conn, $support_region_code) . "' 
+                                AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                            $support_res = mysqli_query($conn, $support_sql);
+                            $support = mysqli_fetch_assoc($support_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
+                            $support_total = $support['mlwallet'] + $support['mlkp'];
+
+                            $support_netpay_sql = "SELECT 
+                                SUM(
+                                    (COALESCE(basic_pay_regular, 0) + 
+                                    COALESCE(basic_pay_trainee, 0) + 
+                                    COALESCE(allowances, 0) + 
+                                    COALESCE(bm_allowance, 0) + 
+                                    COALESCE(overtime_regular, 0) + 
+                                    COALESCE(overtime_trainee, 0) + 
+                                    COALESCE(cola, 0) + 
+                                    COALESCE(excess_pb, 0) + 
+                                    COALESCE(other_income, 0) + 
+                                    COALESCE(salary_adjustment, 0) + 
+                                    COALESCE(graveyard, 0))
+                                    -
+                                    (COALESCE(late_regular, 0) + 
+                                    COALESCE(late_trainee, 0) + 
+                                    COALESCE(leave_regular, 0) + 
+                                    COALESCE(leave_trainee, 0) + 
+                                    COALESCE(all_other_deductions, 0))
+                                ) AS total_net_pay
+                                FROM " . $database[0] . ".payroll
+                                WHERE payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'
+                                AND description = 'payroll'";
+                                $support_netpay_sql .= " AND region_code = '" . mysqli_real_escape_string($conn, $support_region_code) . "'";
+                            $support_netpay_res = mysqli_query($conn, $support_netpay_sql);
+                            $support_netpay_row = mysqli_fetch_assoc($support_netpay_res) ?: ['total_net_pay' => 0];
+                            $support_net_pay = $support_netpay_row['total_net_pay'] ?? 0;
+                            $support_variance = $support_total - $support_net_pay;
+
+                            // Compute combined subtotal for CEBU
+                            $total_mcash = $mancomm['mlwallet'] + $support['mlwallet'];
+                            $total_mlkp = $mancomm['mlkp'] + $support['mlkp'];
+                            $total_total = $mancomm_total + $support_total;
+                            $total_net_pay = $mancomm_net_pay + $support_net_pay;
+                            $total_variance = $mancomm_variance + $support_variance;
+
+                            
+
+                            // Add to subtotal and grand total trackers
+                            $subtotal_mcash_wallet += $total_mcash;
+                            $subtotal_mlkp += $total_mlkp;
+                            $subtotal_hrmd_rfp_total += $total_total;
+                            $subtotal_hrmd_edi_payroll_net_pay += $total_net_pay;
+                            $subtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $total_variance;
+
+                            $grandtotal_mcash_wallet += $total_mcash;
+                            $grandtotal_mlkp += $total_mlkp;
+                            $grandtotal_hrmd_rfp_total += $total_total;
+                            $grandtotal_hrmd_edi_payroll_net_pay += $total_net_pay;
+                            $grandtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $total_variance;
+
                         if ($mainzone === 'VISMIN' && empty($region)) {
+
+                            // Output CEBU MANCOMM row
                             echo "<tr>";
                                 echo "<td>-</td>";
                                 echo "<td>CEBU MANCOM</td>";
                                 echo "<td>VIS</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm['mlwallet'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm['mlkp'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
@@ -1502,18 +1752,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                 echo "<td></td>";
                                 echo "<td></td>";
                             echo "</tr>";
+
+                            // Output CEBU SUPPORT row
                             echo "<tr>";
                                 echo "<td>-</td>";
                                 echo "<td>CEBU SUPPORT</td>";
                                 echo "<td>VIS</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support['mlwallet'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support['mlkp'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
@@ -1524,16 +1775,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                 echo "<td></td>";
                                 echo "<td></td>";
                             echo "</tr>";
+
+                            // Output SUB-TOTAL row for CEBU MANCOMM + SUPPORT
                             echo "<tr>";
                                 echo "<td colspan='3'><b>SUB-TOTAL</b></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mcash, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mlkp, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
@@ -1544,21 +1796,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                 echo "<td></td>";
                                 echo "<td></td>";
                             echo "</tr>";
+
                             echo "<tr>";
                                 echo "<td colspan='20'></td>";
                             echo "</tr>";
-                        }elseif($mainzone === 'LNCR' && empty($region)){
+                        }
+                        elseif($mainzone === 'LNCR' && empty($region)){
                             echo "<tr>";
                                 echo "<td>-</td>";
                                 echo "<td>MAKATI MANCOM</td>";
                                 echo "<td>LZN</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm['mlwallet'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm['mlkp'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($mancomm_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
@@ -1574,13 +1828,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                 echo "<td>-</td>";
                                 echo "<td>MAKATI SUPPORT</td>";
                                 echo "<td>LZN</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support['mlwallet'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support['mlkp'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($support_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
@@ -1594,13 +1848,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             echo "</tr>";
                             echo "<tr>";
                                 echo "<td colspan='3'><b>SUB-TOTAL</b></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mcash, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mlkp, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
