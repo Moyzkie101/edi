@@ -796,9 +796,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['proceed'])) {
                 echo "<tr>";
                 echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['branch_code']) . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['branch_name']) . "</td>";
-                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . number_format($mid, 2) . "</td>";
-                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . number_format($thirteenth, 2) . "</td>";
-                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . number_format($overall, 2) . "</td>";
+                echo "<td class='right' style='background-color: $color; font-weight: $bold; text-align: right'>" . number_format($mid, 2) . "</td>";
+                echo "<td class='right' style='background-color: $color; font-weight: $bold; text-align: right'>" . number_format($thirteenth, 2) . "</td>";
+                echo "<td class='right' style='background-color: $color; font-weight: $bold; text-align: right'>" . number_format($overall, 2) . "</td>";
                 echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['region']) . "</td>";
                 echo "</tr>";
 

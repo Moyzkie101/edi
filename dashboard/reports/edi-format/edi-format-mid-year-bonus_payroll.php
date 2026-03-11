@@ -1372,28 +1372,28 @@
 
                 echo "<tr> <td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['branch_code']) . "</td> 
                 <td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['basic_pay_regular']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['basic_pay_trainee']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['allowances']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['bm_allowance']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['overtime_regular']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['overtime_trainee']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cola']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['excess_pb']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['other_income']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['salary_adjustment']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['graveyard']) . "</td>
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['basic_pay_regular']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['basic_pay_trainee']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['allowances']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['bm_allowance']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['overtime_regular']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['overtime_trainee']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['cola']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['excess_pb']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['other_income']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['salary_adjustment']) . "</td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['graveyard']) . "</td>
                 <!--convert to negative if positive value -->
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular']) . "</td>
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee']) . "</td>
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular']) . "</td>
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee']) . "</td>
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular']) . "</td>
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee']) . "</td>
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular']) . "</td>
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee']) . "</td>
 
-                <td style='background-color: $color; font-weight: $bold'> $total </td> 
+                <td style='background-color: $color; font-weight: $bold; text-align: right'> $total </td> 
                 <td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center']) . "</td>
                 <td style='white-space: nowrap; background-color: #f2f2f2; font-weight: $bold'></td>
                 <td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['all_other_deductions']) . "</td>
+                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['all_other_deductions']) . "</td>
                 <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_branch_employee']) . "</td>
                 <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_employees_allocated']) . "</td>
                 </tr>";

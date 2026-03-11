@@ -912,10 +912,10 @@ $sql="WITH closed_branch_sums AS (
             echo "<tr>";
             echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_code'],) . "</td>";
             echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name'],) . "</td>";
-            echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(number_format($row['dr1'],2)) . "</td>";
-            echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(number_format($row['dr2'],2)) . "</td>";
-            echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(number_format($row['dr3'],2)) . "</td>";
-            echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(number_format($total_amount,2)) . "</td>";
+            echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['dr1'],2)) . "</td>";
+            echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['dr2'],2)) . "</td>";
+            echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['dr3'],2)) . "</td>";
+            echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($total_amount,2)) . "</td>";
             //echo "<td style='white-space: nowrap'>" . htmlspecialchars($row['cost_center']) . "</td>";
             echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center']) . "</td>";
             echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>";

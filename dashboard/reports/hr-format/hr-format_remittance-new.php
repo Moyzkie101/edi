@@ -690,19 +690,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     echo "<td class='word'>" . htmlspecialchars($row['bos_code']) . "</td>";
                     echo "<td class='word'>" . htmlspecialchars($row['branch_name']) . "</td>";
                     
-                    echo "<td>" . htmlspecialchars(number_format($row['ee_dr1'],2)) . "</td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['dr1'],2)) . "</td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['total_ee_er_dr1'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['ee_dr1'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['dr1'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['total_ee_er_dr1'],2)) . "</td>";
                     echo "<td></td>";
                     echo "<td></td>";
                     echo "<td></td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['ee_dr2'],2)) . "</td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['dr2'],2)) . "</td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['total_ee_er_dr2'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['ee_dr2'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['dr2'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['total_ee_er_dr2'],2)) . "</td>";
                     echo "<td></td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['ee_dr3'],2)) . "</td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['dr3'],2)) . "</td>";
-                    echo "<td>" . htmlspecialchars(number_format($row['total_ee_er_dr3'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['ee_dr3'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['dr3'],2)) . "</td>";
+                    echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['total_ee_er_dr3'],2)) . "</td>";
                     echo "<td></td>";
                     echo "<td></td>";
                     echo "<td></td>";

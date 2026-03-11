@@ -471,10 +471,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 echo "<tr>";
                 echo "<td>" . htmlspecialchars($row['bos_code']) . "</td>";
                 echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['dr1']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['dr2']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['dr3']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['dr4']) . "</td>";
+                echo "<td style='text-align: right'>" . htmlspecialchars($row['dr1']) . "</td>";
+                echo "<td style='text-align: right'>" . htmlspecialchars($row['dr2']) . "</td>";
+                echo "<td style='text-align: right'>" . htmlspecialchars($row['dr3']) . "</td>";
+                echo "<td style='text-align: right'>" . htmlspecialchars($row['dr4']) . "</td>";
                 echo "<td>" . htmlspecialchars($row['cost_center']) . "</td>";
                 echo "<td>" . htmlspecialchars($row['region']) . "</td>";
                 echo "</tr>";

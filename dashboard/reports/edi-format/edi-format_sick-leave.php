@@ -922,7 +922,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_hr']) . "</td>";
 				echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_mlmatic']) . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(ucwords('Sick Leave Conversion Year' . " $Month")) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars('Adjustment') . "</td>";
                 
                 echo "</tr>";
@@ -935,7 +935,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_hr']) . "</td>";
 				echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_mlmatic']) . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(ucwords('Sick Leave Conversion Year' . " $Month")) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars('Adjustment') . "</td>";
                 
                 echo "</tr>";

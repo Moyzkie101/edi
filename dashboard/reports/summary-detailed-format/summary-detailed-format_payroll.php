@@ -1833,27 +1833,27 @@
                     '<td>' + escapeHtml(per.branch_name) + '</td>' +
                     '<td>' + escapeHtml(per.ml_matic_status) + '</td>' +
 
-                    '<td>' + formatAmount(per.basic_pay_regular) + '</td>' +
-                    '<td>' + formatAmount(per.basic_pay_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.allowances) + '</td>' +
-                    '<td>' + formatAmount(per.bm_allowance) + '</td>' +
-                    '<td>' + formatAmount(per.overtime_regular) + '</td>' +
-                    '<td>' + formatAmount(per.overtime_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.cola) + '</td>' +
-                    '<td>' + formatAmount(per.excess_pb) + '</td>' +
-                    '<td>' + formatAmount(per.other_income) + '</td>' +
-                    '<td>' + formatAmount(per.salary_adjustment) + '</td>' +
-                    '<td>' + formatAmount(per.graveyard) + '</td>' +
-                    '<td>' + formatAmount(per.late_regular) + '</td>' +
-                    '<td>' + formatAmount(per.late_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.leave_regular) + '</td>' +
-                    '<td>' + formatAmount(per.leave_trainee) + '</td>' +
-                    '<td>' + formatAmount(per.total) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.basic_pay_regular) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.basic_pay_trainee) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.allowances) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.bm_allowance) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.overtime_regular) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.overtime_trainee) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.cola) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.excess_pb) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.other_income) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.salary_adjustment) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.graveyard) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.late_regular) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.late_trainee) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.leave_regular) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.leave_trainee) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.total) + '</td>' +
 
                     '<td>' + escapeHtml(per.cost_center) + '</td>' +
                     '<td></td>' +
                     '<td>' + escapeHtml(getRegionValue(per)) + '</td>' +
-                    '<td>' + formatAmount(per.all_other_deductions) + '</td>' +
+                    '<td style="text-align: right;">' + formatAmount(per.all_other_deductions) + '</td>' +
                     '<td>' + formatCount(per.no_of_branch_employee) + '</td>' +
                     '<td>' + formatCount(per.no_of_employees_allocated) + '</td>' +
                 '</tr>';

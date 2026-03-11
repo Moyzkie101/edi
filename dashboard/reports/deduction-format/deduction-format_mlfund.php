@@ -539,7 +539,7 @@
                         echo "<td>" . $count . "</td>";
                         echo "<td>" . htmlspecialchars($row['employee_id_no']) . "</td>";
                         echo "<td>" . htmlspecialchars($row['employee_name']) . "</td>";
-                        echo "<td>" . htmlspecialchars(number_format($row['ml_fund_amount'], 2)) . "</td>";
+                        echo "<td style='text-align: right'>" . htmlspecialchars(number_format($row['ml_fund_amount'], 2)) . "</td>";
                         if ($zone === 'VISMIN-SUPPORT' || $zone === 'LNCR-SUPPORT' || $zone === 'VISMIN-MANCOMM' || $zone === 'LNCR-MANCOMM') {
                             echo "<td>" . htmlspecialchars($row['zone']) . "</td>";
                         } else {
