@@ -861,11 +861,11 @@
                                 echo '<tr>';
                                 echo '<td>' . htmlspecialchars($mcash['region_code']) . '</td>';
                                 echo '<td>' . htmlspecialchars($mcash['region_name']) . '</td>';
-                                echo '<td align="right">' . (!empty($mcash['total_amount']) ? number_format($mcash['total_amount'], 2) : '-') . '</td>';
+                                echo '<td style="text-align: right;">' . (!empty($mcash['total_amount']) ? number_format($mcash['total_amount'], 2) : '-') . '</td>';
                                 echo '<td></td>';
-                                echo '<td align="right">' . (!empty($mcash['TOTAL_INCOME']) ? number_format($mcash['TOTAL_INCOME'], 2) : '-') . '</td>';
-                                echo '<td align="right">' . (!empty($mcash['TOTAL_DEDUCTION']) ? number_format($mcash['TOTAL_DEDUCTION'], 2) : '-') . '</td>';
-                                echo '<td align="right">' . (!empty($mcash['TOTAL_NET_PAY']) ? number_format($mcash['TOTAL_NET_PAY'], 2) : '-') . '</td>';
+                                echo '<td style="text-align: right;">' . (!empty($mcash['TOTAL_INCOME']) ? number_format($mcash['TOTAL_INCOME'], 2) : '-') . '</td>';
+                                echo '<td style="text-align: right;">' . (!empty($mcash['TOTAL_DEDUCTION']) ? number_format($mcash['TOTAL_DEDUCTION'], 2) : '-') . '</td>';
+                                echo '<td style="text-align: right;">' . (!empty($mcash['TOTAL_NET_PAY']) ? number_format($mcash['TOTAL_NET_PAY'], 2) : '-') . '</td>';
                                 echo '<td></td>';
                             
                                 // Variance Calculation Based on Conditions
@@ -874,7 +874,7 @@
                             
                                 if ($mcashAmount || $netPay) { // If either has a value
                                     $variance = $mcashAmount - $netPay;
-                                    echo '<td align="right">' . number_format($variance, 2) . '</td>';
+                                    echo '<td style="text-align: right;">' . number_format($variance, 2) . '</td>';
                                 } else {
                                     echo '<td>-</td>'; // Placeholder if both are empty
                                 }

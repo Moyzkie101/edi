@@ -2196,198 +2196,198 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                 echo "<td style='white-space: nowrap;'>" . htmlspecialchars($row['region_code']) . "</td>";
                                 echo "<td style='white-space: nowrap;'>" . htmlspecialchars($row['region_name']) . "</td>";
                                 echo "<td style='white-space: nowrap;'>" . htmlspecialchars($row['zone_code']) . "</td>";
-                                echo "<td>" . htmlspecialchars(number_format($row['ee_shared'], 2)) . "</td>";
-                                echo "<td>" . htmlspecialchars(number_format($row['er_shared'], 2)) . "</td>";
-                                echo "<td>" . htmlspecialchars(number_format($row['total_contribution'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ee_shared'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['er_shared'], 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['total_contribution'], 2)) . "</td>";
                                 if ($status == 'SSS') {
-                                    echo "<td>" . htmlspecialchars(number_format($row['sss_ee_shared'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['sss_er_shared'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['sss_ee_shared'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['sss_er_shared'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['hr_sss_ee_shared_variance'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['hr_sss_er_shared_variance'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['hr_sss_ee_shared_variance'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['hr_sss_er_shared_variance'], 2)) . "</td>"; 
 
                                     
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_EE_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_SSS_ER_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['TOTAL_SSS_EE_SHARED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['TOTAL_SSS_ER_SHARED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['TOTAL_SSS_EE_SHARED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['TOTAL_SSS_ER_SHARED_BRANCHES'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_SSS_EE_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_SSS_ER_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_SSS_EE_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_SSS_ER_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
 
                                 }elseif ($status == 'PHILHEALTH') {
-                                    echo "<td>" . htmlspecialchars(number_format($row['philhealth_ee_shared'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['philhealth_er_shared'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['philhealth_ee_shared'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['philhealth_er_shared'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['hr_philhealth_ee_shared_variance'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['hr_philhealth_er_shared_variance'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['hr_philhealth_ee_shared_variance'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['hr_philhealth_er_shared_variance'], 2)) . "</td>"; 
 
                                     
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_EE_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PHILHEALTH_ER_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['TOTAL_PHILHEALTH_EE_SHARED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['TOTAL_PHILHEALTH_ER_SHARED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['TOTAL_PHILHEALTH_EE_SHARED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['TOTAL_PHILHEALTH_ER_SHARED_BRANCHES'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_PHILHEALTH_EE_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_PHILHEALTH_ER_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_PHILHEALTH_EE_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_PHILHEALTH_ER_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
                                 }elseif ($status == 'PAGIBIG') {
-                                    echo "<td>" . htmlspecialchars(number_format($row['pagibig_ee_shared'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['pagibig_er_shared'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['pagibig_ee_shared'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['pagibig_er_shared'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['hr_pagibig_ee_shared_variance'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['hr_pagibig_er_shared_variance'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['hr_pagibig_ee_shared_variance'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['hr_pagibig_er_shared_variance'], 2)) . "</td>"; 
 
                                     
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_ACTIVE_BRANCHES'], 2)) . "</td>"; 
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_ACTIVE_JEWELRY'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_EE_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_CLOSED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_TOTAL_PAGIBIG_ER_SHARED_CLOSED_JEWELRY'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['TOTAL_PAGIBIG_EE_SHARED_BRANCHES'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['TOTAL_PAGIBIG_ER_SHARED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['TOTAL_PAGIBIG_EE_SHARED_BRANCHES'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['TOTAL_PAGIBIG_ER_SHARED_BRANCHES'], 2)) . "</td>";
 
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_PAGIBIG_EE_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
-                                    echo "<td>" . htmlspecialchars(number_format($row['ERR_PAGIBIG_ER_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_PAGIBIG_EE_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($row['ERR_PAGIBIG_ER_SHARED_BRANCHES_VARIANCE'], 2)) . "</td>";
                                 }
                                 
                             echo "</tr>";
                         }
                             echo "<tr>";
                                 echo "<td colspan='3'><b>SUB-TOTAL</b></td>";
-                                echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_ee_shared, 2))."</td>";
-                                echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_er_shared, 2))."</td>";
-                                echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_total, 2))."</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_ee_shared, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_er_shared, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_total, 2)) . "</td>";
                                 if($status === 'SSS'){
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_sss_ee_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_sss_er_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_er_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_er_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_er_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_er_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_sss_er_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_sss_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_sss_er_shared_variance, 2))."</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_sss_ee_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_sss_er_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_er_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_er_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_er_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_er_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_ee_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_sss_er_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_sss_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_sss_er_shared_variance, 2)) . "</td>";
                                 }elseif($status === 'PHILHEALTH'){
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_ee_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_er_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_philhealth_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_philhealth_er_shared_variance, 2))."</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_ee_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_er_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_er_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_philhealth_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_philhealth_er_shared_variance, 2)) . "</td>";
                                 }elseif($status === 'PAGIBIG'){
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_pagibig_ee_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_pagibig_er_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_pagibig_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_pagibig_er_shared_variance, 2))."</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_pagibig_ee_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_pagibig_er_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_ee_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_pagibig_er_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_pagibig_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_pagibig_er_shared_variance, 2)) . "</td>";
                                 }
                                 
                             echo "</tr>";
                             echo "<tr>";
                                 echo "<td colspan='3'><b>GRAND TOTAL</b></td>";
-                                echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_ee_shared, 2))."</td>";
-                                echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_er_shared, 2))."</td>";
-                                echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_total, 2))."</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_ee_shared, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_er_shared, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_total, 2)) . "</td>";
                                 if($status === 'SSS'){
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_sss_ee_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_sss_er_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_sss_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_sss_er_shared_variance, 2))."</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_sss_ee_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_sss_er_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_sss_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_sss_er_shared_variance, 2)) . "</td>";
                                 }elseif($status === 'PHILHEALTH'){
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_ee_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_er_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_philhealth_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_philhealth_er_shared_variance, 2))."</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_ee_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_er_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_philhealth_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_philhealth_er_shared_variance, 2)) . "</td>";
                                 }elseif($status === 'PAGIBIG'){
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_ee_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_er_shared, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_active_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_active_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_closed_branch, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_closed_jewelry, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_total, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_pagibig_ee_shared_variance, 2))."</td>";
-                                    echo "<td>".htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_pagibig_er_shared_variance, 2))."</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_ee_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_er_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_active_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_active_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_closed_branch, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_closed_jewelry, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_total, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_pagibig_ee_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_pagibig_er_shared_variance, 2)) . "</td>";
                                 }
                             echo "</tr>";
                     echo "</tbody>";
