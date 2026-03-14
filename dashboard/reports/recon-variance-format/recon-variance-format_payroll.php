@@ -635,6 +635,12 @@
                 $special_total_total = $special_mancomm_total + $special_support_total;
                 $special_total_net_pay = $special_mancomm_net_pay + $special_support_net_pay;
                 $special_total_variance = $special_mancomm_variance + $special_support_variance;
+
+                $grandtotal_mcash_wallet += $special_total_mcash;
+                $grandtotal_mlkp += $special_total_mlkp;
+                $grandtotal_hrmd_rfp_total += $special_total_total;
+                $grandtotal_hrmd_edi_payroll_net_pay += $special_total_net_pay;
+                $grandtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $special_total_variance;
             }
 
             
@@ -666,6 +672,9 @@
                 $sheet->setCellValue('F9', $special_total_total);
                 $sheet->setCellValue('I9', $special_total_net_pay);
                 $sheet->setCellValue('J9', $special_total_variance);
+                // Apply number format to the numeric special rows (thousands with 2 decimals)
+                $sheet->getStyle('D7:F9')->getNumberFormat()->setFormatCode('#,##0.00');
+                $sheet->getStyle('I7:J9')->getNumberFormat()->setFormatCode('#,##0.00');
             } elseif($mainzone === 'LNCR' && empty($region)){
                 // Seventh row
                 $sheet->setCellValue('A7','-');
@@ -694,6 +703,10 @@
                 $sheet->setCellValue('F9', $special_total_total);
                 $sheet->setCellValue('I9', $special_total_net_pay);
                 $sheet->setCellValue('J9', $special_total_variance);
+
+                // Apply number format to the numeric special rows (thousands with 2 decimals)
+                $sheet->getStyle('D7:F9')->getNumberFormat()->setFormatCode('#,##0.00');
+                $sheet->getStyle('I7:J9')->getNumberFormat()->setFormatCode('#,##0.00');
 
             }
             
@@ -1706,26 +1719,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             $support_variance = $support_total - $support_net_pay;
 
                             // Compute combined subtotal for CEBU
-                            $total_mcash = $mancomm['mlwallet'] + $support['mlwallet'];
-                            $total_mlkp = $mancomm['mlkp'] + $support['mlkp'];
-                            $total_total = $mancomm_total + $support_total;
-                            $total_net_pay = $mancomm_net_pay + $support_net_pay;
-                            $total_variance = $mancomm_variance + $support_variance;
+                            $special_total_mcash = $mancomm['mlwallet'] + $support['mlwallet'];
+                            $special_total_mlkp = $mancomm['mlkp'] + $support['mlkp'];
+                            $special_total_total = $mancomm_total + $support_total;
+                            $special_total_net_pay = $mancomm_net_pay + $support_net_pay;
+                            $special_total_variance = $mancomm_variance + $support_variance;
 
                             
 
-                            // Add to subtotal and grand total trackers
-                            $subtotal_mcash_wallet += $total_mcash;
-                            $subtotal_mlkp += $total_mlkp;
-                            $subtotal_hrmd_rfp_total += $total_total;
-                            $subtotal_hrmd_edi_payroll_net_pay += $total_net_pay;
-                            $subtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $total_variance;
+                            // Add to grandtotal and grand total trackers
 
-                            $grandtotal_mcash_wallet += $total_mcash;
-                            $grandtotal_mlkp += $total_mlkp;
-                            $grandtotal_hrmd_rfp_total += $total_total;
-                            $grandtotal_hrmd_edi_payroll_net_pay += $total_net_pay;
-                            $grandtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $total_variance;
+                            $grandtotal_mcash_wallet += $special_total_mcash;
+                            $grandtotal_mlkp += $special_total_mlkp;
+                            $grandtotal_hrmd_rfp_total += $special_total_total;
+                            $grandtotal_hrmd_edi_payroll_net_pay += $special_total_net_pay;
+                            $grandtotal_hrmd_variance_hr_rfp_vs_hr_edi_payroll += $special_total_variance;
 
                         if ($mainzone === 'VISMIN' && empty($region)) {
 
@@ -1779,13 +1787,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             // Output SUB-TOTAL row for CEBU MANCOMM + SUPPORT
                             echo "<tr>";
                                 echo "<td colspan='3'><b>SUB-TOTAL</b></td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mcash, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mlkp, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_total, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_mcash, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_mlkp, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_net_pay, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_variance, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
@@ -1848,13 +1856,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             echo "</tr>";
                             echo "<tr>";
                                 echo "<td colspan='3'><b>SUB-TOTAL</b></td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mcash, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_mlkp, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_total, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_mcash, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_mlkp, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_total, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_net_pay, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($total_variance, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_net_pay, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_variance, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
