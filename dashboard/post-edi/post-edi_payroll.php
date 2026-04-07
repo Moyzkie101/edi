@@ -124,7 +124,21 @@
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                         AND p.payroll_date = '$restrictedDate'
@@ -137,7 +151,21 @@
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                     AND p.zone = '$zone'
@@ -223,7 +251,21 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND p.payroll_date = '$restrictedDate'
@@ -300,7 +342,21 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND p.zone = '$zone'
@@ -337,7 +393,7 @@
                 $e_region_code = $conn->real_escape_string($row['region_code']);
                 $e_kp_code = $conn->real_escape_string($row['kp_code']);
                 $e_ml_matic_status = $conn->real_escape_string($row['ml_matic_status']);
-                $e_code = $conn->real_escape_string($row['code']);
+                $e_code = ($row['code'] === null || $row['code'] === '') ? "NULL" : (int) $row['code'];
                 $e_branch_name = $conn->real_escape_string($row['branch_name']);
                 $e_basic_pay_regular = $conn->real_escape_string($row['basic_pay_regular']);
                 $e_gl_code_basic_pay_regular = $conn->real_escape_string($row['gl_code_basic_pay_regular']);
@@ -419,7 +475,21 @@
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted'
                                     WHERE 
                                         bp.mainzone = '$mainzone'
@@ -434,9 +504,23 @@
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted' 
-                                     WHERE
+                                    WHERE
                                         bp.mainzone = '$mainzone'
                                     AND bp.zone = '$zone'
                                     AND p.zone != 'JVIS' 
@@ -788,7 +872,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 INNER JOIN 
                     " . $database[1] . ".branch_profile bp
                 ON 
-                    p.bos_code = bp.code AND p.region_code = bp.region_code
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                 WHERE
                     bp.mainzone = '$mainzone'
                     AND p.payroll_date = '$restrictedDate'
@@ -859,7 +957,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 INNER JOIN 
                     " . $database[1] . ".branch_profile bp
                 ON 
-                    p.bos_code = bp.code AND p.region_code = bp.region_code
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                 WHERE
                     bp.mainzone = '$mainzone'
                     AND bp.zone = '$zone'
