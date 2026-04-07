@@ -404,7 +404,12 @@ function insertData($spreadsheet, $conn, $conn1, $database, $restrictedDate, $ma
                 break;
             }
 
-            $column1 = $conn->real_escape_string(intval($worksheet->getCell('A' . $row)->getValue()));
+            $rawBosCode = trim((string) $worksheet->getCell('A' . $row)->getValue());
+            if ($rawBosCode === '') {
+                $column1 = "NULL";
+            } else {
+                $column1 = (int) $rawBosCode;
+            }
             $column2 = $conn->real_escape_string(strval($worksheet->getCell('B' . $row)->getValue()));
             $column3 = $conn->real_escape_string(floatval($worksheet->getCell('C' . $row)->getValue()));
             $column4 = $conn->real_escape_string(floatval($worksheet->getCell('D' . $row)->getValue()));
@@ -648,6 +653,32 @@ if (isset($_POST['upload'])) {
         return false;
     }
 
+    function validateEmptyBosAsTboBranch($conn, $conn1, $database, $zoneValue, $regionCodeValue, $branchNameValue) {
+    $zoneValue = trim((string) $zoneValue);
+    $regionCodeValue = trim((string) $regionCodeValue);
+    $branchNameValue = trim((string) $branchNameValue);
+
+    if ($zoneValue === '' || $regionCodeValue === '' || $branchNameValue === '') {
+        return false;
+    }
+
+    $sql = "SELECT branch_name, region_code, zone, ml_matic_status
+            FROM " . $database[1] . ".branch_profile
+            WHERE zone = '" . $conn->real_escape_string($zoneValue) . "'
+                AND region_code = '" . $conn->real_escape_string($regionCodeValue) . "'
+                AND TRIM(LOWER(branch_name)) = TRIM(LOWER('" . $conn->real_escape_string($branchNameValue) . "'))
+                AND ml_matic_status = 'TBO'
+            LIMIT 1";
+
+    $result = $conn1->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        return $result->fetch_assoc();
+    }
+
+    return false;
+}
+
     // Function to get data from the database
     function getDatabaseData($conn, $conn1, $database, $columnAValue, $columnVValue) {
         // Check if columnAValue is numeric, and if so, convert it to an integer to remove leading zeros
@@ -747,22 +778,45 @@ if (isset($_POST['upload'])) {
             $dbData = getDatabaseData($conn, $conn1, $database, $cellValues['A'], $cellValues['V']);
             if (!$dbData) {
                 $region_description = $regionDescriptions[$cellValues['V']] ?? 'Unknown region';
-                if(empty($cellValues['A'])) {
-                    $errorMessage = 'Branch code is empty';
-                }else {
-                    if(!in_array($cellValues['V'], $validRegionCodes)){
-                        $errorMessage = 'Wrong Branch Code';
+                $bosCode = trim((string) $cellValues['A']);
+                $branchName = trim((string) $cellValues['B']);
+                $regionCode = trim((string) $cellValues['V']);
+                $zoneCode = trim((string) $cellValues['W']);
+
+                $isValidTboBranch = false;
+
+                if ($bosCode === '') {
+                    $tboBranch = validateEmptyBosAsTboBranch(
+                        $conn,
+                        $conn1,
+                        $database,
+                        $zoneCode,
+                        $regionCode,
+                        $branchName
+                    );
+
+                    if ($tboBranch !== false) {
+                        $isValidTboBranch = true;
                     }
                 }
-                $messages[] = [
-                    'type' => 'error',
-                    'withButton' => 'false',
-                    'sheet' => $sheetName,
-                    'A' => $cellValues['A'],
-                    'B' => $cellValues['B'],
-                    'V' => $region_description,
-                    'message' => $errorMessage .' / Maybe not belong to this Region.'
-                ];
+
+                if (!$isValidTboBranch) {
+                    if ($bosCode === '') {
+                        $errorMessage = "Branch code is empty and branch was not found as TBO using zone '$zoneCode', region '$regionCode', and branch name '$branchName'.";
+                    } else {
+                        $errorMessage = "Wrong Branch Code / Maybe not belong to this Region.";
+                    }
+
+                    $messages[] = [
+                        'type' => 'error',
+                        'withButton' => 'false',
+                        'sheet' => $sheetName,
+                        'A' => $cellValues['A'],
+                        'B' => $cellValues['B'],
+                        'V' => $region_description,
+                        'message' => $errorMessage
+                    ];
+                }
             }
 
             // Validate if the zone matches the region code in column W

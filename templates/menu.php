@@ -48,8 +48,10 @@
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('CAD', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>import/import-mlfund.php" role="menuitem">ML Fund</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>import/import-mlfund-new-format.php" role="menuitem">ML Fund New Format</a>
                                 <?php else: ?>
                                     <a class="user-link" href="#" role="menuitem" aria-disabled="true">ML Fund</a>
+                                    <a class="user-link" href="#" role="menuitem">ML Fund New Format</a>
                                 <?php endif; ?>
                             </div>
                         </div>
