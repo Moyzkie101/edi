@@ -393,17 +393,25 @@ function insertData($spreadsheet, $conn, $database, $restrictedDate, $mainzone) 
         // }
 
         for ($row = 4; $row <= $highestRow; ++$row) {
+            $rawZoneCode = trim((string) $worksheet->getCell('A' . $row)->getValue());
+            $rawRegionCode = trim((string) $worksheet->getCell('B' . $row)->getValue());
+            $rawBranchCode = trim((string) $worksheet->getCell('D' . $row)->getValue());
+            $rawBranchName = trim((string) $worksheet->getCell('E' . $row)->getValue());
 
-            // Check for blank rows by verifying key cells are not empty
-            if (empty($worksheet->getCell('A' . $row)->getValue()) && empty($worksheet->getCell('B' . $row)->getValue())) {
+            if ($rawZoneCode === '' && $rawRegionCode === '' && $rawBranchCode === '' && $rawBranchName === '') {
                 break;
             }
 
-            $column1 = $conn->real_escape_string(strval($worksheet->getCell('A' . $row)->getValue())); //zone_code
-            $column2 = $conn->real_escape_string(strval($worksheet->getCell('B' . $row)->getValue())); //region_code
-            // $column3 = $conn->real_escape_string(strval($worksheet->getCell('C' . $row)->getValue())); //region_description
-            $column4 = $conn->real_escape_string(intval($worksheet->getCell('D' . $row)->getValue())); //BOS CODE or BRANCH CODE
-            $column5 = $conn->real_escape_string(strval($worksheet->getCell('E' . $row)->getValue()));  //BRANCH NAME
+            $column1 = $conn->real_escape_string($rawZoneCode);
+            $column2 = $conn->real_escape_string($rawRegionCode);
+
+            if ($rawBranchCode === '') {
+                $column4 = "NULL";
+            } else {
+                $column4 = (int) $rawBranchCode;
+            }
+
+            $column5 = $conn->real_escape_string($rawBranchName);
 
             $column6 = $conn->real_escape_string(floatval($worksheet->getCell('F' . $row)->getValue())); // SSS EE SHARE
             $column7 = $conn->real_escape_string(floatval($worksheet->getCell('G' . $row)->getValue())); // SSS ER SHARE
@@ -453,10 +461,10 @@ function insertData($spreadsheet, $conn, $database, $restrictedDate, $mainzone) 
             // $select_desc = "SELECT region_description, zone_code FROM " . $database[1] . ".region_masterfile WHERE region_code = '$column13'";
             $desc_result = mysqli_query($conn, $select_desc);
             
-            if ($desc_result) {
+            if ($desc_result && mysqli_num_rows($desc_result) > 0) {
                 $desc_row = mysqli_fetch_assoc($desc_result);
                 $region_desc = $desc_row['region_description'];
-            }else{
+            } else {
                 $region_desc = "Unknown Region";
             }
             
@@ -737,6 +745,32 @@ if (isset($_POST['upload'])) {
         }
         return false;
     }
+  
+    function validateEmptyBosAsTboBranch($conn, $database, $zoneValue, $regionCodeValue, $branchNameValue) {
+        $zoneValue = trim((string) $zoneValue);
+        $regionCodeValue = trim((string) $regionCodeValue);
+        $branchNameValue = trim((string) $branchNameValue);
+
+        if ($zoneValue === '' || $regionCodeValue === '' || $branchNameValue === '') {
+            return false;
+        }
+
+        $sql = "SELECT code, branch_name, region_code, zone, ml_matic_status
+                FROM `" . $database[1] . "`.branch_profile
+                WHERE zone = '" . $conn->real_escape_string($zoneValue) . "'
+                AND region_code = '" . $conn->real_escape_string($regionCodeValue) . "'
+                AND TRIM(LOWER(branch_name)) = TRIM(LOWER('" . $conn->real_escape_string($branchNameValue) . "'))
+                AND ml_matic_status = 'TBO'
+                LIMIT 1";
+
+        $result = $conn->query($sql);
+
+        if ($result && $result->num_rows > 0) {
+            return $result->fetch_assoc();
+        }
+
+        return false;
+    }
 
     // Function to get data from the database
     function getDatabaseData($conn, $database, $columnAValue, $columnHValue) {
@@ -802,22 +836,18 @@ if (isset($_POST['upload'])) {
         $sheetName = $sheet->getTitle();
         $startRow = 4;
         $endRow = $sheet->getHighestRow();
-        $columns = ['D','E','B', 'A'];
-        // $columns = ['A', 'B', 'L', 'M'];
+        $columns = ['D', 'E', 'B', 'A'];
 
         for ($row = $startRow; $row <= $endRow; $row++) {
             $isRowEmpty = true;
             $cellValues = [];
-            $emptyCells = [];
 
             foreach ($columns as $column) {
                 $cellValue = $sheet->getCell($column . $row)->getValue();
                 $cellValues[$column] = $cellValue;
 
-                if ($cellValue !== null && $cellValue !== '') {
+                if ($cellValue !== null && trim((string) $cellValue) !== '') {
                     $isRowEmpty = false;
-                } else {
-                    $emptyCells[] = $column . $row;
                 }
             }
 
@@ -825,143 +855,111 @@ if (isset($_POST['upload'])) {
                 break;
             }
 
-            // Check for existing records
-            if (checkExistingRecords($conn, $database, $cellValues['B'], $_POST['restricted-date'], $check_mainzone)) {
-            // if (checkExistingRecords($conn, $database, $cellValues['L'], $_POST['restricted-date'], $check_mainzone)) {
-                $region_description = $regionDescriptions[$cellValues['B']] ?? 'Unknown region';
-                // $region_description = $regionDescriptions[$cellValues['L']] ?? 'Unknown region';
+            $branchCode = trim((string) $cellValues['D']);
+            $branchName = trim((string) $cellValues['E']);
+            $regionCode = trim((string) $cellValues['B']);
+            $zoneCode = trim((string) $cellValues['A']);
+            $regionDescription = $regionDescriptions[$regionCode] ?? 'Unknown region';
 
+            if (checkExistingRecords($conn, $database, $regionCode, $_POST['restricted-date'], $check_mainzone)) {
                 $messages[] = [
                     'type' => 'error',
                     'withButton' => 'true',
                     'sheet' => $sheetName,
-                    'D' => $cellValues['D'],
-                    'E' => $cellValues['E'],
-                    'B' => $region_description,
-                    // 'A' => $cellValues['A'],
-                    // 'B' => $cellValues['B'],
-                    // 'L' => $region_description,
-                    'message' => "Region '$region_description', date '{$_POST['restricted-date']}', and mainzone '$check_mainzone' already exists."
+                    'D' => $branchCode,
+                    'E' => $branchName,
+                    'B' => $regionDescription,
+                    'message' => "Region '{$regionDescription}', date '{$_POST['restricted-date']}', and mainzone '{$check_mainzone}' already exists."
                 ];
             }
 
-            // Compare values with database
-            $dbData = getDatabaseData($conn, $database, $cellValues['D'], $cellValues['B']);
-            // $dbData = getDatabaseData($conn, $database, $cellValues['A'], $cellValues['L']);
-            if (!$dbData) {
+            $isValidTboBranch = false;
 
-                $region_description = $regionDescriptions[$cellValues['B']] ?? 'Unknown region';
-                // $region_description = $regionDescriptions[$cellValues['L']] ?? 'Unknown region';
-                if(empty($cellValues['D'])) {
-                    $errorMessage = 'Branch code is empty';
-                }else {
-                    if(!in_array($cellValues['A'], $validRegionCodes)){
-                        $errorMessage = 'Wrong Branch Code';
-                    }
+            if ($branchCode === '') {
+                $tboBranch = validateEmptyBosAsTboBranch(
+                    $conn,
+                    $database,
+                    $zoneCode,
+                    $regionCode,
+                    $branchName
+                );
+
+                if ($tboBranch !== false) {
+                    $isValidTboBranch = true;
                 }
-                // Either region_code or code does not exist in the database
-                $messages[] = [
-                    'type' => 'error',
-                    'withButton' => 'false',
-                    'sheet' => $sheetName,
-                    'D' => $cellValues['D'],
-                    'E' => $cellValues['E'],
-                    'B' => $region_description,
-                    // 'A' => $cellValues['A'],
-                    // 'B' => $cellValues['B'],
-                    // 'L' => $region_description,
-                    'message' => 'Branch code is empty / Maybe not belong to this Region.'
-                ];
-            }
- 
-            // Check if the selected zone/mainzone matches the region code in column H
-            if (!in_array($cellValues['B'], $validRegionCodes)) {
-
-                $region_description = $regionDescriptions[$cellValues['B']] ?? 'Unknown region';
-            // if (!in_array($cellValues['L'], $validRegionCodes)) {
-
-            //     $region_description = $regionDescriptions[$cellValues['L']] ?? 'Unknown region';
-
-                $messages[] = [
-                    'type' => 'error',
-                    'withButton' => 'false',
-                    'sheet' => $sheetName,
-                    'D' => $cellValues['D'],
-                    'E' => $cellValues['E'],
-                    'B' => $region_description,
-                    // 'A' => $cellValues['A'],
-                    // 'B' => $cellValues['B'],
-                    // 'L' => $region_description,
-                    'message' => "Region '{$region_description}' does not match the selected zone/mainzone '$check_mainzone'."
-                ];
             }
 
-            // Check Inactive status 
-            /*if (checkStatus($conn, $database, $cellValues['D'], $cellValues['B'])) {
-                $region_description = $regionDescriptions[$cellValues['B']] ?? 'Unknown region';
-            // if (checkStatus($conn, $database, $cellValues['A'], $cellValues['L'])) {
-            //     $region_description = $regionDescriptions[$cellValues['L']] ?? 'Unknown region';
+            if ($branchCode === '' && !$isValidTboBranch) {
                 $messages[] = [
                     'type' => 'error',
                     'withButton' => 'false',
                     'sheet' => $sheetName,
-                    'D' => $cellValues['D'],
-                    'E' => $cellValues['E'],
-                    'B' => $region_description,
-                    // 'A' => $cellValues['A'],
-                    // 'B' => $cellValues['B'],
-                    // 'L' => $region_description,
-                    'message' => "Inactive branch. Region: '$region_description', Branch code: '{$cellValues['D']}', Branch name: '{$cellValues['E']}'"
+                    'D' => '',
+                    'E' => $branchName,
+                    'B' => $regionDescription,
+                    'message' => 'Branch code is empty'
                 ];
-            }*/
+                continue;
+            }
 
-            // Collect branch code details for duplicate detection
-            if($check_mainzone === 'VISMIN'){
-				$ExpectedZone = $cellValues['A'];
-			}if($check_mainzone === 'LNCR'){
-				$ExpectedZone = $cellValues['B'];
-			}
-            if (!empty($cellValues['D'])) {
-                if (ctype_digit($cellValues['D'])) {
-                    $cellValues['D'] = intval($cellValues['D']);
+            if ($branchCode !== '') {
+                $dbData = getDatabaseData($conn, $database, $branchCode, $regionCode);
+
+                if (!$dbData) {
+                    $messages[] = [
+                        'type' => 'error',
+                        'withButton' => 'false',
+                        'sheet' => $sheetName,
+                        'D' => $branchCode,
+                        'E' => $branchName,
+                        'B' => $regionDescription,
+                        'message' => 'Branch code does not belong to this region or does not exist in branch profile.'
+                    ];
                 }
-            // $ExpectedZone = $cellValues['M'];
-            // if (!empty($cellValues['A'])) {
-            //     if (ctype_digit($cellValues['A'])) {
-            //         $cellValues['A'] = intval($cellValues['A']);
-            //     }
+            }
 
-                // Initialize array if it doesn't exist
+            if (!in_array($regionCode, $validRegionCodes)) {
+                $messages[] = [
+                    'type' => 'error',
+                    'withButton' => 'false',
+                    'sheet' => $sheetName,
+                    'D' => $branchCode,
+                    'E' => $branchName,
+                    'B' => $regionDescription,
+                    'message' => "Region '{$regionDescription}' does not match the selected mainzone '{$check_mainzone}'."
+                ];
+            }
+
+            if ($check_mainzone === 'VISMIN') {
+                $ExpectedZone = $zoneCode;
+            } elseif ($check_mainzone === 'LNCR') {
+                $ExpectedZone = $regionCode;
+            } else {
+                $ExpectedZone = $zoneCode;
+            }
+
+            if ($branchCode !== '') {
+                if (ctype_digit($branchCode)) {
+                    $branchCode = (int) $branchCode;
+                }
+
                 if (!isset($codeDetails[$ExpectedZone])) {
                     $codeDetails[$ExpectedZone] = [];
                 }
 
-                if (!isset($codeDetails[$ExpectedZone][$cellValues['D']])) {
-                    $codeDetails[$ExpectedZone][$cellValues['D']] = [];
+                if (!isset($codeDetails[$ExpectedZone][$branchCode])) {
+                    $codeDetails[$ExpectedZone][$branchCode] = [];
                 }
 
-                $codeDetails[$ExpectedZone][$cellValues['D']][] = [
+                $codeDetails[$ExpectedZone][$branchCode][] = [
                     'sheet' => $sheetName,
                     'row' => $row,
-                    'D' => $cellValues['D'],
-                    'E' => $cellValues['E'],
-                    'B' => $cellValues['B'],
-                    'A' => $cellValues['A']
+                    'D' => $branchCode,
+                    'E' => $branchName,
+                    'B' => $regionCode,
+                    'A' => $zoneCode
                 ];
-                // if (!isset($codeDetails[$ExpectedZone][$cellValues['A']])) {
-                //     $codeDetails[$ExpectedZone][$cellValues['A']] = [];
-                // }
-
-                // $codeDetails[$ExpectedZone][$cellValues['A']][] = [
-                //     'sheet' => $sheetName,
-                //     'row' => $row,
-                //     'A' => $cellValues['A'],
-                //     'B' => $cellValues['B'],
-                //     'L' => $cellValues['L'],
-                //     'M' => $cellValues['M']
-                // ];
             }
- 
         }
     }
 
