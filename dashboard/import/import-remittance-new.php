@@ -665,7 +665,7 @@ if (isset($_POST['upload'])) {
         echo "<thead><tr><center><th colspan='6' style='border: none;'>Remitance Report</th></center></tr>";
         echo "<tr><th colspan='6' style='border: none;'>Date : " . $_POST['restricted-date'] . "</th></tr>";
         echo "<tr><th colspan='6' style='border: none;'>Filename : " . $_FILES['excelFile']['name'] . "</th></tr>";
-        echo '<tr><th>Status</th><th>Sheet Name</th><th>Branch Code</th><th>Branch Name</th><th>Region</th><th>Remarks</th></tr></thead>';
+        echo '<tr><th>Status</th><th>Sheet Name</th><th>Branch Code</th><th>Branch Name</th><th>Region</th><th>Region Code</th><th>Remarks</th></tr></thead>';
         echo '<tbody>';
         foreach ($messages as $msg) {
             if ($msg['type'] === 'error') {
@@ -676,6 +676,7 @@ if (isset($_POST['upload'])) {
                     <td>{$msg['D']}</td>
                     <td>{$msg['E']}</td>
                     <td>{$msg['B']}</td>
+                    <td>{$msg['region_code']}</td>
                     <td>{$msg['message']}</td>";
         
                 if ($msg['withButton'] === 'true') {
@@ -869,6 +870,7 @@ if (isset($_POST['upload'])) {
                     'D' => $branchCode,
                     'E' => $branchName,
                     'B' => $regionDescription,
+                    'region_code' => $regionCode,
                     'message' => "Region '{$regionDescription}', date '{$_POST['restricted-date']}', and mainzone '{$check_mainzone}' already exists."
                 ];
             }
@@ -897,6 +899,7 @@ if (isset($_POST['upload'])) {
                     'D' => '',
                     'E' => $branchName,
                     'B' => $regionDescription,
+                    'region_code' => $regionCode,
                     'message' => 'Branch code is empty'
                 ];
                 continue;
@@ -913,6 +916,7 @@ if (isset($_POST['upload'])) {
                         'D' => $branchCode,
                         'E' => $branchName,
                         'B' => $regionDescription,
+                        'region_code' => $regionCode,
                         'message' => 'Branch code does not belong to this region or does not exist in branch profile.'
                     ];
                 }
@@ -926,6 +930,7 @@ if (isset($_POST['upload'])) {
                     'D' => $branchCode,
                     'E' => $branchName,
                     'B' => $regionDescription,
+                    'region_code' => $regionCode,
                     'message' => "Region '{$regionDescription}' does not match the selected mainzone '{$check_mainzone}'."
                 ];
             }
@@ -979,6 +984,7 @@ if (isset($_POST['upload'])) {
                         'D' => $branchCode,
                         'E' => $detail['E'],
                         'B' => $region_description,
+                        'region_code' => $regionCode,
                         // 'A' => $branchCode,
                         // 'B' => $detail['B'],
                         // 'L' => $region_description,
