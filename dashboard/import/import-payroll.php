@@ -584,7 +584,7 @@ if (isset($_POST['upload'])) {
                         <td>{$msg['A']}</td>
                         <td>{$msg['B']}</td>
                         <td>{$msg['V']}</td>
-                        <td>({$msg['region_code']})</td>
+                        <td>{$msg['region_code']}</td>
                         <td>{$msg['message']}</td>";
             
                     if ($msg['withButton'] === 'true') {

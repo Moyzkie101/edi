@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <td>{$msg['A']}</td>
                         <td>{$msg['B']}</td>
                         <td>{$msg['V']}</td>
-                        <td>({$msg['region_code']})</td>
+                        <td>{$msg['region_code']}</td>
                         <td>{$msg['message']}</td>
                       </tr>";
         }
