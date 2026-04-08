@@ -30,13 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				<tr>
 					<th rowspan="2">Status</th>
 					<th colspan="3"><center>HRMD DATA</center></th>
-					<th colspan="2"><center>SYSTEM BRANCH PROFILE</center></th>
+					<th colspan="3"><center>SYSTEM BRANCH PROFILE</center></th>
 				</tr>
 				<tr>
 					<th>Sheet Name</th>
 					<th>Branch Code</th>
 					<th>Branch Name</th>
 					<th>Region</th>
+                    <th>Region Code</th>
 					<th>Message</th>
 				</tr>
 				</thead>';
@@ -50,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <td>{$msg['A']}</td>
                         <td>{$msg['B']}</td>
                         <td>{$msg['V']}</td>
+                        <td>({$msg['region_code']})</td>
                         <td>{$msg['message']}</td>
                       </tr>";
         }
