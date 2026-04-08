@@ -555,14 +555,14 @@ if (isset($_POST['upload'])) {
                 <thead>
                     <tr>
                         <center>
-                            <th colspan='6' style='border: none;'>Payroll Report</th>
+                            <th colspan='7' style='border: none;'>Payroll Report</th>
                         </center>
                     </tr>
                     <tr>
-                        <th colspan='6' style='border: none;'>Date : " . $_POST['restricted-date'] . "</th>
+                        <th colspan='7' style='border: none;'>Date : " . $_POST['restricted-date'] . "</th>
                     </tr>
                     <tr>
-                        <th colspan='6' style='border: none;'>Filename : " . $_FILES['excelFile']['name'] . "</th>
+                        <th colspan='7' style='border: none;'>Filename : " . $_FILES['excelFile']['name'] . "</th>
                     </tr>
                     <tr>
                         <th>Status</th>
@@ -570,6 +570,7 @@ if (isset($_POST['upload'])) {
                         <th>Branch Code</th>
                         <th>Branch Name</th>
                         <th>Region</th>
+                        <th>Region Code</th>
                         <th>Remarks</th>
                     </tr>
                 </thead>";
@@ -583,6 +584,7 @@ if (isset($_POST['upload'])) {
                         <td>{$msg['A']}</td>
                         <td>{$msg['B']}</td>
                         <td>{$msg['V']}</td>
+                        <td>({$msg['region_code']})</td>
                         <td>{$msg['message']}</td>";
             
                     if ($msg['withButton'] === 'true') {
@@ -802,7 +804,7 @@ if (isset($_POST['upload'])) {
 
                 if (!$isValidTboBranch) {
                     if ($bosCode === '') {
-                        $errorMessage = "Branch code is empty and branch was not found as TBO using zone '$zoneCode', region '$regionCode', and branch name '$branchName'.";
+                        $errorMessage = "Branch code is empty";
                     } else {
                         $errorMessage = "Wrong Branch Code / Maybe not belong to this Region.";
                     }
@@ -814,6 +816,7 @@ if (isset($_POST['upload'])) {
                         'A' => $cellValues['A'],
                         'B' => $cellValues['B'],
                         'V' => $region_description,
+                        'region_code' => $regionCode,
                         'message' => $errorMessage
                     ];
                 }
