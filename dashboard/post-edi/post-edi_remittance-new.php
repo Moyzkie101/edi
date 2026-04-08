@@ -124,7 +124,21 @@
                     FROM " . $database[0] . ".remitance r
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        r.bos_code = bp.code AND r.region_code = bp.region_code 
+                        (
+                            (
+                                r.bos_code IS NOT NULL
+                                AND r.bos_code = bp.code
+                                AND r.region_code = bp.region_code
+                            )
+                            OR
+                            (
+                                r.bos_code IS NULL
+                                AND r.region_code = bp.region_code
+                                AND r.zone = bp.zone
+                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                                AND bp.ml_matic_status = 'TBO'
+                            )
+                        ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                         AND r.remitance_date = '$restrictedDate'
@@ -139,7 +153,21 @@
                     FROM " . $database[0] . ".remitance r
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        r.bos_code = bp.code AND r.region_code = bp.region_code 
+                        (
+                            (
+                                r.bos_code IS NOT NULL
+                                AND r.bos_code = bp.code
+                                AND r.region_code = bp.region_code
+                            )
+                            OR
+                            (
+                                r.bos_code IS NULL
+                                AND r.region_code = bp.region_code
+                                AND r.zone = bp.zone
+                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                                AND bp.ml_matic_status = 'TBO'
+                            )
+                        ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                     AND r.zone = '$zone'
@@ -195,7 +223,6 @@
                         
                         MAX(r.gl_code_dr4) as gl_code_dr4,
 
-                        r.bos_code,
                         r.region,
                         MAX(r.branch_name) as branch_name,
 
@@ -217,7 +244,21 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        r.bos_code = bp.code AND r.region_code = bp.region_code
+                        (
+                            (
+                                r.bos_code IS NOT NULL
+                                AND r.bos_code = bp.code
+                                AND r.region_code = bp.region_code
+                            )
+                            OR
+                            (
+                                r.bos_code IS NULL
+                                AND r.region_code = bp.region_code
+                                AND r.zone = bp.zone
+                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                                AND bp.ml_matic_status = 'TBO'
+                            )
+                        )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND r.remitance_date = '$restrictedDate'
@@ -285,7 +326,21 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        r.bos_code = bp.code AND r.region_code = bp.region_code
+                        (
+                            (
+                                r.bos_code IS NOT NULL
+                                AND r.bos_code = bp.code
+                                AND r.region_code = bp.region_code
+                            )
+                            OR
+                            (
+                                r.bos_code IS NULL
+                                AND r.region_code = bp.region_code
+                                AND r.zone = bp.zone
+                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                                AND bp.ml_matic_status = 'TBO'
+                            )
+                        )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND r.zone = '$zone'
@@ -452,7 +507,21 @@
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        r.bos_code = bp.code AND r.region_code = bp.region_code  
+                                        (
+                                            (
+                                                r.bos_code IS NOT NULL
+                                                AND r.bos_code = bp.code
+                                                AND r.region_code = bp.region_code
+                                            )
+                                            OR
+                                            (
+                                                r.bos_code IS NULL
+                                                AND r.region_code = bp.region_code
+                                                AND r.zone = bp.zone
+                                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                                                AND bp.ml_matic_status = 'TBO'
+                                            )
+                                        )  
                                     SET post_edi = 'posted'
                                     WHERE 
                                         bp.mainzone = '$mainzone'
@@ -468,7 +537,21 @@
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        r.bos_code = bp.code AND r.region_code = bp.region_code  
+                                        (
+                                            (
+                                                r.bos_code IS NOT NULL
+                                                AND r.bos_code = bp.code
+                                                AND r.region_code = bp.region_code
+                                            )
+                                            OR
+                                            (
+                                                r.bos_code IS NULL
+                                                AND r.region_code = bp.region_code
+                                                AND r.zone = bp.zone
+                                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                                                AND bp.ml_matic_status = 'TBO'
+                                            )
+                                        )  
                                     SET post_edi = 'posted' 
                                      WHERE
                                         bp.mainzone = '$mainzone'
@@ -818,7 +901,21 @@ if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
             INNER JOIN 
                 " . $database[1] . ".branch_profile bp
             ON 
-                r.bos_code = bp.code AND r.region_code = bp.region_code
+                (
+                    (
+                        r.bos_code IS NOT NULL
+                        AND r.bos_code = bp.code
+                        AND r.region_code = bp.region_code
+                    )
+                    OR
+                    (
+                        r.bos_code IS NULL
+                        AND r.region_code = bp.region_code
+                        AND r.zone = bp.zone
+                        AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                        AND bp.ml_matic_status = 'TBO'
+                    )
+                )
             WHERE
                 bp.mainzone = '$mainzone'
                 AND r.remitance_date = '$restrictedDate'
@@ -882,7 +979,21 @@ if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
             INNER JOIN 
                 " . $database[1] . ".branch_profile bp
             ON 
-                r.bos_code = bp.code AND r.region_code = bp.region_code
+                (
+                    (
+                        r.bos_code IS NOT NULL
+                        AND r.bos_code = bp.code
+                        AND r.region_code = bp.region_code
+                    )
+                    OR
+                    (
+                        r.bos_code IS NULL
+                        AND r.region_code = bp.region_code
+                        AND r.zone = bp.zone
+                        AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                        AND bp.ml_matic_status = 'TBO'
+                    )
+                )
             WHERE
                 bp.mainzone = '$mainzone'
                 AND bp.zone = '$zone'
