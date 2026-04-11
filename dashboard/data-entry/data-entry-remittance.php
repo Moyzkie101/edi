@@ -84,76 +84,75 @@
 
     $mainzone = $_POST['mainzone']?? '';
     $region = $_POST['region'] ?? '';
+    $remitanceType = $_POST['remitance_type'] ?? '';
     $date = $_POST['restricted-date']?? '';
 
     $displayMainzone = htmlspecialchars($mainzone, ENT_QUOTES, 'UTF-8');
     $displayRegion = htmlspecialchars($region, ENT_QUOTES, 'UTF-8');
+    $displayRemitanceType = htmlspecialchars($remitanceType, ENT_QUOTES, 'UTF-8');
     $displayDate = htmlspecialchars($date, ENT_QUOTES, 'UTF-8');
     
     if (isset($_POST['generate'])) {
-
         if (!isAllowedPayrollDate($date)) {
             echo "<script>alert('Invalid remittance date. Please select only the 15th or the last day of the month.');</script>";
-            $payrollrows = [];
+            $contributionRows = [];
         } else {
+            $safeMainzone = mysqli_real_escape_string($conn, $mainzone);
+            $safeRegion = mysqli_real_escape_string($conn, $region);
+            $safeRemitanceType = mysqli_real_escape_string($conn, $remitanceType);
+            $safeDate = mysqli_real_escape_string($conn, $date);
 
-        $safeMainzone = mysqli_real_escape_string($conn, $mainzone);
-        $safeRegion = mysqli_real_escape_string($conn, $region);
-        $safeDate = mysqli_real_escape_string($conn, $date);
+            $isAllMainzone = ($mainzone === 'ALL');
+            $isAllRegion = (empty($region) || $region === 'ALL');
 
-        $isAllMainzone = ($mainzone === 'ALL');
-        $isAllRegion = (empty($region) || $region === 'ALL');
+            $mainzoneCondition = $isAllMainzone ? '' : " AND mzm.main_zone_code = '" . $safeMainzone . "'";
+            $regionCondition = $isAllRegion ? '' : " AND rm.region_code = '" . $safeRegion . "'";
+            $remitanceTypeCondition = empty($remitanceType) ? '' : " AND rc.remitance_type = '" . $safeRemitanceType . "'";
 
-        $mainzoneCondition = $isAllMainzone ? '' : " AND mzm.main_zone_code = '" . $safeMainzone . "'";
-        $regionCondition = $isAllRegion ? '' : " AND rm.region_code = '" . $safeRegion . "'";
+            $remittanceQuery = "SELECT
+                                    MAX(rc.id) AS id,
+                                    mzm.main_zone_code,
+                                    rm.region_code,
+                                    rm.region_description,
+                                    rm.zone_code,
+                                    COALESCE(SUM(rc.ee_shared), 0) AS ee_shared,
+                                    COALESCE(SUM(rc.er_shared), 0) AS er_shared,
+                                    COALESCE(SUM(rc.total_contribution), 0) AS total_contribution
+                                FROM
+                                    " . $database[1] . ".main_zone_masterfile AS mzm
+                                JOIN
+                                    " . $database[1] . ".region_masterfile AS rm
+                                    ON (
+                                        (rm.zone_code IN ('VIS', 'MIN', 'VISMIN-MANCOMM', 'VISMIN-SUPPORT') AND mzm.main_zone_code = 'VISMIN')
+                                        OR
+                                        (rm.zone_code IN ('NCR', 'LZN', 'LNCR-MANCOMM', 'LNCR-SUPPORT') AND mzm.main_zone_code = 'LNCR')
+                                    )
+                                LEFT JOIN
+                                    " . $database[0] . ".remitance_contribution AS rc
+                                    ON rm.region_code = rc.region_code
+                                    AND rc.mainzone = mzm.main_zone_code
+                                    AND rc.remitance_date = '" . $safeDate . "'
+                                    AND rc.remitance_format_type = 'NEW'
+                                    AND rc.remitance_type = '" . $safeRemitanceType . "'
+                                WHERE 1=1
+                                    " . $mainzoneCondition . "
+                                    " . $regionCondition . "
+                                GROUP BY
+                                    mzm.main_zone_code,
+                                    rm.region_code,
+                                    rm.region_description,
+                                    rm.zone_code
+                                ORDER BY
+                                    mzm.main_zone_code,
+                                    rm.region_description";
 
-        // Display records with optional filters for mainzone and region.
-        $remittanceQuery = "SELECT
-                            MAX(r.id) AS id,
-                            mzm.main_zone_code,
-                            rm.region_code,
-                            rm.region_description,
-                            rm.zone_code,
-                            COALESCE(COUNT(DISTINCT r.bos_code), 0) AS branch_count,
-                            COALESCE(SUM(
-                            COALESCE(r.dr1, 0) +
-                            COALESCE(r.dr2, 0) +
-                            COALESCE(r.dr3, 0) +
-                            COALESCE(r.dr4, 0)
-                            ), 0) AS total_amount_per_region
-                            FROM " . $database[1] . ".main_zone_masterfile AS mzm
-                            JOIN " . $database[1] . ".region_masterfile AS rm
-                            ON (
-                            (rm.zone_code IN ('VIS', 'MIN', 'VISMIN-MANCOMM', 'VISMIN-SUPPORT') AND mzm.main_zone_code = 'VISMIN')
-                            OR
-                            (rm.zone_code IN ('NCR', 'LZN', 'LNCR-MANCOMM', 'LNCR-SUPPORT') AND mzm.main_zone_code = 'LNCR')
-                            )
-                            LEFT JOIN " . $database[0] . ".remitance AS r
-                            ON rm.region_code = r.region_code
-                            AND r.mainzone = mzm.main_zone_code
-                            AND r.remitance_date = '" . $safeDate . "'
-                            AND r.remitance_format_type = 'NEW'
-                            WHERE 1=1
-                            " . $mainzoneCondition . "
-                            " . $regionCondition . "
-                            GROUP BY
-                            mzm.main_zone_code,
-                            rm.region_code,
-                            rm.region_description,
-                            rm.zone_code
-                            ORDER BY
-                            mzm.main_zone_code,
-                            rm.region_description";
+            $remittanceResult = mysqli_query($conn, $remittanceQuery);
 
-        // Execute and check query
-        $remmittanceresult = mysqli_query($conn, $remmitanceQuery);
-        
-        if (!$remmittanceresult) {
-            die("Query failed: " . mysqli_error($conn)); // Debugging line
-        }
+            if (!$remittanceResult) {
+                die("Query failed: " . mysqli_error($conn));
+            }
 
-        // Fetch results
-        $payrollrows = $remmittanceresult->fetch_all(MYSQLI_ASSOC);
+            $contributionRows = $remittanceResult->fetch_all(MYSQLI_ASSOC);
         }
     }
 
@@ -176,101 +175,99 @@
                 $errorCount = 0;
                 
                 foreach ($tableData as $row) {
-                    // Validate required fields
                     if (empty($row['date']) || empty($row['mainzone']) || empty($row['region_code'])) {
                         $errorCount++;
                         continue;
                     }
-                    
-                    // Calculate totals and store in variables (required for bind_param)
-                    $no_employee_mlwallet = intval($row['no_employee_mlwallet']);
-                    $mlwallet_amount = floatval($row['mlwallet_amount']);
-                    $no_employee_mlkp = intval($row['no_employee_mlkp']);
-                    $mlkp_amount = floatval($row['mlkp_amount']);
-                    $total_employee = $no_employee_mlwallet + $no_employee_mlkp;
-                    $total_amount = $mlwallet_amount + $mlkp_amount;
-                    $modified_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown User';
-                    $modified_date = date('Y-m-d H:i:s');
-                    
-                    // Sanitize input values
-                    $payroll_date = $row['date'];
 
-                    if (!isAllowedPayrollDate($payroll_date)) {
+                    $remittance_date = $row['date'];
+                    if (!isAllowedPayrollDate($remittance_date)) {
                         $errorCount++;
                         continue;
                     }
-                    $payroll_mainzone = $row['mainzone'];
+
+                    $remitance_type = $row['remitance_type'] ?? '';
+                    if (empty($remitance_type)) {
+                        $errorCount++;
+                        continue;
+                    }
+
+                    $mainzone_value = $row['mainzone'];
                     $region_code = $row['region_code'];
                     $region_name = $row['region_name'];
-                    
-                    // Insert or update record
+
+                    $ee_shared = floatval($row['ee_shared']);
+                    $er_shared = floatval($row['er_shared']);
+                    $total_contribution = $ee_shared + $er_shared;
+
                     if (!empty($row['id']) && $row['id'] !== 'null') {
-                        // Update existing record
-                        $updateQuery = "UPDATE " . $database[0] . ".rfp_payroll
-                                        SET no_employee_mlwallet = ?, mlwallet_amount = ?, 
-                                            no_employee_mlkp = ?, mlkp_amount = ?, 
-                                            total_employee = ?, total_amount = ?,
-                                            modified_by = ?, modified_date = ? 
-                                        WHERE id = ? and post_edi = 'pending' and payroll_date = ? and mainzone = ? and region_code = ? and region_name = ?";
-                        
+                        $updateQuery = "UPDATE " . $database[0] . ".remitance_contribution
+                            SET ee_shared = ?, er_shared = ?, total_contribution = ?
+                            WHERE id = ?
+                            AND post_edi = 'pending'
+                            AND remitance_date = ?
+                            AND mainzone = ?
+                            AND region_code = ?
+                            AND region_name = ?
+                            AND remitance_type = ?
+                            AND remitance_format_type = 'NEW'";
+
                         $stmt = $conn->prepare($updateQuery);
                         $record_id = intval($row['id']);
-                        $stmt->bind_param("idididssissss", 
-                            $no_employee_mlwallet, 
-                            $mlwallet_amount, 
-                            $no_employee_mlkp, 
-                            $mlkp_amount, 
-                            $total_employee, 
-                            $total_amount, 
-                            $modified_by, 
-                            $modified_date,
+
+                        $stmt->bind_param(
+                            "dddisssss",
+                            $ee_shared,
+                            $er_shared,
+                            $total_contribution,
                             $record_id,
-                            $payroll_date, 
-                            $payroll_mainzone, 
-                            $region_code, 
-                            $region_name
+                            $remittance_date,
+                            $mainzone_value,
+                            $region_code,
+                            $region_name,
+                            $remitance_type
                         );
                     } else {
-                        // Insert new record
-                        $insertQuery = "INSERT INTO " . $database[0] . ".rfp_payroll (
-                                            payroll_date, mainzone, region_code, region_name,
-                                            no_employee_mlwallet, mlwallet_amount, no_employee_mlkp, mlkp_amount,
-                                            total_employee, total_amount, payroll_type, uploaded_by, uploaded_date, post_edi
-                                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Data-Entry', ?, ?, 'pending')";
-                        
+                        $insertQuery = "INSERT INTO " . $database[0] . ".remitance_contribution (
+                                            remitance_date,
+                                            mainzone,
+                                            region_code,
+                                            region_name,
+                                            ee_shared,
+                                            er_shared,
+                                            total_contribution,
+                                            remitance_type,
+                                            remitance_format_type,
+                                            uploaded_by,
+                                            uploaded_date,
+                                            post_edi    
+                                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?, 'pending')";
+
                         $stmt = $conn->prepare($insertQuery);
-                        $payroll_date = $row['date'];
-                        if (!isAllowedPayrollDate($payroll_date)) {
-                            $errorCount++;
-                            continue;
-                        }
-                        $mainzone = $row['mainzone'];
-                        $region_code = $row['region_code'];
-                        $region_name = $row['region_name'];
                         $uploaded_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown User';
                         $uploaded_date = date('Y-m-d H:i:s');
-                        
-                        $stmt->bind_param("ssssidididss", 
-                            $payroll_date, 
-                            $mainzone, 
-                            $region_code, 
+
+                        $stmt->bind_param(
+                            "ssssdddsss",
+                            $remittance_date,
+                            $mainzone_value,
+                            $region_code,
                             $region_name,
-                            $no_employee_mlwallet, 
-                            $mlwallet_amount, 
-                            $no_employee_mlkp, 
-                            $mlkp_amount,
-                            $total_employee, 
-                            $total_amount,
+                            $ee_shared,
+                            $er_shared,
+                            $total_contribution,
+                            $remitance_type,
                             $uploaded_by,
                             $uploaded_date
                         );
                     }
-                    
+
                     if ($stmt->execute()) {
                         $successCount++;
                     } else {
                         $errorCount++;
                     }
+
                     $stmt->close();
                 }
                 
@@ -473,6 +470,8 @@
 
     <center><h2>Remittance NEW <span>[DATA ENTRY]</span></h2></center>
 
+    
+
     <div class="import-file">
         
         <form id="downloadForm" action="" method="post">
@@ -502,7 +501,17 @@
                 <div class="custom-arrow"></div>
             </div>
             <div class="custom-select-wrapper">
-                <label for="restricted-date">Remittance date </label>
+                <label for="remitance_type">Type</label>
+                <select name="remitance_type" id="remitance_type" autocomplete="off" required>
+                    <option value="">Select Type</option>
+                    <option value="SSS" <?php echo ($remitanceType === 'SSS') ? 'selected' : ''; ?>>SSS</option>
+                    <option value="PAGIBIG" <?php echo ($remitanceType === 'PAGIBIG') ? 'selected' : ''; ?>>PAGIBIG</option>
+                    <option value="PHILHEALTH" <?php echo ($remitanceType === 'PHILHEALTH') ? 'selected' : ''; ?>>PHILHEALTH</option>
+                </select>
+                <div class="custom-arrow"></div>
+            </div>
+            <div class="custom-select-wrapper">
+                <label for="restricted-date">Date </label>
                 <input type="date" id="restricted-date" name="restricted-date" value="<?php echo $displayDate; ?>" required>
             </div>
             
@@ -526,19 +535,16 @@
         <table id="dataTable">
             <thead>
                 <tr>
-                    <th colspan="9">(<?php echo $displayMainzone; ?>)</th>
+                    <th colspan="6">(<?php echo $displayMainzone; ?>) - <?php echo $displayRemitanceType; ?></th>
                 </tr>
                 <tr>
-                    <th colspan="3">Remittance Date : <?php echo $displayDate; ?> </th>
-                    <th rowspan="2">NO. OF EMPLOYEE (ML WALLET)</th>
-                    <th rowspan="2">ML WALLET AMOUNT</th>
-                    <th rowspan="2">NO. OF EMPLOYEE(ML KP)</th>
-                    <th rowspan="2">ML KP AMOUNT</th>
-                    <th rowspan="2">TOTAL EMPLOYEE</th>
-                    <th rowspan="2">TOTAL AMOUNT PER REGION</th>
+                    <th colspan="3">Remittance Date : <?php echo $displayDate; ?></th>
+                    <th rowspan="2">EE SHARE</th>
+                    <th rowspan="2">ER SHARE</th>
+                    <th rowspan="2">TOTAL</th>
                 </tr>
                 <tr>
-                    <th>REGION CODE  </th>
+                    <th>REGION CODE</th>
                     <th>REGION NAME</th>
                     <th>ZONE</th>
                 </tr>
@@ -546,60 +552,49 @@
             <tbody>
                 <?php
                     if (isset($_POST['generate'])) {
-                        $grand_total_employees_mlwallet = 0;
-                        $grand_total_mlwallet_amount = 0;
-                        $grand_total_employees_mlkp = 0;
-                        $grand_total_mlkp_amount = 0;
-                        $grand_total_employees = 0;
-                        $grand_total_amount_per_region = 0;
+                        $grand_total_ee_shared = 0;
+                        $grand_total_er_shared = 0;
+                        $grand_total_contribution = 0;
 
-                        if (!empty($payrollrows)) {
+                        if (!empty($contributionRows)) {
                             $index = 0;
-                            foreach ($payrollrows as $payroll) {
-                                $rowId = $payroll['id'] ?? 'new_' . $index;
-                                echo '<tr class="selectable-row" data-id="' . htmlspecialchars($rowId) . '" 
-                                    data-region-code="' . htmlspecialchars($payroll['region_code']) . '"
-                                    data-region-name="' . htmlspecialchars($payroll['region_description']) . '"
-                                    data-zone-code="' . htmlspecialchars($payroll['zone_code']) . '"
-                                    ondblclick="displayModal(' . $index . ')" onclick="highlightRow(this)">';
-                                echo '<td>' . htmlspecialchars($payroll['region_code']) . '</td>';
-                                echo '<td>' . htmlspecialchars($payroll['region_description']) . '</td>';
-                                echo '<td align="right">' . htmlspecialchars($payroll['zone_code']) . '</td>';
-                                echo '<td class="ml-wallet-emp">' . htmlspecialchars($payroll['no_employee_mlwallet'] ?? 0) . '</td>';
-                                echo '<td class="ml-wallet-amount" style="text-align: right">' . htmlspecialchars(number_format($payroll['mlwallet_amount'] ?? 0, 2)) . '</td>';
-                                echo '<td class="ml-kp-emp">' . htmlspecialchars($payroll['no_employee_mlkp'] ?? 0) . '</td>';
-                                echo '<td class="ml-kp-amount" style="text-align: right">' . htmlspecialchars(number_format($payroll['mlkp_amount'] ?? 0, 2)) . '</td>';
-                                echo '<td class="total-emp">' . htmlspecialchars($payroll['total_employee'] ?? 0) . '</td>';
-                                echo '<td class="total-amount" style="text-align: right">' . htmlspecialchars(number_format($payroll['total_amount_per_region'] ?? 0, 2)) . '</td>';
+                            foreach ($contributionRows as $contribution) {
+                                $rowId = $contribution['id'] ?? 'new_' . $index;
+
+                                echo '<tr class="selectable-row" data-id="' . htmlspecialchars($rowId) . '"
+                                    data-region-code="' . htmlspecialchars($contribution['region_code']) . '"
+                                    data-region-name="' . htmlspecialchars($contribution['region_description']) . '"
+                                    data-zone-code="' . htmlspecialchars($contribution['zone_code']) . '"
+                                    ondblclick="displayModal(' . $index . ')">';
+
+                                echo '<td>' . htmlspecialchars($contribution['region_code']) . '</td>';
+                                echo '<td>' . htmlspecialchars($contribution['region_description']) . '</td>';
+                                echo '<td>' . htmlspecialchars($contribution['zone_code']) . '</td>';
+                                echo '<td class="ee-shared" style="text-align: right">' . htmlspecialchars(number_format($contribution['ee_shared'] ?? 0, 2)) . '</td>';
+                                echo '<td class="er-shared" style="text-align: right">' . htmlspecialchars(number_format($contribution['er_shared'] ?? 0, 2)) . '</td>';
+                                echo '<td class="total-contribution" style="text-align: right">' . htmlspecialchars(number_format($contribution['total_contribution'] ?? 0, 2)) . '</td>';
                                 echo '</tr>';
 
-                                // Accumulate grand totals
-                                $grand_total_employees_mlwallet += $payroll['no_employee_mlwallet'] ?? 0;
-                                $grand_total_mlwallet_amount += $payroll['mlwallet_amount'] ?? 0;
-                                $grand_total_employees_mlkp += $payroll['no_employee_mlkp'] ?? 0;
-                                $grand_total_mlkp_amount += $payroll['mlkp_amount'] ?? 0;
-                                $grand_total_employees += $payroll['total_employee'] ?? 0;
-                                $grand_total_amount_per_region += $payroll['total_amount_per_region'] ?? 0;
+                                $grand_total_ee_shared += $contribution['ee_shared'] ?? 0;
+                                $grand_total_er_shared += $contribution['er_shared'] ?? 0;
+                                $grand_total_contribution += $contribution['total_contribution'] ?? 0;
 
                                 $index++;
                             }
                         } else {
-                            echo '<tr><td colspan="9">No records found for the selected criteria.</td></tr>';
+                            echo '<tr><td colspan="6">No records found for the selected criteria.</td></tr>';
                         }
                     } else {
-                        echo '<tr><td colspan="9">Please select Payroll Date to display.</td></tr>';
+                        echo '<tr><td colspan="6">Please select Remittance Date to display.</td></tr>';
                     }
                 ?>
             </tbody>
             <tfoot id="tableFoot">
                 <tr>
                     <th colspan="3">GRAND TOTAL</th>
-                    <th id="grand-total-ml-wallet-emp"><?php echo isset($grand_total_employees_mlwallet) ? $grand_total_employees_mlwallet : 0; ?></th>
-                    <th id="grand-total-ml-wallet-amount"><?php echo isset($grand_total_mlwallet_amount) ? number_format($grand_total_mlwallet_amount, 2) : '0.00'; ?></th>
-                    <th id="grand-total-ml-kp-emp"><?php echo isset($grand_total_employees_mlkp) ? $grand_total_employees_mlkp : 0; ?></th>
-                    <th id="grand-total-ml-kp-amount"><?php echo isset($grand_total_mlkp_amount) ? number_format($grand_total_mlkp_amount, 2) : '0.00'; ?></th>
-                    <th id="grand-total-emp"><?php echo isset($grand_total_employees) ? $grand_total_employees : 0; ?></th>
-                    <th id="grand-total-amount"><?php echo isset($grand_total_amount_per_region) ? number_format($grand_total_amount_per_region, 2) : '0.00'; ?></th>
+                    <th id="grand-total-ee-shared"><?php echo isset($grand_total_ee_shared) ? number_format($grand_total_ee_shared, 2) : '0.00'; ?></th>
+                    <th id="grand-total-er-shared"><?php echo isset($grand_total_er_shared) ? number_format($grand_total_er_shared, 2) : '0.00'; ?></th>
+                    <th id="grand-total-contribution"><?php echo isset($grand_total_contribution) ? number_format($grand_total_contribution, 2) : '0.00'; ?></th>
                 </tr>
             </tfoot>
         </table>
@@ -612,7 +607,7 @@
                 <div class="update-modal-content">
                     <!-- Modal Header -->
                     <div class="update-modal-header">
-                        <h4 class="update-modal-title">RFP Payroll (Data Entry)</h4>
+                        <h4 class="update-modal-title">Remittance NEW (Data Entry)</h4>
                         <button type="button" class="update-close" data-dismiss="update-modal">&times</button>
                     </div>
                     <!-- Modal body -->
@@ -631,26 +626,21 @@
                             <input type="hidden" name="mainzone" id="mainzone_input">
                             <input type="hidden" name="region_code_update" id="region_code_hidden">
                             <input type="hidden" name="region_name_update" id="region_name_hidden">
+                            <input type="hidden" name="remitance_type" id="remitance_type_input">
 
                             <!-- second content -->
                             <div class="second-content-wrap text-center fw-normal">
                                 <div class="content-item">
-                                    <label for="EMLWallet">No. of Employee (ML Wallet)</label>
-                                    <input class="add_inp" type="text" name="EMLWallet" id="EMLWallet" required autocomplete="off" onkeypress="return (event.keyCode >= 48 && event.keyCode <= 57) || (event.keyCode == 46 && event.keyCode == 18 );">
+                                    <label for="EEShared">EE SHARE</label>
+                                    <input class="add_inp" type="text" name="EEShared" id="EEShared" required autocomplete="off" inputmode="decimal">
                                 </div>
                                 <div class="content-item">
-                                    <label for="MLWallet">ML WALLET AMOUNT</label>
-                                    <input class="add_inp" type="text" name="MLWallet" id="MLWallet" required autocomplete="off" onkeypress="return (event.keyCode >= 48 && event.keyCode <= 57) || (event.keyCode == 46 && event.keyCode == 46 );">
+                                    <label for="ERShared">ER SHARE</label>
+                                    <input class="add_inp" type="text" name="ERShared" id="ERShared" required autocomplete="off" inputmode="decimal">
                                 </div>
                                 <div class="content-item">
-                                    <label for="EMLKP">No. of Employee (ML KP)</label>
-                                    <input class="add_inp" type="text" name="EMLKP" id="EMLKP" required autocomplete="off" onkeypress="return (event.keyCode >= 48 && event.keyCode <= 57) || (event.keyCode == 46 && event.keyCode == 18 );">
-                                </div>
-                                <div class="content-item">
-                                    <label for="MLKP">ML KP AMOUNT</label>
-                                    <input class="add_inp" type="text" name="MLKP" id="MLKP" required autocomplete="off" onkeypress="return (event.keyCode >= 48 && event.keyCode <= 57) || (event.keyCode == 46 && event.keyCode == 46 );">
-                                    
-                                    <!-- Hidden input to store the record ID -->
+                                    <label for="TotalContribution">TOTAL</label>
+                                    <input class="add_inp" type="text" name="TotalContribution" id="TotalContribution" readonly>
                                     <input type="hidden" name="record_id" id="record_id" readonly>
                                 </div>
                             </div>
@@ -667,13 +657,28 @@
     </form>
     <script src="<?php echo $relative_path; ?>assets/js/admin/mcash-recon/rfp-payroll-data-entry-script.js"></script>
     <script>
-        // Store table data changes
+
+        function enforceMoneyInput(selector) {
+            document.querySelectorAll(selector).forEach(input => {
+                input.addEventListener("input", function () {
+                    this.value = this.value
+                        .replace(/[^0-9.]/g, '')
+                        .replace(/(\..*)\./g, '$1')
+                        .replace(/^(\d+)(\.\d{0,2}).*$/, '$1$2');
+                });
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            enforceMoneyInput("#EEShared, #ERShared");
+        });
+
         let tableChanges = {};
 
         document.addEventListener("DOMContentLoaded", function () {
             const closeButtons = document.querySelectorAll(".print-btn, .update-close");
             const modal = document.querySelector("#myModal");
-            
+
             if (modal && closeButtons.length > 0) {
                 closeButtons.forEach(button => {
                     button.addEventListener("click", function () {
@@ -682,19 +687,35 @@
                     });
                 });
             }
+
+            const eeInput = document.querySelector("#EEShared");
+            const erInput = document.querySelector("#ERShared");
+
+            if (eeInput) {
+                eeInput.addEventListener("input", updateComputedTotal);
+            }
+
+            if (erInput) {
+                erInput.addEventListener("input", updateComputedTotal);
+            }
         });
 
         function clearModalFields() {
-            document.querySelector("#EMLWallet").value = '';
-            document.querySelector("#MLWallet").value = '';
-            document.querySelector("#EMLKP").value = '';
-            document.querySelector("#MLKP").value = '';
+            document.querySelector("#EEShared").value = '';
+            document.querySelector("#ERShared").value = '';
+            document.querySelector("#TotalContribution").value = '';
             document.querySelector("#record_id").value = '';
             document.querySelector("#region_code_update").textContent = '';
             document.querySelector("#region_name_update").textContent = '';
             document.querySelector("#zone_code_update").textContent = '';
             document.querySelector("#save-btn").style.display = "inline-block";
             document.querySelector("#update-btn").style.display = "none";
+        }
+
+        function updateComputedTotal() {
+            const eeShared = parseFloat(document.querySelector("#EEShared").value) || 0;
+            const erShared = parseFloat(document.querySelector("#ERShared").value) || 0;
+            document.querySelector("#TotalContribution").value = (eeShared + erShared).toFixed(2);
         }
 
         function displayModal(rowIndex) {
@@ -707,35 +728,28 @@
             const recordId = row.getAttribute("data-id");
             document.querySelector("#record_id").value = recordId;
 
-            // Populate modal labels
             document.querySelector("#region_code_update").textContent = rowData[0] || '';
             document.querySelector("#region_name_update").textContent = rowData[1] || '';
             document.querySelector("#zone_code_update").textContent = rowData[2] || '';
-
-            // Populate hidden form inputs
+            
             document.querySelector("#date_input").value = document.querySelector("input[name='restricted-date']").value;
             document.querySelector("#mainzone_input").value = document.querySelector("select[name='mainzone']").value;
+            document.querySelector("#remitance_type_input").value = document.querySelector("select[name='remitance_type']").value;
             document.querySelector("#region_code_hidden").value = rowData[0] || '';
             document.querySelector("#region_name_hidden").value = rowData[1] || '';
 
-            // Check if record exists and populate fields
-            const hasData = recordId && recordId !== 'null' && rowData[3] && rowData[3] !== '0';
-            
-            if (hasData) {
-                // Parse formatted numbers (remove commas)
-                document.querySelector("#EMLWallet").value = rowData[3] || '0';
-                document.querySelector("#MLWallet").value = rowData[4] ? rowData[4].replace(/,/g, '') : '0';
-                document.querySelector("#EMLKP").value = rowData[5] || '0';
-                document.querySelector("#MLKP").value = rowData[6] ? rowData[6].replace(/,/g, '') : '0';
-                
+            const eeShared = rowData[3] ? rowData[3].replace(/,/g, '') : '0';
+            const erShared = rowData[4] ? rowData[4].replace(/,/g, '') : '0';
+            const totalContribution = rowData[5] ? rowData[5].replace(/,/g, '') : '0';
+
+            document.querySelector("#EEShared").value = eeShared;
+            document.querySelector("#ERShared").value = erShared;
+            document.querySelector("#TotalContribution").value = totalContribution;
+
+            if (recordId && !recordId.startsWith('new_')) {
                 document.querySelector("#save-btn").style.display = "none";
                 document.querySelector("#update-btn").style.display = "inline-block";
             } else {
-                document.querySelector("#EMLWallet").value = '';
-                document.querySelector("#MLWallet").value = '';
-                document.querySelector("#EMLKP").value = '';
-                document.querySelector("#MLKP").value = '';
-                
                 document.querySelector("#save-btn").style.display = "inline-block";
                 document.querySelector("#update-btn").style.display = "none";
             }
@@ -743,7 +757,6 @@
             document.querySelector("#myModal").classList.add("show");
         }
 
-        // Handle save/update in modal
         document.querySelector("#save-btn").addEventListener("click", function(e) {
             e.preventDefault();
             updateTableRow();
@@ -756,71 +769,48 @@
 
         function updateTableRow() {
             const recordId = document.querySelector("#record_id").value;
-            const emlWallet = parseInt(document.querySelector("#EMLWallet").value) || 0;
-            const mlWallet = parseFloat(document.querySelector("#MLWallet").value) || 0;
-            const emlKp = parseInt(document.querySelector("#EMLKP").value) || 0;
-            const mlKp = parseFloat(document.querySelector("#MLKP").value) || 0;
-            
-            const totalEmp = emlWallet + emlKp;
-            const totalAmount = mlWallet + mlKp;
+            const eeShared = parseFloat(document.querySelector("#EEShared").value) || 0;
+            const erShared = parseFloat(document.querySelector("#ERShared").value) || 0;
+            const totalContribution = eeShared + erShared;
 
-            // Find the corresponding row
             const row = document.querySelector(`tr[data-id="${recordId}"]`);
             if (row) {
-                // Update table cells
-                row.querySelector(".ml-wallet-emp").textContent = emlWallet;
-                row.querySelector(".ml-wallet-amount").textContent = mlWallet.toLocaleString('en-US', {minimumFractionDigits: 2});
-                row.querySelector(".ml-kp-emp").textContent = emlKp;
-                row.querySelector(".ml-kp-amount").textContent = mlKp.toLocaleString('en-US', {minimumFractionDigits: 2});
-                row.querySelector(".total-emp").textContent = totalEmp;
-                row.querySelector(".total-amount").textContent = totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
+                row.querySelector(".ee-shared").textContent = eeShared.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                row.querySelector(".er-shared").textContent = erShared.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                row.querySelector(".total-contribution").textContent = totalContribution.toLocaleString('en-US', { minimumFractionDigits: 2 });
 
-                // Store changes in tableChanges object
                 tableChanges[recordId] = {
                     id: recordId.startsWith('new_') ? null : recordId,
                     date: document.querySelector("#date_input").value,
                     mainzone: document.querySelector("#mainzone_input").value,
                     region_code: document.querySelector("#region_code_hidden").value,
                     region_name: document.querySelector("#region_name_hidden").value,
-                    no_employee_mlwallet: emlWallet,
-                    mlwallet_amount: mlWallet,
-                    no_employee_mlkp: emlKp,
-                    mlkp_amount: mlKp
+                    remitance_type: document.querySelector("#remitance_type_input").value,
+                    ee_shared: eeShared,
+                    er_shared: erShared
                 };
 
-                // Update grand totals
                 updateGrandTotals();
             }
 
-            // Close modal
             document.querySelector("#myModal").classList.remove("show");
             clearModalFields();
         }
 
         function updateGrandTotals() {
-            let grandTotalMLWalletEmp = 0;
-            let grandTotalMLWalletAmount = 0;
-            let grandTotalMLKpEmp = 0;
-            let grandTotalMLKpAmount = 0;
-            let grandTotalEmp = 0;
-            let grandTotalAmount = 0;
+            let grandTotalEeShared = 0;
+            let grandTotalErShared = 0;
+            let grandTotalContribution = 0;
 
             document.querySelectorAll(".selectable-row").forEach(row => {
-                grandTotalMLWalletEmp += parseInt(row.querySelector(".ml-wallet-emp").textContent) || 0;
-                grandTotalMLWalletAmount += parseFloat(row.querySelector(".ml-wallet-amount").textContent.replace(/,/g, '')) || 0;
-                grandTotalMLKpEmp += parseInt(row.querySelector(".ml-kp-emp").textContent) || 0;
-                grandTotalMLKpAmount += parseFloat(row.querySelector(".ml-kp-amount").textContent.replace(/,/g, '')) || 0;
-                grandTotalEmp += parseInt(row.querySelector(".total-emp").textContent) || 0;
-                grandTotalAmount += parseFloat(row.querySelector(".total-amount").textContent.replace(/,/g, '')) || 0;
+                grandTotalEeShared += parseFloat(row.querySelector(".ee-shared").textContent.replace(/,/g, '')) || 0;
+                grandTotalErShared += parseFloat(row.querySelector(".er-shared").textContent.replace(/,/g, '')) || 0;
+                grandTotalContribution += parseFloat(row.querySelector(".total-contribution").textContent.replace(/,/g, '')) || 0;
             });
 
-            // Update footer totals
-            document.querySelector("#grand-total-ml-wallet-emp").textContent = grandTotalMLWalletEmp;
-            document.querySelector("#grand-total-ml-wallet-amount").textContent = grandTotalMLWalletAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.querySelector("#grand-total-ml-kp-emp").textContent = grandTotalMLKpEmp;
-            document.querySelector("#grand-total-ml-kp-amount").textContent = grandTotalMLKpAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
-            document.querySelector("#grand-total-emp").textContent = grandTotalEmp;
-            document.querySelector("#grand-total-amount").textContent = grandTotalAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.querySelector("#grand-total-ee-shared").textContent = grandTotalEeShared.toLocaleString('en-US', { minimumFractionDigits: 2 });
+            document.querySelector("#grand-total-er-shared").textContent = grandTotalErShared.toLocaleString('en-US', { minimumFractionDigits: 2 });
+            document.querySelector("#grand-total-contribution").textContent = grandTotalContribution.toLocaleString('en-US', { minimumFractionDigits: 2 });
         }
 
         function submitAllChanges() {
@@ -831,7 +821,7 @@
 
             const tableData = Object.values(tableChanges);
             document.querySelector("#table_data_input").value = JSON.stringify(tableData);
-            
+
             return confirm(`Are you sure you want to submit ${tableData.length} record(s)?`);
         }
     </script>

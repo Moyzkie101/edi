@@ -65,6 +65,7 @@
                     <div class="dropdown-content" role="menu">
                         <?php if (in_array('HO RFP', $roles)): ?>
                             <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry_rfp-payroll.php" role="menuitem">RFP Payroll</a>
+                            <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry-remittance.php" role="menuitem">Remittance</a>
                         <?php else: ?>
                             <a class="user-link" href="#" role="menuitem" aria-disabled="true">RFP Payroll</a>
                         <?php endif; ?>
