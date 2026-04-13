@@ -453,7 +453,7 @@
             FROM " . $database[0] . ".remitance_edi_report AS err
             WHERE 
                 err.remitance_date = '$restrictedDate' 
-                AND ml_matic_status IN ('Inactive', 'Pending')
+                AND ml_matic_status IN ('Inactive', 'Pending', 'TBO')
                 AND NOT(
                     (err.zone IN ('VIS','JVIS', 'MIN') AND err.ml_matic_region = 'VISMIN Showroom') OR
                     (err.zone IN ('LZN', 'NCR') AND err.ml_matic_region = 'LNCR Showroom')
@@ -477,7 +477,7 @@
             FROM " . $database[0] . ".remitance_edi_report AS err
             WHERE 
                 err.remitance_date = '$restrictedDate' 
-                AND ml_matic_status IN ('Inactive', 'Pending')
+                AND ml_matic_status IN ('Inactive', 'Pending', 'TBO')
                 AND (
                     (err.zone IN ('VIS','JVIS', 'MIN') AND err.ml_matic_region = 'VISMIN Showroom') OR
                     (err.zone IN ('LZN', 'NCR') AND err.ml_matic_region = 'LNCR Showroom')
@@ -1438,7 +1438,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             FROM " . $database[0] . ".remitance_edi_report AS err
             WHERE 
                 err.remitance_date = '$restrictedDate' 
-                AND ml_matic_status IN ('Inactive', 'Pending')
+                AND ml_matic_status IN ('Inactive', 'Pending', 'TBO')
                 AND NOT(
                     (err.zone IN ('VIS','JVIS', 'MIN') AND err.ml_matic_region = 'VISMIN Showroom') OR
                     (err.zone IN ('LZN', 'NCR') AND err.ml_matic_region = 'LNCR Showroom')
@@ -1462,7 +1462,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             FROM " . $database[0] . ".remitance_edi_report AS err
             WHERE 
                 err.remitance_date = '$restrictedDate' 
-                AND ml_matic_status IN ('Inactive', 'Pending')
+                AND ml_matic_status IN ('Inactive', 'Pending', 'TBO')
                 AND (
                     (err.zone IN ('VIS','JVIS', 'MIN') AND err.ml_matic_region = 'VISMIN Showroom') OR
                     (err.zone IN ('LZN', 'NCR') AND err.ml_matic_region = 'LNCR Showroom')

@@ -414,6 +414,13 @@
             $posted_date = date('Y-m-d H:i:s');
             $posted_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown User';
         
+            // Prepare numeric fields to avoid inserting empty strings into integer columns
+            if ($e_code === '') {
+                $e_code_sql = 'NULL';
+            } else {
+                $e_code_sql = '\'' . $e_code . '\'';
+            }
+
             $insertQuery = "INSERT INTO " . $database[0] . ".remitance_edi_report (
                                     remitance_date,
                                     mainzone,
@@ -461,7 +468,7 @@
                                     '" . $e_region_code . "',
                                     '" . $e_kp_code . "',
                                     '" . $e_ml_matic_status . "',
-                                    '" . $e_code . "', 
+                                    " . $e_code_sql . ", 
                                     '" . $e_branch_name . "',
 
                                     '" . $ee_dr1 . "',
