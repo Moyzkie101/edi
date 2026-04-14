@@ -204,7 +204,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
     $successRows = [];
     $unknownRegionRows = [];
     $invalidLoanTypeRows = [];
+    $invalidIdRows = [];
     $dataRows = [];
+    $conflictingRegionRows = [];
+    $employeeRegionTracker = [];
+    $employeesWithRegionConflict = [];
 
     if ($fileExtension === 'xlsx' || $fileExtension === 'xls') {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fileTmpPath);
@@ -233,15 +237,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                     continue;
                 }
 
-                if (!preg_match('/^\d{8}$/', $idNo)) {
-                    continue;
-                }
+                // if (!preg_match('/^\d{8}$/', $idNo)) {
+                //     continue;
+                // }
 
                 if (!is_numeric(str_replace(',', '', $fundRaw))) {
                     continue;
                 }
 
                 $fund = (float)str_replace(',', '', $fundRaw);
+
+                if ($idNo === '' || !preg_match('/^\d{8}$/', $idNo)) {
+                    $invalidIdRows[] = [
+                        'sheet_name' => $sheetName,
+                        'idno' => $idNo,
+                        'name' => trim($lastName . ', ' . $firstName, ', '),
+                        'loan_type' => $loanTypeRaw,
+                        'fund' => $fund,
+                        'remarks' => 'missing or invalid employee id'
+                    ];
+                    continue;
+                }
+
+                if ($loanTypeRaw === '') {
+                    $invalidLoanTypeRows[] = [
+                        'sheet_name' => $sheetName,
+                        'idno' => $idNo,
+                        'name' => trim($lastName . ', ' . $firstName, ', '),
+                        'loan_type' => $loanTypeRaw,
+                        'fund' => $fund,
+                        'remarks' => 'missing loan type'
+                    ];
+                    continue;
+                }
 
                 if ($regionCodeInput === '0' || $regionCodeInput === '') {
                     $unknownRegionRows[] = [
@@ -277,6 +305,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                         'loan_type' => $loanTypeRaw,
                         'fund' => $fund,
                         'remarks' => 'unknown region'
+                    ];
+                    continue;
+                }
+
+                $employeePayrollKey = $idNo . '|' . ($_POST['restricted-date'] ?? '');
+
+                if (isset($employeeRegionTracker[$employeePayrollKey])) {
+                    if ($employeeRegionTracker[$employeePayrollKey]['region_code'] !== $regionData['region_code']) {
+                        $employeesWithRegionConflict[$employeePayrollKey] = true;
+
+                        $conflictingRegionRows[] = [
+                            'sheet_name' => $sheetName,
+                            'idno' => $idNo,
+                            'name' => trim($lastName . ', ' . $firstName, ', '),
+                            'loan_type' => $loanTypeRaw,
+                            'fund' => $fund,
+                            'remarks' => 'same employee has different region in one payroll',
+                            'first_region' => $employeeRegionTracker[$employeePayrollKey]['region'],
+                            'second_region' => $regionData['region']
+                        ];
+
+                        continue;
+                    }
+                } else {
+                    $employeeRegionTracker[$employeePayrollKey] = [
+                        'region_code' => $regionData['region_code'],
+                        'region' => $regionData['region']
+                    ];
+                }
+
+                if (isset($employeesWithRegionConflict[$employeePayrollKey])) {
+                    $conflictingRegionRows[] = [
+                        'sheet_name' => $sheetName,
+                        'idno' => $idNo,
+                        'name' => trim($lastName . ', ' . $firstName, ', '),
+                        'loan_type' => $loanTypeRaw,
+                        'fund' => $fund,
+                        'remarks' => 'same employee has different region in one payroll',
+                        'first_region' => $employeeRegionTracker[$employeePayrollKey]['region'] ?? '',
+                        'second_region' => $regionData['region'] ?? ''
                     ];
                     continue;
                 }
@@ -333,15 +401,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
         if (!empty($unknownRegionRows)) {
             echo "<script>alert('Import failed: Unknown/invalid region codes detected. Please fix the file and try again.');</script>";
             $dataRows = [];
+        } elseif (!empty($invalidIdRows)) {
+            echo "<script>alert('Import failed: Missing or invalid employee IDs detected. Please fix the file and try again.');</script>";
+            $dataRows = [];
         } elseif (!empty($invalidLoanTypeRows)) {
-            echo "<script>alert('Import failed: Invalid loan type values detected. Please fix the file and try again.');</script>";
+            echo "<script>alert('Import failed: Invalid or missing loan type values detected. Please fix the file and try again.');</script>";
             $dataRows = [];
         } elseif (!empty($duplicateInFileRows)) {
             echo "<script>alert('Import failed: Duplicate entries (same ID, loan type, and payroll date) detected in the file. Please fix the file and try again.');</script>";
             $dataRows = [];
+        } elseif (!empty($conflictingRegionRows)) {
+            echo "<script>alert('Import failed: An employee was found in different regions within one payroll date. Please fix the file and try again.');</script>";
+            $dataRows = [];    
         } elseif (empty($dataRows)) {
             echo "<script>alert('No valid payroll data found in Excel file.');</script>";
-        } else {
+        }else {
             $uploadedBy = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown user';
             $uploadedDate = date('Y-m-d H:i:s');
             $postEdi = 'pending';
@@ -444,6 +518,17 @@ if (!isset($successRows)) $successRows = [];
 if (!isset($unknownRegionRows)) $unknownRegionRows = [];
 if (!isset($invalidLoanTypeRows)) $invalidLoanTypeRows = [];
 if (!isset($duplicateInFileRows)) $duplicateInFileRows = [];
+if (!isset($invalidIdRows)) $invalidIdRows = [];
+if (!isset($conflictingRegionRows)) $conflictingRegionRows = [];
+
+$errorRowsForPdf = array_values(array_merge(
+    $unknownRegionRows,
+    $invalidLoanTypeRows,
+    $invalidIdRows,
+    $duplicateInFileRows,
+    $conflictingRegionRows
+));
+
 ?>
 
 <!DOCTYPE html>
@@ -489,6 +574,7 @@ if (!isset($duplicateInFileRows)) $duplicateInFileRows = [];
         tr:nth-child(even) { background:#f9f9f9; }
         .unknown-region { background:#fff3cd !important; color:#856404; }
         .invalid-loan { background:#f8d7da !important; color:#721c24; }
+        button.export-btn {border-radius: 12px;  padding: 8px; background: red; color: white;}
     </style>
 </head>
 <body>
@@ -524,11 +610,64 @@ if (!isset($duplicateInFileRows)) $duplicateInFileRows = [];
                     </div>
                 </div>
             </form>
+            <div class="display_data">
+                <div class="showEP" style="display: none">
+                    <button type="submit" class="export-btn" onclick="exportToPDF()">Export to PDF</button>
+                </div>
+                <div class="showEP" style="display: none">
+                    <button type="submit" class="print-btn" onclick="printTable()">
+                        <i style="margin-right: 7px;" class="fa-solid fa-print"></i> Print
+                    </button>
+                </div>
+                <div class="showEP" style="display: none">
+                    <button type="submit" class="print-btn">
+                        <i style="margin-right: 7px;" class="fa-solid fa fa-floppy-disk"></i> Save to Database
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <?php if (!empty($alreadyExistRows) || !empty($successRows) || !empty($unknownRegionRows) || !empty($invalidLoanTypeRows) || !empty($duplicateInFileRows)) { ?>
+
+
+    <script>
+        function exportErrorsToPDF() {
+            const rows = <?php echo json_encode($errorRowsForPdf, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            const payrollDate = <?php echo json_encode($_POST['restricted-date'] ?? ''); ?>;
+            const mainzone = <?php echo json_encode($_POST['mainzone'] ?? ''); ?>;
+            const filename = <?php echo json_encode($_FILES['excelFile']['name'] ?? 'mlfund-new-format'); ?>;
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '../../models/generate/pdf/mlfund_new_format_errors_pdf.php';
+
+            function addField(name, value) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            }
+
+            addField('rows', JSON.stringify(rows));
+            addField('payroll_date', payrollDate);
+            addField('mainzone', mainzone);
+            addField('filename', filename);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+
+    <?php if (!empty($alreadyExistRows) || !empty($successRows) || !empty($unknownRegionRows) || !empty($invalidLoanTypeRows) || !empty($duplicateInFileRows) || !empty($invalidIdRows) || !empty($conflictingRegionRows)){ ?>
     <h3 class="display_data">Import Results</h3>
+        <?php if (!empty($errorRowsForPdf)) { ?>
+        <div class="display_data" style="margin: 10px 20px 0;">
+            <button type="button" class="export-btn" onclick="exportErrorsToPDF()">
+                Export to PDF
+            </button>
+        </div>
+        <?php } ?>
     <div class="table-container">
         <table id="printableTable">
             <thead>
@@ -599,6 +738,15 @@ if (!isset($duplicateInFileRows)) $duplicateInFileRows = [];
                 </tr>
                 <?php } ?>
 
+                <?php foreach ($invalidIdRows as $row) { ?>
+                <tr class="invalid-loan"> 
+                    <td><?php echo htmlspecialchars($row['idno'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td> 
+                    <td><?php echo htmlspecialchars($row['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td><?php echo htmlspecialchars($row['sheet_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?> (<?php echo htmlspecialchars($row['remarks'] ?? '', ENT_QUOTES, 'UTF-8'); ?>)</td> 
+                    <td colspan="7">-</td> <td><?php echo htmlspecialchars($row['remarks'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td> 
+                </tr> 
+                <?php } ?>
+
                 <?php foreach ($duplicateInFileRows as $row) { ?> 
                 <tr class="invalid-loan"> 
                     <td><?php echo $row['idno']; ?></td> 
@@ -608,11 +756,25 @@ if (!isset($duplicateInFileRows)) $duplicateInFileRows = [];
                     <td><?php echo $row['remarks']; ?></td> 
                 </tr> 
                 <?php } ?>
+
+                <?php foreach ($conflictingRegionRows as $row) { ?>
+                <tr class="invalid-loan">
+                    <td><?php echo htmlspecialchars($row['idno'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td><?php echo htmlspecialchars($row['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                    <td>
+                        <?php echo htmlspecialchars($row['first_region'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                        / 
+                        <?php echo htmlspecialchars($row['second_region'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                    </td>
+                    <td colspan="7">-</td>
+                    <td><?php echo htmlspecialchars($row['remarks'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                </tr>
+                <?php } ?>
             </tbody>
         </table>
     </div>
     <?php } ?>
 
-    <script src="<?php echo $relative_path; ?>assets/js/admin/import-file/script1.js"></script>
+    
 </body>
 </html>

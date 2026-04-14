@@ -77,6 +77,91 @@
     use PhpOffice\PhpSpreadsheet\Exception as SpreadsheetException;
     use PhpOffice\PhpSpreadsheet\Style\Border;
     use PhpOffice\PhpSpreadsheet\Style\Alignment;
+    
+
+
+    function getSpecialRowsAndTotals($conn, $database, $mainzone, $restrictedDate, $status, $region) {
+    $out = [
+    'mancom' => [],
+    'support' => [],
+    'subtotalEe' => 0,
+    'subtotalEr' => 0,
+    'subtotalTotal' => 0,
+    'subtotalEdiEe' => 0,
+    'subtotalEdiEr' => 0,
+    'subtotalVarEe' => 0,
+    'subtotalVarEr' => 0
+    ];
+
+    if (!empty($region)) {
+    return $out;
+    }
+
+    $specialZones = ($mainzone === 'VISMIN')
+        ? "'VISMIN-MANCOMM', 'VISMIN-SUPPORT'"
+        : "'LNCR-MANCOMM', 'LNCR-SUPPORT'";
+
+    $sql = "SELECT
+        rm.zone_code,
+        rm.region_code,
+        rm.region_description,
+        COALESCE(MAX(rc.ee_shared), 0) AS ee_shared,
+        COALESCE(MAX(rc.er_shared), 0) AS er_shared,
+        COALESCE(MAX(rc.total_contribution), 0) AS total_contribution,
+        COALESCE(SUM(
+            CASE
+                WHEN '$status' = 'SSS' THEN r.ee_dr1
+                WHEN '$status' = 'PHILHEALTH' THEN r.ee_dr2
+                WHEN '$status' = 'PAGIBIG' THEN r.ee_dr3
+                ELSE 0
+            END
+        ), 0) AS edi_ee_shared,
+        COALESCE(SUM(
+            CASE
+                WHEN '$status' = 'SSS' THEN r.dr1
+                WHEN '$status' = 'PHILHEALTH' THEN r.dr2
+                WHEN '$status' = 'PAGIBIG' THEN r.dr3
+                ELSE 0
+            END
+        ), 0) AS edi_er_shared
+    FROM " . $database[1] . ".region_masterfile rm
+    LEFT JOIN " . $database[0] . ".remitance_contribution rc
+        ON rm.region_code = rc.region_code
+        AND rc.mainzone = '$mainzone'
+        AND rc.remitance_date = '$restrictedDate'
+        AND rc.remitance_type = '$status'
+        AND rc.remitance_format_type = 'NEW'
+    LEFT JOIN " . $database[0] . ".remitance r
+        ON rm.region_code = r.region_code
+        AND r.remitance_date = '$restrictedDate'
+    WHERE rm.zone_code IN ($specialZones)
+    GROUP BY rm.zone_code, rm.region_code, rm.region_description";
+
+    $res = mysqli_query($conn, $sql);
+    while ($row = mysqli_fetch_assoc($res)) {
+        $desc = strtoupper(trim($row['region_description']));
+        if (strpos($desc, 'MANCOM') !== false || strpos($desc, 'MANCOMM') !== false) {
+            $out['mancom'] = $row;
+        } elseif (strpos($desc, 'SUPPORT') !== false) {
+            $out['support'] = $row;
+        }
+    }
+
+    $m = $out['mancom'];
+    $s = $out['support'];
+
+    $out['subtotalEe'] = ($m['ee_shared'] ?? 0) + ($s['ee_shared'] ?? 0);
+    $out['subtotalEr'] = ($m['er_shared'] ?? 0) + ($s['er_shared'] ?? 0);
+    $out['subtotalTotal'] = ($m['total_contribution'] ?? 0) + ($s['total_contribution'] ?? 0);
+
+    $out['subtotalEdiEe'] = ($m['edi_ee_shared'] ?? 0) + ($s['edi_ee_shared'] ?? 0);
+    $out['subtotalEdiEr'] = ($m['edi_er_shared'] ?? 0) + ($s['edi_er_shared'] ?? 0);
+
+    $out['subtotalVarEe'] = $out['subtotalEe'] - $out['subtotalEdiEe'];
+    $out['subtotalVarEr'] = $out['subtotalEr'] - $out['subtotalEdiEr'];
+
+    return $out;
+    }
 
     if (isset($_POST['download'])) {
 
@@ -498,6 +583,19 @@
                 
         $spreadsheet = new PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
+
+        $special = getSpecialRowsAndTotals($conn, $database, $mainzone, $restrictedDate, $status, $region);
+        $mancomRow = $special['mancom'];
+        $supportRow = $special['support'];
+
+        $specialSubtotalEe = $special['subtotalEe'];
+        $specialSubtotalEr = $special['subtotalEr'];
+        $specialSubtotalTotal = $special['subtotalTotal'];
+        $specialSubtotalEdiEe = $special['subtotalEdiEe'];
+        $specialSubtotalEdiEr = $special['subtotalEdiEr'];
+        $specialSubtotalVarEe = $special['subtotalVarEe'];
+        $specialSubtotalVarEr = $special['subtotalVarEr'];
+        
                 
         if(mysqli_num_rows($dlresult) > 0) {
                 
@@ -638,32 +736,55 @@
             $rowIndex = 12; // Starting from the 7th row
 
             
-            if($mainzone === 'VISMIN' && empty($region)) {
+            if (empty($region) && ($mainzone === 'VISMIN' || $mainzone === 'LNCR')) {
+                $mancomName = ($mainzone === 'VISMIN') ? 'CEBU MANCOM' : 'MAKATI MANCOM';
+                $supportName = ($mainzone === 'VISMIN') ? 'CEBU SUPPORT' : 'MAKATI SUPPORT';
+                $zoneLabel = ($mainzone === 'VISMIN') ? 'VIS' : 'LZN';
                 // Seventh row
-                $sheet->setCellValue('A8','-');
-                $sheet->setCellValue('B8','CEBU MANCOM');
-                $sheet->setCellValue('C8', 'VIS');
+                $mancomEdiEe = $mancomRow['edi_ee_shared'] ?? 0;
+                $mancomEdiEr = $mancomRow['edi_er_shared'] ?? 0;
+                $supportEdiEe = $supportRow['edi_ee_shared'] ?? 0;
+                $supportEdiEr = $supportRow['edi_er_shared'] ?? 0;
 
-                // Eighth row
-                $sheet->setCellValue('A9','-');
-                $sheet->setCellValue('B9','CEBU SUPPORT');
-                $sheet->setCellValue('C9', 'VIS');
+                $mancomVarEe = ($mancomRow['ee_shared'] ?? 0) - $mancomEdiEe;
+                $mancomVarEr = ($mancomRow['er_shared'] ?? 0) - $mancomEdiEr;
+                $supportVarEe = ($supportRow['ee_shared'] ?? 0) - $supportEdiEe;
+                $supportVarEr = ($supportRow['er_shared'] ?? 0) - $supportEdiEr;
 
-                // Ninth row
-                $sheet->setCellValue('A10','SUB-TOTAL')->mergeCells('A10:C10')->getStyle('A10')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            } elseif($mainzone === 'LNCR' && empty($region)){
-                // Seventh row
-                $sheet->setCellValue('A8','-');
-                $sheet->setCellValue('B8','MAKATI MANCOM');
-                $sheet->setCellValue('C8', 'LZN');
+                // Row 8 MANCOM
+                $sheet->setCellValue('A8', '-');
+                $sheet->setCellValue('B8', $mancomName);
+                $sheet->setCellValue('C8', $zoneLabel);
+                $sheet->setCellValue('D8', $mancomRow['ee_shared'] ?? 0);
+                $sheet->setCellValue('E8', $mancomRow['er_shared'] ?? 0);
+                $sheet->setCellValue('F8', $mancomRow['total_contribution'] ?? 0);
+                $sheet->setCellValue('G8', $mancomEdiEe);
+                $sheet->setCellValue('H8', $mancomEdiEr);
+                $sheet->setCellValue('I8', $mancomVarEe);
+                $sheet->setCellValue('J8', $mancomVarEr);
 
-                // Eighth row
-                $sheet->setCellValue('A9','-');
-                $sheet->setCellValue('B9','MAKATI SUPPORT');
-                $sheet->setCellValue('C9', 'LZN');
+                // Row 9 SUPPORT
+                $sheet->setCellValue('A9', '-');
+                $sheet->setCellValue('B9', $supportName);
+                $sheet->setCellValue('C9', $zoneLabel);
+                $sheet->setCellValue('D9', $supportRow['ee_shared'] ?? 0);
+                $sheet->setCellValue('E9', $supportRow['er_shared'] ?? 0);
+                $sheet->setCellValue('F9', $supportRow['total_contribution'] ?? 0);
+                $sheet->setCellValue('G9', $supportEdiEe);
+                $sheet->setCellValue('H9', $supportEdiEr);
+                $sheet->setCellValue('I9', $supportVarEe);
+                $sheet->setCellValue('J9', $supportVarEr);
 
-                // Ninth row
-                $sheet->setCellValue('A10','SUB-TOTAL')->mergeCells('A10:C10')->getStyle('A10')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                // Row 10 special subtotal
+                $sheet->setCellValue('A10', 'SUB-TOTAL')->mergeCells('A10:C10')->getStyle('A10')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->setCellValue('D10', $specialSubtotalEe);
+                $sheet->setCellValue('E10', $specialSubtotalEr);
+                $sheet->setCellValue('F10', $specialSubtotalTotal);
+                $sheet->setCellValue('G10', $specialSubtotalEdiEe);
+                $sheet->setCellValue('H10', $specialSubtotalEdiEr);
+                $sheet->setCellValue('I10', $specialSubtotalVarEe);
+                $sheet->setCellValue('J10', $specialSubtotalVarEr);
+                $sheet->getStyle('D8:J10')->getNumberFormat()->setFormatCode('#,##0.00');
 
             }
             
@@ -874,16 +995,15 @@
 
 
             $sheet->setCellValue('A'. ($rowIndex+1),'GRAND TOTAL')->mergeCells('A'. ($rowIndex+1).':C'.($rowIndex+1))->getStyle('A'.($rowIndex+1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->setCellValue('D' . ($rowIndex+1), $grandtotal_hrmdrfp_ee_shared);
-            $sheet->setCellValue('E' . ($rowIndex+1), $grandtotal_hrmdrfp_er_shared);
-            $sheet->setCellValue('F' . ($rowIndex+1), $grandtotal_hrmdrfp_total);
+            $sheet->setCellValue('D' . ($rowIndex+1), $grandtotal_hrmdrfp_ee_shared + $specialSubtotalEe);
+            $sheet->setCellValue('E' . ($rowIndex+1), $grandtotal_hrmdrfp_er_shared + $specialSubtotalEr);
+            $sheet->setCellValue('F' . ($rowIndex+1), $grandtotal_hrmdrfp_total + $specialSubtotalTotal);
 
             if($status === 'SSS'){
-                $sheet->setCellValue('G' . ($rowIndex+1), $grandtotal_hrmdedi_sss_ee_shared);
-                $sheet->setCellValue('H' . ($rowIndex+1), $grandtotal_hrmdedi_sss_er_shared);
-
-                $sheet->setCellValue('I' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance);
-                $sheet->setCellValue('J' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance);
+                $sheet->setCellValue('G' . ($rowIndex+1), $grandtotal_hrmdedi_sss_ee_shared + $specialSubtotalEdiEe);
+                $sheet->setCellValue('H' . ($rowIndex+1), $grandtotal_hrmdedi_sss_er_shared + $specialSubtotalEdiEr);
+                $sheet->setCellValue('I' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance + $specialSubtotalVarEe);
+                $sheet->setCellValue('J' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance + $specialSubtotalVarEr);
 
                 $sheet->setCellValue('K' . ($rowIndex+1), $grandtotal_edi_sss_ee_shared_active_branch);
                 $sheet->setCellValue('L' . ($rowIndex+1), $grandtotal_edi_sss_ee_shared_active_jewelry);
@@ -902,11 +1022,10 @@
                 $sheet->setCellValue('V' . ($rowIndex+1), $grandtotal_hrmdedi_vs_edi_sss_er_shared_variance);
 
             }elseif($status === 'PHILHEALTH'){
-                $sheet->setCellValue('G' . ($rowIndex+1), $grandtotal_hrmdedi_philhealth_ee_shared);
-                $sheet->setCellValue('H' . ($rowIndex+1), $grandtotal_hrmdedi_philhealth_er_shared);
-
-                $sheet->setCellValue('I' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance);
-                $sheet->setCellValue('J' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance);
+                $sheet->setCellValue('G' . ($rowIndex+1), $grandtotal_hrmdedi_philhealth_ee_shared + $specialSubtotalEdiEe);
+                $sheet->setCellValue('H' . ($rowIndex+1), $grandtotal_hrmdedi_philhealth_er_shared + $specialSubtotalEdiEr);
+                $sheet->setCellValue('I' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance + $specialSubtotalVarEe);
+                $sheet->setCellValue('J' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance + $specialSubtotalVarEr);
 
                 $sheet->setCellValue('K' . ($rowIndex+1), $grandtotal_edi_philhealth_ee_shared_active_branch);
                 $sheet->setCellValue('L' . ($rowIndex+1), $grandtotal_edi_philhealth_ee_shared_active_jewelry);
@@ -925,11 +1044,10 @@
                 $sheet->setCellValue('V' . ($rowIndex+1), $grandtotal_hrmdedi_vs_edi_philhealth_er_shared_variance);
 
             }elseif($status === 'PAGIBIG'){
-                $sheet->setCellValue('G' . ($rowIndex+1), $grandtotal_hrmdedi_pagibig_ee_shared);
-                $sheet->setCellValue('H' . ($rowIndex+1), $grandtotal_hrmdedi_pagibig_er_shared);
-
-                $sheet->setCellValue('I' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance);
-                $sheet->setCellValue('J' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance);
+                $sheet->setCellValue('G' . ($rowIndex+1), $grandtotal_hrmdedi_pagibig_ee_shared + $specialSubtotalEdiEe);
+                $sheet->setCellValue('H' . ($rowIndex+1), $grandtotal_hrmdedi_pagibig_er_shared + $specialSubtotalEdiEr);
+                $sheet->setCellValue('I' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance + $specialSubtotalVarEe);
+                $sheet->setCellValue('J' . ($rowIndex+1), $grandtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance + $specialSubtotalVarEr);
 
                 $sheet->setCellValue('K' . ($rowIndex+1), $grandtotal_edi_pagibig_ee_shared_active_branch);
                 $sheet->setCellValue('L' . ($rowIndex+1), $grandtotal_edi_pagibig_ee_shared_active_jewelry);
@@ -1995,6 +2113,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
         $_SESSION['grandtotal_hrmdedi_vs_edi_pagibig_ee_shared_variance'] = $grandtotal_hrmdedi_vs_edi_pagibig_ee_shared_variance;
         $_SESSION['grandtotal_hrmdedi_vs_edi_pagibig_er_shared_variance'] = $grandtotal_hrmdedi_vs_edi_pagibig_er_shared_variance;
 
+       $special = getSpecialRowsAndTotals($conn, $database, $mainzone, $restrictedDate, $status, $region);
+            $specialContribData = [
+            'MANCOMM' => $special['mancom'],
+            'SUPPORT' => $special['support']
+            ];
 
         // Check if there are results
         if (mysqli_num_rows($result) > 0) {
@@ -2062,117 +2185,123 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                         // Output the data rows
                         mysqli_data_seek($result, 0); // Reset result pointer to the beginning
 
+                        $specialSubtotalEe = 0;
+                        $specialSubtotalEr = 0;
+                        $specialSubtotalTotal = 0;
+                        $specialSubtotalEdiEe = 0;
+                        $specialSubtotalEdiEr = 0;
+                        $specialSubtotalVarEe = 0;
+                        $specialSubtotalVarEr = 0;
+
                         if ($mainzone === 'VISMIN' && empty($region)) {
+                            $mancomRow = $specialContribData['MANCOMM'] ?? [];
+                            $supportRow = $specialContribData['SUPPORT'] ?? [];
+
+                            $specialSubtotalEe = ($mancomRow['ee_shared'] ?? 0) + ($supportRow['ee_shared'] ?? 0);
+                            $specialSubtotalEr = ($mancomRow['er_shared'] ?? 0) + ($supportRow['er_shared'] ?? 0);
+                            $specialSubtotalTotal = ($mancomRow['total_contribution'] ?? 0) + ($supportRow['total_contribution'] ?? 0);
+                            $mancomEdiEe = $mancomRow['edi_ee_shared'] ?? 0;
+                            $mancomEdiEr = $mancomRow['edi_er_shared'] ?? 0;
+                            $supportEdiEe = $supportRow['edi_ee_shared'] ?? 0;
+                            $supportEdiEr = $supportRow['edi_er_shared'] ?? 0;
+
+                            $mancomVarEe = ($mancomRow['ee_shared'] ?? 0) - $mancomEdiEe;
+                            $mancomVarEr = ($mancomRow['er_shared'] ?? 0) - $mancomEdiEr;
+                            $supportVarEe = ($supportRow['ee_shared'] ?? 0) - $supportEdiEe;
+                            $supportVarEr = ($supportRow['er_shared'] ?? 0) - $supportEdiEr;
+
+                            $specialSubtotalEdiEe = $mancomEdiEe + $supportEdiEe;
+                            $specialSubtotalEdiEr = $mancomEdiEr + $supportEdiEr;
+                            $specialSubtotalVarEe = $specialSubtotalEe - $specialSubtotalEdiEe;
+                            $specialSubtotalVarEr = $specialSubtotalEr - $specialSubtotalEdiEr;
+
                             echo "<tr>";
                                 echo "<td>-</td>";
                                 echo "<td>CEBU MANCOM</td>";
                                 echo "<td>VIS</td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomRow['ee_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomRow['er_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomRow['total_contribution'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomEdiEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomEdiEr, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomVarEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomVarEr, 2) . "</td>";
+                                for ($i = 0; $i < 12; $i++) echo "<td></td>";
                             echo "</tr>";
+
                             echo "<tr>";
                                 echo "<td>-</td>";
                                 echo "<td>CEBU SUPPORT</td>";
                                 echo "<td>VIS</td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportRow['ee_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportRow['er_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportRow['total_contribution'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportEdiEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportEdiEr, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportVarEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportVarEr, 2) . "</td>";
+                                for ($i = 0; $i < 12; $i++) echo "<td></td>";
                             echo "</tr>";
+                            
                         }elseif($mainzone === 'LNCR' && empty($region)){
+                            $mancomRow = $specialContribData['MANCOMM'] ?? [];
+                            $supportRow = $specialContribData['SUPPORT'] ?? [];
+                            $specialSubtotalEe = ($mancomRow['ee_shared'] ?? 0) + ($supportRow['ee_shared'] ?? 0);
+                            $specialSubtotalEr = ($mancomRow['er_shared'] ?? 0) + ($supportRow['er_shared'] ?? 0);
+                            $specialSubtotalTotal = ($mancomRow['total_contribution'] ?? 0) + ($supportRow['total_contribution'] ?? 0);
+                            $mancomEdiEe = $mancomRow['edi_ee_shared'] ?? 0;
+                            $mancomEdiEr = $mancomRow['edi_er_shared'] ?? 0;
+                            $supportEdiEe = $supportRow['edi_ee_shared'] ?? 0;
+                            $supportEdiEr = $supportRow['edi_er_shared'] ?? 0;
+
+                            $mancomVarEe = ($mancomRow['ee_shared'] ?? 0) - $mancomEdiEe;
+                            $mancomVarEr = ($mancomRow['er_shared'] ?? 0) - $mancomEdiEr;
+                            $supportVarEe = ($supportRow['ee_shared'] ?? 0) - $supportEdiEe;
+                            $supportVarEr = ($supportRow['er_shared'] ?? 0) - $supportEdiEr;
+
+                            $specialSubtotalEdiEe = $mancomEdiEe + $supportEdiEe;
+                            $specialSubtotalEdiEr = $mancomEdiEr + $supportEdiEr;
+                            $specialSubtotalVarEe = $specialSubtotalEe - $specialSubtotalEdiEe;
+                            $specialSubtotalVarEr = $specialSubtotalEr - $specialSubtotalEdiEr;
+
                             echo "<tr>";
                                 echo "<td>-</td>";
                                 echo "<td>MAKATI MANCOM</td>";
                                 echo "<td>LZN</td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomRow['ee_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomRow['er_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomRow['total_contribution'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomEdiEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomEdiEr, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomVarEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($mancomVarEr, 2) . "</td>";
+                                for ($i = 0; $i < 12; $i++) echo "<td></td>";
                             echo "</tr>";
+
                             echo "<tr>";
                                 echo "<td>-</td>";
                                 echo "<td>MAKATI SUPPORT</td>";
                                 echo "<td>LZN</td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportRow['ee_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportRow['er_shared'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportRow['total_contribution'] ?? 0, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportEdiEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportEdiEr, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportVarEe, 2) . "</td>";
+                                echo "<td style='text-align:right;'>" . number_format($supportVarEr, 2) . "</td>";
+                                for ($i = 0; $i < 12; $i++) echo "<td></td>";
                             echo "</tr>";
                         }
                         if(empty($region)){
                             echo "<tr>";
                                 echo "<td colspan='3'><b>SUB-TOTAL</b></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
-                                echo "<td></td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($specialSubtotalEe, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($specialSubtotalEr, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($specialSubtotalTotal, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($specialSubtotalEdiEe, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($specialSubtotalEdiEr, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($specialSubtotalVarEe, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($specialSubtotalVarEr, 2)) . "</td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
@@ -2275,8 +2404,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                         }
                             echo "<tr>";
                                 echo "<td colspan='3'><b>SUB-TOTAL</b></td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_ee_shared, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_er_shared, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_ee_shared , 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_er_shared , 2)) . "</td>";
                                 echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_total, 2)) . "</td>";
                                 if($status === 'SSS'){
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_sss_ee_shared, 2)) . "</td>";
@@ -2296,8 +2425,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_sss_ee_shared_variance, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_vs_edi_sss_er_shared_variance, 2)) . "</td>";
                                 }elseif($status === 'PHILHEALTH'){
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_ee_shared, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_er_shared, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_ee_shared , 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdedi_philhealth_er_shared , 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($subtotal_edi_philhealth_ee_shared_active_branch, 2)) . "</td>";
@@ -2334,14 +2463,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             echo "</tr>";
                             echo "<tr>";
                                 echo "<td colspan='3'><b>GRAND TOTAL</b></td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_ee_shared, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_er_shared, 2)) . "</td>";
-                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_total, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_ee_shared + $specialSubtotalEe, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_er_shared + $specialSubtotalEr, 2)) . "</td>";
+                                echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_total + $specialSubtotalTotal, 2)) . "</td>";
                                 if($status === 'SSS'){
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_sss_ee_shared, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_sss_er_shared, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_sss_ee_shared + $specialSubtotalEdiEe, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_sss_er_shared + $specialSubtotalEdiEr, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_ee_shared_variance + $specialSubtotalVarEe, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_sss_er_shared_variance + $specialSubtotalVarEr, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_active_branch, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_ee_shared_active_jewelry, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_sss_er_shared_active_branch, 2)) . "</td>";
@@ -2355,10 +2484,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_sss_ee_shared_variance, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_sss_er_shared_variance, 2)) . "</td>";
                                 }elseif($status === 'PHILHEALTH'){
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_ee_shared, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_er_shared, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_ee_shared + $specialSubtotalEdiEe, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_philhealth_er_shared + $specialSubtotalEdiEr, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_ee_shared_variance + $specialSubtotalVarEe, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_philhealth_er_shared_variance + $specialSubtotalVarEr, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_active_branch, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_ee_shared_active_jewelry, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_philhealth_er_shared_active_branch, 2)) . "</td>";
@@ -2372,10 +2501,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_philhealth_ee_shared_variance, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_vs_edi_philhealth_er_shared_variance, 2)) . "</td>";
                                 }elseif($status === 'PAGIBIG'){
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_ee_shared, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_er_shared, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance, 2)) . "</td>";
-                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_ee_shared + $specialSubtotalEdiEe, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdedi_pagibig_er_shared + $specialSubtotalEdiEr, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_ee_shared_variance + $specialSubtotalVarEe, 2)) . "</td>";
+                                    echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_hrmdrfp_vs_hrmdedi_pagibig_er_shared_variance + $specialSubtotalVarEr, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_active_branch, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_ee_shared_active_jewelry, 2)) . "</td>";
                                     echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($grandtotal_edi_pagibig_er_shared_active_branch, 2)) . "</td>";
