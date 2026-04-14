@@ -66,11 +66,36 @@
         }
     }
 
+    function isAllowedPayrollDate($value) {
+    if (empty($value)) {
+        return false;
+    }
+
+    $ts = strtotime($value);
+    if ($ts === false) {
+        return false;
+    }
+
+    $day = (int) date('j', $ts);
+    $lastDay = (int) date('t', $ts);
+
+    return ($day === 15 || $day === $lastDay);
+    }
+
     $mainzone = $_POST['mainzone']?? '';
     $region = $_POST['region'] ?? '';
     $date = $_POST['restricted-date']?? '';
+
+    $displayMainzone = htmlspecialchars($mainzone, ENT_QUOTES, 'UTF-8');
+    $displayRegion = htmlspecialchars($region, ENT_QUOTES, 'UTF-8');
+    $displayDate = htmlspecialchars($date, ENT_QUOTES, 'UTF-8');
     
     if (isset($_POST['generate'])) {
+
+        if (!isAllowedPayrollDate($date)) {
+            echo "<script>alert('Invalid payroll date. Please select only the 15th or the last day of the month.');</script>";
+            $payrollrows = [];
+        } else {
 
         $safeMainzone = mysqli_real_escape_string($conn, $mainzone);
         $safeRegion = mysqli_real_escape_string($conn, $region);
@@ -84,23 +109,17 @@
 
         // Display records with optional filters for mainzone and region.
         $payrollquery = "SELECT
-                            mc.id,
+                            MAX(mc.id) AS id,
                             mzm.main_zone_code,
                             rm.region_code,
                             rm.region_description,
                             rm.zone_code,
-                            MAX(mc.no_employee_mlwallet) AS no_employee_mlwallet,
-                            MAX(mc.mlwallet_amount) AS mlwallet_amount,
-                            MAX(mc.no_employee_mlkp) AS no_employee_mlkp,
-                            MAX(mc.mlkp_amount) AS mlkp_amount,
-                            SUM(
-                                mc.no_employee_mlwallet +
-                                mc.no_employee_mlkp
-                            ) AS total_employee,
-                            SUM(
-                                mc.mlwallet_amount +
-                                mc.mlkp_amount
-                            ) AS total_amount_per_region
+                            COALESCE(SUM(mc.no_employee_mlwallet), 0) AS no_employee_mlwallet,
+                            COALESCE(SUM(mc.mlwallet_amount), 0) AS mlwallet_amount,
+                            COALESCE(SUM(mc.no_employee_mlkp), 0) AS no_employee_mlkp,
+                            COALESCE(SUM(mc.mlkp_amount), 0) AS mlkp_amount,
+                            COALESCE(SUM(mc.no_employee_mlwallet + mc.no_employee_mlkp), 0) AS total_employee,
+                            COALESCE(SUM(mc.mlwallet_amount + mc.mlkp_amount), 0) AS total_amount_per_region
                         FROM
                             " . $database[1] . ".main_zone_masterfile AS mzm
                         JOIN
@@ -113,12 +132,12 @@
                         LEFT JOIN
                             " . $database[0] . ".rfp_payroll AS mc
                             ON rm.region_code = mc.region_code
+                            AND mc.mainzone = mzm.main_zone_code
                             AND mc.payroll_date = '" . $safeDate . "'
                         WHERE 1=1
                             " . $mainzoneCondition . "
                             " . $regionCondition . "
                         GROUP BY
-                            mc.id,
                             mzm.main_zone_code,
                             rm.region_code,
                             rm.region_description,
@@ -144,6 +163,7 @@
         // Fetch results
         //$mcashrows = $mcashresult->fetch_all(MYSQLI_ASSOC);
          //$payrollrows = $payrollresult->fetch_all(MYSQLI_ASSOC);
+        }
     }
 
     // Check if a payroll date is selected
@@ -186,6 +206,11 @@
                     
                     // Sanitize input values
                     $payroll_date = $row['date'];
+
+                    if (!isAllowedPayrollDate($payroll_date)) {
+                        $errorCount++;
+                        continue;
+                    }
                     $payroll_mainzone = $row['mainzone'];
                     $region_code = $row['region_code'];
                     $region_name = $row['region_name'];
@@ -227,6 +252,10 @@
                         
                         $stmt = $conn->prepare($insertQuery);
                         $payroll_date = $row['date'];
+                        if (!isAllowedPayrollDate($payroll_date)) {
+                            $errorCount++;
+                            continue;
+                        }
                         $mainzone = $row['mainzone'];
                         $region_code = $row['region_code'];
                         $region_name = $row['region_name'];
@@ -486,7 +515,7 @@
             </div>
             <div class="custom-select-wrapper">
                 <label for="restricted-date">Payroll date </label>
-                <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : '';?>" required>
+                <input type="date" id="restricted-date" name="restricted-date" value="<?php echo $displayDate; ?>" required>
             </div>
             
             <input type="submit" class="generate-btn" name="generate" value="Proceed">
@@ -509,10 +538,10 @@
         <table id="dataTable">
             <thead>
                 <tr>
-                    <th colspan="9">(<?php echo isset($_POST['mainzone']) ? $_POST['mainzone'] : ''; ?>)</th>
+                    <th colspan="9">(<?php echo $displayMainzone; ?>)</th>
                 </tr>
                 <tr>
-                    <th colspan="3">RFP Payroll Date : <?php echo $date;?> </th>
+                    <th colspan="3">RFP Payroll Date : <?php echo $displayDate; ?> </th>
                     <th rowspan="2">NO. OF EMPLOYEE (ML WALLET)</th>
                     <th rowspan="2">ML WALLET AMOUNT</th>
                     <th rowspan="2">NO. OF EMPLOYEE(ML KP)</th>
@@ -603,8 +632,8 @@
                         <div class="content-wrap">
                             <!-- first content -->
                             <div class="first-content-wrap">
-                                <h3>Date : <span name="date"><?php echo $date;?></span></h3>
-                                <h3>Main Zone Code : <span name="mainzone"><?php echo isset($_POST['mainzone']) ? $_POST['mainzone'] : ''; ?></span></h3>
+                                <h3>Date : <span name="date"><?php echo $displayDate; ?></span></h3>
+                                <h3>Main Zone Code : <span name="mainzone"><?php echo $displayMainzone; ?></span></h3>
                                 <h3>Zone Code : <span id="zone_code_update" name="zone_code_update"></span></h3>
                                 <h3>Region Code : <span id="region_code_update" name="region_code_update"></span></h3>
                                 <h3>Region Name : <span id="region_name_update" name="region_name_update"></span></h3>
