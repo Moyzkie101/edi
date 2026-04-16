@@ -7,9 +7,14 @@
    outline: none; border:none;
    text-decoration: none;
 }
-body{
-   background-color: #888;
+body {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffd6d6 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+
 /* For webkit-based browsers (Chrome, Safari, etc.) */
 /* Style the scrollbar track */
 ::-webkit-scrollbar {
@@ -107,14 +112,15 @@ body{
    background: #d70c0c;
 }
 
-.form-container{
-   min-height: 100vh;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   padding:20px;
-   padding-bottom: 60px;
+.form-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: none;
 }
+
 .form-container .logo{
    height: auto;
    width: auto;
@@ -309,28 +315,165 @@ body{
  }
  /* Modal styles */
 .change-password-modal {
-   display: none; /* Hide the modal by default */
-   position: fixed;
-   z-index: 1;
-   left: 0;
-   top: 0;
-   width: 100%;
-   height: 100%;
-   overflow: auto;
-   background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
- }
- 
- .change-password-modal-content {
-   background-color: #fefefe;
-   margin: 10% auto;
-   padding: 30px;
-   border: 1px solid #888;
-   width: 350px;
- }
- 
- .change-password-modal h3 {
-   margin-top: 0;
- }
+    display: none;
+    position: fixed;
+    z-index: 10;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: auto;
+    background: rgba(44, 62, 80, 0.18); /* subtle dark overlay */
+    backdrop-filter: blur(2px);
+}
+
+.change-password-modal-content {
+    position: relative;
+    background: rgba(255,255,255,0.97);
+    margin: 13% auto;
+    padding: 5rem 2rem 6.1rem 2rem;
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(215, 12, 12, 0.10), 0 2px 8px rgba(44,62,80,0.04);
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.change-password-modal-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: var(--accent, #2c3e50);
+}
+
+.change-password-modal-content h6 {
+    font-size: 1rem;
+    color: #d70c0c;
+    font-style: italic;
+    margin-bottom: 12px;
+}
+
+.change-password-modal-content form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.change-password-modal-content .input-container {
+    position: relative;
+    margin-bottom: 18px;
+}
+
+.change-password-modal-content input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    background: #f8f9fa;
+    font-size: 1rem;
+    color: #333;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.change-password-modal-content input[type="password"]:focus {
+    border: 1.5px solid var(--primary, #d70c0c);
+}
+
+.change-password-modal-content label {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    color: #999;
+    font-size: 1rem;
+    pointer-events: none;
+    transition: 0.2s;
+    background: transparent;
+}
+
+.change-password-modal-content input:focus + label,
+.change-password-modal-content input:valid + label {
+    top: -10px;
+    left: 8px;
+    font-size: 0.85rem;
+    color: var(--primary, #d70c0c);
+    background: #fff;
+    padding: 0 4px;
+}
+
+.change-password-modal-content button[type="submit"] {
+    padding: 12px 0;
+    border: none;
+    background: var(--primary, #d70c0c);
+    color: white;
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.change-password-modal-content button[type="submit"]:hover {
+    background: var(--primary-dark, #b30a0a);
+}
+.change-password-modal-content .modal-input-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 6px;
+}
+
+.change-password-modal-content .modal-input-container input[type="password"] {
+    width: 100%;
+    padding: 14px 12px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    background: #f8f9fa;
+    font-size: 1rem;
+    color: #333;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.change-password-modal-content .modal-input-container input[type="password"]:focus {
+    border: 1.5px solid var(--primary, #d70c0c);
+}
+
+.change-password-modal-content .modal-input-container label {
+    position: absolute;
+    top: 13px;
+    left: 12px;
+    color: #999;
+    font-size: 1rem;
+    pointer-events: none;
+    transition: 0.2s;
+    background: transparent;
+}
+
+.change-password-modal-content .modal-input-container input:-webkit-autofill,
+.change-password-modal-content .modal-input-container input:-webkit-autofill:hover,
+.change-password-modal-content .modal-input-container input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #333;
+    -webkit-box-shadow: 0 0 0 1000px #f8f9fa inset;
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+.change-password-modal-content .modal-input-container input:focus + label,
+.change-password-modal-content .modal-input-container input:not(:placeholder-shown) + label,
+.change-password-modal-content .modal-input-container input:-webkit-autofill + label,
+.change-password-modal-content .modal-input-container input.has-value + label {
+    top: -9px;
+    left: 8px;
+    font-size: 0.85rem;
+    color: var(--primary, #d70c0c);
+    background: #fff;
+    padding: 0 4px;
+}
  
  /* Input container styles */
  .input-container {
@@ -416,17 +559,171 @@ body{
    text-align: center;
  }
  
- .modal-close {
-  position: relative;
-  bottom: -6px;
-  left: -8px;
-   font-size: 16px;
-   color: #fff;
-   cursor: pointer;
-   padding: 0px 8px;
-   border-radius:50%;
-   background-color: #d70c0c;
- }
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    font-size: 28px;
+    line-height: 1;
+    color: #d70c0c;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    color: #b30a0a;
+}
+
+.login-card {
+    position: relative;
+    background: rgba(255,255,255,0.95);
+    padding: 3rem 2rem 4.5rem 2rem; /* extra bottom padding for wave */
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(215, 12, 12, 0.10), 0 2px 8px rgba(44,62,80,0.04);
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.login-logo {
+    width: 60px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+}
+
+.login-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: var(--accent, #2c3e50);
+}
+
+.login-card form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.login-card input[type="text"],
+.login-card input[type="password"] {
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    background: #f8f9fa;
+    font-size: 1rem;
+    color: #333;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.login-card input[type="text"]:focus,
+.login-card input[type="password"]:focus {
+    border: 1.5px solid var(--primary, #d70c0c);
+}
+
+.login-card .btn,
+.login-card button[type="submit"] {
+    padding: 12px 0;
+    border: none;
+    background: var(--primary, #d70c0c);
+    color: white;
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s;
+    width: 100%;
+}
+
+.login-card .btn:hover,
+.login-card button[type="submit"]:hover {
+    background: var(--primary-dark, #b30a0a);
+}
+
+.login-card p {
+    margin-top: 10px;
+    font-size: 1rem;
+    color: #333;
+}
+
+.login-card .login-input-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 6px;
+}
+
+.login-card .login-input-container input[type="text"],
+.login-card .login-input-container input[type="password"] {
+    width: 100%;
+    padding: 14px 12px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    background: #f8f9fa;
+    font-size: 1rem;
+    color: #333;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.login-card .login-input-container input[type="text"]:focus,
+.login-card .login-input-container input[type="password"]:focus {
+    border: 1.5px solid var(--primary, #d70c0c);
+}
+
+.login-card .login-input-container label {
+    position: absolute;
+    top: 13px;
+    left: 12px;
+    color: #999;
+    font-size: 1rem;
+    pointer-events: none;
+    transition: 0.2s;
+    background: transparent;
+}
+
+.login-card .login-input-container input:-webkit-autofill,
+.login-card .login-input-container input:-webkit-autofill:hover,
+.login-card .login-input-container input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #333;
+    -webkit-box-shadow: 0 0 0 1000px #f8f9fa inset;
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+.login-card .login-input-container input:focus + label,
+.login-card .login-input-container input:not(:placeholder-shown) + label,
+.login-card .login-input-container input:-webkit-autofill + label,
+.login-card .login-input-container input.has-value + label {
+    top: -9px;
+    left: 8px;
+    font-size: 0.85rem;
+    color: var(--primary, #d70c0c);
+    background: #fff;
+    padding: 0 4px;
+}
+.login-wave {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 200px;
+    pointer-events: none;
+    z-index: 0;
+    background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><path d="M0,30 Q150,80 300,30 T500,30 L500,100 L0,100 Z" fill="%23ffd6d6"/></svg>') no-repeat bottom center/cover;
+}
+
+.password-prompt {
+    margin-top: 8px;
+    font-size: 0.95rem;
+    color: #d70c0c;
+    font-weight: 500;
+    text-align: center;
+}
+
  
  /* Show Modal Animation */
  @keyframes show-modal {
