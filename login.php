@@ -48,28 +48,27 @@ if (isset($_POST['submit'])) {
             $_SESSION['user_status'] = $row['status'];
             $_SESSION['user_roles'] = $row['roles'];
 
+            $isDefaultPassword = ($pass === md5('Mlinc1234'));
+
             if ($row['user_type'] === 'admin') {
-                $_SESSION['admin_name'] = trim($row['first_name'] . ' ' . $row['middle_name'] . ' ' . $row['last_name']);
-                $_SESSION['admin_email'] = $row['email'];
-                unset($_SESSION['user_name'], $_SESSION['user_email'], $_SESSION['force_password_change']);
-
-                $showToast = true;
-                $alertTitle = 'Signed in successfully';
-                $redirectTo = 'dashboard/';
+               $_SESSION['admin_name'] = trim($row['first_name'] . ' ' . $row['middle_name'] . ' ' . $row['last_name']);
+               $_SESSION['admin_email'] = $row['email'];
+               unset($_SESSION['user_name'], $_SESSION['user_email']);
             } else {
-                $_SESSION['user_name'] = trim($row['first_name'] . ' ' . $row['middle_name'] . ' ' . $row['last_name']);
-                $_SESSION['user_email'] = $row['email'];
-                unset($_SESSION['admin_name'], $_SESSION['admin_email']);
+               $_SESSION['user_name'] = trim($row['first_name'] . ' ' . $row['middle_name'] . ' ' . $row['last_name']);
+               $_SESSION['user_email'] = $row['email'];
+               unset($_SESSION['admin_name'], $_SESSION['admin_email']);
+            }
 
-                if ($pass === md5('Mlinc1234')) {
-                    $_SESSION['force_password_change'] = true;
-                    $showForcePasswordPrompt = true;
-                } else {
-                    unset($_SESSION['force_password_change']);
-                    $showToast = true;
-                    $alertTitle = 'Signed in successfully';
-                    $redirectTo = 'dashboard/';
-                }
+            // Force password change for ALL users (admin and user) if using default password
+            if ($isDefaultPassword) {
+               $_SESSION['force_password_change'] = true;
+               $showForcePasswordPrompt = true;
+            } else {
+               unset($_SESSION['force_password_change']);
+               $showToast = true;
+               $alertTitle = 'Signed in successfully';
+               $redirectTo = 'dashboard/';
             }
         }
     } else {
