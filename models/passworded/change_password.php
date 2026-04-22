@@ -3,8 +3,6 @@
 include '../../config/connection.php';
 session_start();
 
-// $conn = mysqli_connect($host, $username, $password, $database);
-
 echo '<script src="../../sweetalert2/dist/sweetalert2.all.min.js"></script>';
 echo '<link rel="stylesheet" href="../../sweetalert2/dist/sweetalert2.min.css">';
 echo '<script src="../../assets/login/js/jquery-3.7.1.js"></script>';
@@ -12,7 +10,43 @@ echo '<script src="../../assets/login/js/jquery-3.7.1.js"></script>';
 if (isset($_POST['newPass'])) {
     $newPassword = $_POST['new_password'];
     $confirmPassword = $_POST['confirm_password'];
-    $email = $_SESSION['user_email'];
+
+    // Support both user and admin session keys
+    if (isset($_SESSION['user_email'])) {
+        $email = $_SESSION['user_email'];
+    } elseif (isset($_SESSION['admin_email'])) {
+        $email = $_SESSION['admin_email'];
+    } else {
+        $email = null;
+    }
+
+    // Handle missing email in session
+    if ($email === null) {
+        echo '<html>
+        <head>
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            <style>
+                body { font-family: "Poppins", sans-serif; }
+            </style>
+        </head>
+        <body>
+            <script>
+                window.onload = function() {
+                    Swal.fire({
+                        title: "Error",
+                        text: "Session expired. Please log in again.",
+                        icon: "error",
+                        confirmButtonText: "OK"
+                    }).then(() => {
+                        window.location.href = "../../login.php";
+                    });
+                }
+            </script>
+        </body>
+        </html>';
+        exit();
+    }
 
     // Prevent empty passwords
     if (empty($newPassword) || empty($confirmPassword)) {
