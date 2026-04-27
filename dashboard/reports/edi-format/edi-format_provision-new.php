@@ -83,6 +83,7 @@
                     WHEN branch_id = '2162' THEN 'JVIS' 
                     ELSE zone 
                 END AS zone,
+                branch_id,
                 region_code,
                 gl_region,
                 ml_matic_region,
@@ -98,11 +99,10 @@
                     WHEN nd.zone = 'NCR' THEN 'NCR'
                 ELSE nd.zone END AS new_zone,
 
-                CASE WHEN nd.ml_matic_region IN ('VISMIN Showroom') AND nd.zone IN ('JVIS','VIS','MIN') THEN nd.ml_matic_region
-                    WHEN nd.ml_matic_region IN ('LNCR Showroom') AND nd.zone IN ('LZN','NCR') THEN nd.ml_matic_region
-                ELSE nd.gl_region END AS new_region,
+                nd.gl_region AS new_region,
 
                 nd.ml_matic_branch_name AS new_branch_name,
+                nd.branch_id,
                 
                 p.payroll_date,
                 p.basic_pay_regular,
@@ -147,6 +147,7 @@
                 new_zone,
                 new_region,
                 nd.ml_matic_branch_name,
+                nd.branch_id,
                 p.payroll_date,
                 p.basic_pay_regular,
                 p.basic_pay_trainee,
@@ -201,19 +202,19 @@
                 // Create a single workbook with one sheet (do not split per zone)
                 $sheet = $spreadsheet->getActiveSheet();
 
-                $headerRow1 = ['Provision for Bonuses '. date('F Y', strtotime($restrictedDate)), '', '', 'Debit', 'Credit', 'Debit', 'Credit'];
-                $headerRow2 = ['', '', '', 'Provision for ALL Bonus', '', 'Provision for 13th Month Pay', ''];
-                $headerRow3 = ['Zone Name', 'Region Name', 'Branch Name', '522301', '211203', '522302', '211203'];
+                $headerRow1 = ['Provision for Bonuses '. date('F Y', strtotime($restrictedDate)), '', '', '', 'Debit', 'Credit', 'Debit', 'Credit'];
+                $headerRow2 = ['', '', '', '', 'Provision for ALL Bonus', '', 'Provision for 13th Month Pay', ''];
+                $headerRow3 = ['Zone Name', 'Region Name','BranchID', 'Branch Name', '522301', '211203', '522302', '211203'];
 
                 $sheet->fromArray($headerRow1, null, 'A1');
                 $sheet->fromArray($headerRow2, null, 'A2');
                 $sheet->fromArray($headerRow3, null, 'A3');
 
-                foreach (range('A', 'G') as $columnID) {
+                foreach (range('A', 'H') as $columnID) {
                     $sheet->getColumnDimension($columnID)->setAutoSize(true);
                 }
-                $sheet->getStyle('A1:G1')->getFont()->setBold(true);
-                $sheet->getStyle('A3:G3')->getFont()->setBold(true);
+                $sheet->getStyle('A1:H1')->getFont()->setBold(true);
+                $sheet->getStyle('A3:H3')->getFont()->setBold(true);
 
                 $rowIndex = 4;
 
@@ -231,27 +232,28 @@
 
                     $sheet->setCellValue('A' . $rowIndex, $row['new_zone'] ?? $row['zone']);
                     $sheet->setCellValue('B' . $rowIndex, $row['new_region'] ?? $row['region']);
-                    $sheet->setCellValue('C' . $rowIndex, $row['new_branch_name'] ?? $row['branch_name']);
+                    $sheet->setCellValue('C' . $rowIndex, $row['branch_id'] ?? '');
+                    $sheet->setCellValue('D' . $rowIndex, $row['new_branch_name'] ?? $row['branch_name'] ?? '');
 
                     $total = ($row['basic_pay_regular'] ?? 0) + ($row['basic_pay_trainee'] ?? 0);
                     $mid = $total * 2 / 9;
                     $thirteenth = $total * 2 / 12;
 
                     
-                    $sheet->setCellValueExplicit('D' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                    $sheet->getStyle('D' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
                     $sheet->setCellValueExplicit('E' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                    $sheet->setCellValueExplicit('F' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->setCellValueExplicit('F' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('F' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
                     $sheet->setCellValueExplicit('G' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('G' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+                    $sheet->setCellValueExplicit('H' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('H' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
 
                     // if ($applyStyle) {
                     //     $sheet->getStyle('A' . $rowIndex . ':G' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                     //         ->getStartColor()->setARGB($color);
                     // }
-                    $sheet->getStyle('A' . $rowIndex . ':G' . $rowIndex)->getFont()->setBold($bold);
+                    $sheet->getStyle('A' . $rowIndex . ':H' . $rowIndex)->getFont()->setBold($bold);
 
                     $rowIndex++;
                 }
@@ -269,19 +271,19 @@
         }
         else{
             if (mysqli_num_rows($dlresult) > 0) {
-                $headerRow1 = ['Provision for Bonuses '. date('F Y', strtotime($restrictedDate)), '', '', 'Debit', 'Credit', 'Debit', 'Credit'];
-                $headerRow2 = ['', '', '', 'Provision for ALL Bonus', '', 'Provision for 13th Month Pay', ''];
-                $headerRow3 = ['Zone Name', 'Region Name', 'Branch Name', '522301', '211203', '522302', '211203'];
+                $headerRow1 = ['Provision for Bonuses '. date('F Y', strtotime($restrictedDate)), '', '','', 'Debit', 'Credit', 'Debit', 'Credit'];
+                $headerRow2 = ['', '', '','', 'Provision for ALL Bonus', '', 'Provision for 13th Month Pay', ''];
+                $headerRow3 = ['Zone Name', 'Region Name','BranchID', 'Branch Name', '522301', '211203', '522302', '211203'];
 
                 $sheet->fromArray($headerRow1, null, 'A1');
                 $sheet->fromArray($headerRow2, null, 'A2');
                 $sheet->fromArray($headerRow3, null, 'A3');
 
-                foreach (range('A', 'G') as $columnID) {
+                foreach (range('A', 'H') as $columnID) {
                     $sheet->getColumnDimension($columnID)->setAutoSize(true);
                 }
-                $sheet->getStyle('A1:G1')->getFont()->setBold(true);
-                $sheet->getStyle('A3:G3')->getFont()->setBold(true);
+                $sheet->getStyle('A1:H1')->getFont()->setBold(true);
+                $sheet->getStyle('A3:H3')->getFont()->setBold(true);
 
                 $rowIndex = 4;
                 $totalcount = 0;
@@ -301,7 +303,8 @@
 
                     $sheet->setCellValue('A' . $rowIndex, $row['new_zone'] ?? $row['zone']);
                     $sheet->setCellValue('B' . $rowIndex, $row['new_region'] ?? $row['region']);
-                    $sheet->setCellValue('C' . $rowIndex, $row['new_branch_name'] ?? $row['branch_name']);
+                    $sheet->setCellValue('C' . $rowIndex, $row['branch_id'] ?? '');
+                    $sheet->setCellValue('D' . $rowIndex, $row['new_branch_name'] ?? $row['branch_name'] ?? '');
 
                     $total = $row['basic_pay_regular'] + $row['basic_pay_trainee'];
                     $mid = $total * 2 / 9;
@@ -309,14 +312,14 @@
                     $overall = $mid + $thirteenth;
 
                     // Use setCellValueExplicit for setting the value and format it as a number
-                    $sheet->setCellValueExplicit('D' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                    $sheet->getStyle('D' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
                     $sheet->setCellValueExplicit('E' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                    $sheet->setCellValueExplicit('F' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->setCellValueExplicit('F' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('F' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
                     $sheet->setCellValueExplicit('G' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('G' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+                    $sheet->setCellValueExplicit('H' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('H' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
                     
                     // if ($applyStyle) {
                     //     $sheet->getStyle('A' . $rowIndex . ':E' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
@@ -324,7 +327,7 @@
                     // }
                 
                     // Apply bold style regardless of background color
-                    $sheet->getStyle('A' . $rowIndex . ':E' . $rowIndex)->getFont()->setBold($bold);
+                    $sheet->getStyle('A' . $rowIndex . ':H' . $rowIndex)->getFont()->setBold($bold);
 
                     $rowIndex++;
                     $totalcount++;
