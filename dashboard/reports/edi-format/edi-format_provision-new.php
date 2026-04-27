@@ -77,40 +77,84 @@
         $restrictedDate = $_SESSION['restrictedDate'] ?? '';
 
         // Fetch all rows matching the filters (not just for ALL)
-        $dlsql = "SELECT 
-            p.zone, p.region, p.payroll_date, p.branch_code, p.branch_name, 
-            p.basic_pay_regular, p.basic_pay_trainee, p.zone, p.cost_center,  
-            p.ml_matic_region,
-            COUNT(DISTINCT p.branch_code) AS branch_count, 
-            SUM(p.basic_pay_regular) AS total_basic_pay_regular,
-            SUM(p.basic_pay_trainee) AS total_basic_pay_trainee
-        FROM 
-            " . $database[0] . ".payroll_edi_report p
-        WHERE p.payroll_date = '$restrictedDate'
-        AND p.description = 'payroll'";
-        if ($mainzone === 'ALL'){
-            $dlsql .= " AND p.mainzone IN ('LNCR','VISMIN') ";
-            if ($zone === 'ALL'){
-                $dlsql .= " AND p.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
-            }
-        }else{
-            $dlsql .= " AND p.mainzone = '$mainzone' ";
-            if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                $dlsql .= " AND p.ml_matic_region = '$zone' AND p.zone LIKE '%$region%' ";
-            }else{
-                $dlsql .= " AND p.zone = '$zone' AND p.region_code LIKE '%$region%' AND NOT ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
-            }
-        }
-        $dlsql .= " AND (
+        $dlsql = "WITH filtered_branch_data AS (
+            SELECT
                 CASE 
-                    WHEN p.ml_matic_status = 'Active' THEN 'Active'
-                    WHEN p.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
-                END
-            ) = '$status' 
-                GROUP BY
-                p.zone, p.region, p.payroll_date, p.branch_code, p.region, p.cost_center,
-                p.branch_name, p.basic_pay_regular, p.basic_pay_trainee, p.ml_matic_region
-            ORDER BY p.branch_name asc";
+                    WHEN branch_id = '2162' THEN 'JVIS' 
+                    ELSE zone 
+                END AS zone,
+                region_code,
+                gl_region,
+                ml_matic_region,
+                code,
+                ml_matic_branch_name
+            FROM " . $database[1] . ".branch_profile
+        ),
+        final_data AS (
+            SELECT 
+                CASE WHEN nd.zone IN ('JVIS', 'VIS') THEN 'VISAYAS'
+                    WHEN nd.zone = 'MIN' THEN 'MINDANAO'
+                    WHEN nd.zone = 'LZN' THEN 'LUZON'
+                    WHEN nd.zone = 'NCR' THEN 'NCR'
+                ELSE nd.zone END AS new_zone,
+
+                CASE WHEN nd.ml_matic_region IN ('VISMIN Showroom') AND nd.zone IN ('JVIS','VIS','MIN') THEN nd.ml_matic_region
+                    WHEN nd.ml_matic_region IN ('LNCR Showroom') AND nd.zone IN ('LZN','NCR') THEN nd.ml_matic_region
+                ELSE nd.gl_region END AS new_region,
+
+                nd.ml_matic_branch_name AS new_branch_name,
+                
+                p.payroll_date,
+                p.basic_pay_regular,
+                p.basic_pay_trainee,
+                p.cost_center,
+                SUM(p.basic_pay_regular) AS total_basic_pay_regular,
+                SUM(p.basic_pay_trainee) AS total_basic_pay_trainee,
+                COUNT(DISTINCT p.branch_code) AS branch_count 
+            FROM 
+                " . $database[0] . ".payroll_edi_report p
+            JOIN filtered_branch_data nd 
+            ON p.branch_code = nd.code 
+            AND (
+                (nd.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') 
+                    AND p.ml_matic_region = nd.ml_matic_region)
+                OR 
+                (p.zone = nd.zone AND p.region_code = nd.region_code)
+            )
+            WHERE p.payroll_date = '$restrictedDate'
+            AND p.description = 'payroll'";
+            if ($mainzone === 'ALL'){
+                $dlsql .= " AND p.mainzone IN ('LNCR','VISMIN') ";
+                if ($zone === 'ALL'){
+                    $dlsql .= " AND p.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
+                }
+            }
+                else{
+                    $dlsql .= " AND p.mainzone = '$mainzone' ";
+                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
+                        $dlsql .= " AND p.ml_matic_region = '$zone' AND p.zone LIKE '%$region%' ";
+                    }else{
+                        $dlsql .= " AND p.zone = '$zone' AND p.region_code LIKE '%$region%' AND NOT p.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
+                    }
+                }
+            $dlsql .= " AND (
+                    CASE 
+                        WHEN p.ml_matic_status = 'Active' THEN 'Active'
+                        WHEN p.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
+                    END
+                ) = '$status' 
+            GROUP BY
+                new_zone,
+                new_region,
+                nd.ml_matic_branch_name,
+                p.payroll_date,
+                p.basic_pay_regular,
+                p.basic_pay_trainee,
+                p.cost_center
+        )
+        SELECT *
+        FROM final_data
+        ORDER BY new_branch_name ASC";
 
         $dlresult = mysqli_query($conn, $dlsql);
 
@@ -118,53 +162,14 @@
             die("Query failed: " . mysqli_error($conn));
         }
 
+        // Fetch all result rows into an array so we can iterate multiple times
+        $dlRows = [];
+        while ($r = mysqli_fetch_assoc($dlresult)) {
+            $dlRows[] = $r;
+        }
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-
-        $getnewdetails = "SELECT DISTINCT
-                    CASE WHEN nd.zone IN ('JVIS', 'VIS') THEN 'VISAYAS'
-                        WHEN nd.zone = 'MIN' THEN 'MINDANAO'
-                        WHEN nd.zone = 'LZN' THEN 'LUZON'
-                        WHEN nd.zone = 'NCR' THEN 'NCR'
-                    ELSE nd.zone END AS new_zone,
-
-                    CASE WHEN nd.ml_matic_region IN ('VISMIN Showroom') AND nd.zone IN ('JVIS','VIS','MIN') THEN nd.ml_matic_region
-                        WHEN nd.ml_matic_region IN ('LNCR Showroom') AND nd.zone IN ('LZN','NCR') THEN nd.ml_matic_region
-                    ELSE nd.gl_region END AS new_region,
-
-                    nd.ml_matic_branch_name AS new_branch_name
-                FROM " . $database[1] . ".branch_profile nd
-                ";
-                $getnewdetails .= "WHERE (
-                        CASE 
-                            WHEN nd.ml_matic_status = 'Active' THEN 'Active'
-                            WHEN nd.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
-                        END
-                    ) = '$status'";
-                if ($mainzone === 'ALL'){
-                    $getnewdetails .= " AND nd.mainzone IN ('LNCR','VISMIN') ";
-                    if ($zone === 'ALL'){
-                        $getnewdetails .= " AND nd.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
-                    }
-                }else{
-                    $getnewdetails .= " AND nd.mainzone = '$mainzone' ";
-                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                        $getnewdetails .= " AND nd.ml_matic_region = '$zone' AND nd.zone LIKE '%$region%' ";
-                    }else{
-                        $getnewdetails .= " AND nd.zone = '$zone' AND nd.region_code LIKE '%$region%' AND NOT nd.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
-                    }
-                }
-                
-                
-
-                $dlnewresult = mysqli_query($conn, $getnewdetails);
-
-                if (!$dlnewresult) {
-                    die("Query failed: " . mysqli_error($conn));
-                }
-
-                $spreadsheet = new Spreadsheet();
-                $sheet = $spreadsheet->getActiveSheet();
 
         // --- Begin: Multi-zone Excel and ZIP logic ---
         if($mainzone === 'ALL' || $zone === 'ALL') {
@@ -193,163 +198,130 @@
                     }
                 }
 
-                // Prepare temp dir for files
-                $tmpDir = sys_get_temp_dir() . '/provision_report_temp';
-                if (!is_dir($tmpDir)) {
-                    mkdir($tmpDir);
+                // Create a single workbook with one sheet (do not split per zone)
+                $sheet = $spreadsheet->getActiveSheet();
+
+                $headerRow1 = ['Provision for Bonuses '. date('F Y', strtotime($restrictedDate)), '', '', 'Debit', 'Credit', 'Debit', 'Credit'];
+                $headerRow2 = ['', '', '', 'Provision for ALL Bonus', '', 'Provision for 13th Month Pay', ''];
+                $headerRow3 = ['Zone Name', 'Region Name', 'Branch Name', '522301', '211203', '522302', '211203'];
+
+                $sheet->fromArray($headerRow1, null, 'A1');
+                $sheet->fromArray($headerRow2, null, 'A2');
+                $sheet->fromArray($headerRow3, null, 'A3');
+
+                foreach (range('A', 'G') as $columnID) {
+                    $sheet->getColumnDimension($columnID)->setAutoSize(true);
+                }
+                $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+                $sheet->getStyle('A3:G3')->getFont()->setBold(true);
+
+                $rowIndex = 4;
+
+                // Iterate once and write branch details (A-C) and provisions (D-G) on the same row
+                foreach ($dlRows as $row) {
+                    // $applyStyle = false;
+                    // if (strpos($row['cost_center'] ?? '', '0001') === 0 && ($row['ml_matic_region'] ?? '') !== 'LNCR Showroom' && ($row['ml_matic_region'] ?? '') !== 'VISMIN Showroom') {
+                    //     $color = '4fc917';
+                    //     $bold = true;
+                    //     $applyStyle = true;
+                    // } else {
+                    //     $bold = false;
+                    // }
+                    $bold = false;
+
+                    $sheet->setCellValue('A' . $rowIndex, $row['new_zone'] ?? $row['zone']);
+                    $sheet->setCellValue('B' . $rowIndex, $row['new_region'] ?? $row['region']);
+                    $sheet->setCellValue('C' . $rowIndex, $row['new_branch_name'] ?? $row['branch_name']);
+
+                    $total = ($row['basic_pay_regular'] ?? 0) + ($row['basic_pay_trainee'] ?? 0);
+                    $mid = $total * 2 / 9;
+                    $thirteenth = $total * 2 / 12;
+
+                    
+                    $sheet->setCellValueExplicit('D' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('D' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+                    $sheet->setCellValueExplicit('E' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+                    $sheet->setCellValueExplicit('F' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('F' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+                    $sheet->setCellValueExplicit('G' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('G' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+
+                    // if ($applyStyle) {
+                    //     $sheet->getStyle('A' . $rowIndex . ':G' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    //         ->getStartColor()->setARGB($color);
+                    // }
+                    $sheet->getStyle('A' . $rowIndex . ':G' . $rowIndex)->getFont()->setBold($bold);
+
+                    $rowIndex++;
                 }
 
-                // For each group, create spreadsheet and save
-                $filePaths = [];
-                foreach ($groups as $groupName => $rows) {
-                    if (empty($rows)) continue; // Skip empty groups
+                // Output single workbook (one sheet)
+                header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                $filename = 'EDI_Provision_Report_NATIONWIDE_' . $restrictedDate . '_NEW-FORMAT.xls';
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                header('Cache-Control: max-age=0');
 
-                    $spreadsheet = new Spreadsheet();
-                    $sheet = $spreadsheet->getActiveSheet();
-
-                    // Header rows
-                    $headerRow1 = [
-                        'Provision for Bonus', '', '', '', '',
-                    ];
-                    $headerRow2 = [
-                        'Code', 'Branch Name', 'mid', '13th', 'total',
-                    ];
-                    $sheet->fromArray($headerRow1, null, 'A1');
-                    $sheet->fromArray($headerRow2, null, 'A2');
-                    foreach (range('A', 'E') as $columnID) {
-                        $sheet->getColumnDimension($columnID)->setAutoSize(true);
-                    }
-                    $sheet->getStyle('A1:E1')->getFont()->setBold(true);
-
-                    $rowIndex = 4;
-                    while ($nd = mysqli_fetch_assoc($dlnewresult)) {
-                        $sheet->setCellValue('A' . $rowIndex, $nd['new_zone']);
-                        $sheet->setCellValue('B' . $rowIndex, $nd['new_region']);
-                        $sheet->setCellValue('C' . $rowIndex, $nd['new_branch_name']);
-                        $rowIndex++;
-                    }
-                    foreach ($rows as $row) {
-                        $applyStyle = false;
-                        if (strpos($row['cost_center'], '0001') === 0 && $row['ml_matic_region'] !== 'LNCR Showroom' && $row['ml_matic_region'] !== 'VISMIN Showroom') {
-                            $color = '4fc917';
-                            $bold = true;
-                            $applyStyle = true;
-                        } else {
-                            $bold = false;
-                        }
-                        $total = $row['basic_pay_regular'] + $row['basic_pay_trainee'];
-                        $mid = $total * 2 / 9;
-                        $thirteenth = $total * 2 / 12;
-                        $overall = $mid + $thirteenth;
-
-                        // $sheet->setCellValue('A' . $rowIndex, $row['branch_code']);
-                        // $sheet->setCellValue('B' . $rowIndex, $row['branch_name']);
-                        // $sheet->setCellValue('C' . $rowIndex, $row['branch_name']);
-                        $sheet->setCellValueExplicit('D' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                        $sheet->getStyle('D' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                        $sheet->setCellValueExplicit('E' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                        $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                        $sheet->setCellValueExplicit('F' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                        $sheet->getStyle('F' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                        $sheet->setCellValueExplicit('G' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                        $sheet->getStyle('G' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                        // $sheet->setCellValueExplicit('E' . $rowIndex, $overall, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                        // $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-                        if ($applyStyle) {
-                            $sheet->getStyle('A' . $rowIndex . ':G' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                                ->getStartColor()->setARGB($color);
-                        }
-                        $sheet->getStyle('A' . $rowIndex . ':G' . $rowIndex)->getFont()->setBold($bold);
-
-                        $rowIndex++;
-                    }
-
-                    // Save file
-                    $filename = $groupName . $restrictedDate. '.xls';
-                    $filePath = $tmpDir . '/' . $filename;
-                    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xls($spreadsheet);
-                    $writer->save($filePath);
-                    $filePaths[] = $filePath;
-                }
-
-                // ZIP the files with the desired filename
-                $zipFilename = 'EDI_Provision_Report_' . $restrictedDate . '.zip';
-                $zipPath = $tmpDir . '/' . $zipFilename;
-                $zip = new ZipArchive();
-                $zip->open($zipPath, ZipArchive::CREATE);
-                foreach ($filePaths as $file) {
-                    $zip->addFile($file, basename($file));
-                }
-                $zip->close();
-
-                // Output ZIP with correct filename
-                header('Content-Type: application/zip');
-                header('Content-Disposition: attachment; filename="' . $zipFilename . '"');
-                header('Content-Length: ' . filesize($zipPath));
-                readfile($zipPath);
-
-                // Cleanup
-                foreach ($filePaths as $file) unlink($file);
-                unlink($zipPath);
-                rmdir($tmpDir);
+                $writer = IOFactory::createWriter($spreadsheet, 'Xls');
+                $writer->save('php://output');
                 exit();
             }
         }
         else{
             if (mysqli_num_rows($dlresult) > 0) {
-                $headerRow1 = [
-                    'Provision for Bonus', '', '', '', '',
-                ];
-                $headerRow2 = [
-                    'Code', 'Branch Name', 'mid', '13th', 'total',
-                ];
-                
+                $headerRow1 = ['Provision for Bonuses '. date('F Y', strtotime($restrictedDate)), '', '', 'Debit', 'Credit', 'Debit', 'Credit'];
+                $headerRow2 = ['', '', '', 'Provision for ALL Bonus', '', 'Provision for 13th Month Pay', ''];
+                $headerRow3 = ['Zone Name', 'Region Name', 'Branch Name', '522301', '211203', '522302', '211203'];
+
                 $sheet->fromArray($headerRow1, null, 'A1');
                 $sheet->fromArray($headerRow2, null, 'A2');
+                $sheet->fromArray($headerRow3, null, 'A3');
 
-                foreach (range('A', 'E') as $columnID) {
+                foreach (range('A', 'G') as $columnID) {
                     $sheet->getColumnDimension($columnID)->setAutoSize(true);
                 }
-        
-                $sheet->getStyle('A1:E1')->getFont()->setBold(true);
-        
-                $rowIndex = 3;
+                $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+                $sheet->getStyle('A3:G3')->getFont()->setBold(true);
+
+                $rowIndex = 4;
                 $totalcount = 0;
         
-                while ($row = mysqli_fetch_assoc($dlresult)) {
-                    $applyStyle = false; 
+                foreach ($dlRows as $row) {
+                    // $applyStyle = false; 
             
-                    if (strpos($row['cost_center'], '0001') === 0 && $zone !== 'LNCR Showroom' && $zone !== 'VISMIN Showroom') {
-                        $color = '4fc917';  
-                        $bold = true;       
-                        $applyStyle = true; 
-                    } else {
-                        $bold = false;      
-                    }
+                    // if (strpos($row['cost_center'], '0001') === 0 && $zone !== 'LNCR Showroom' && $zone !== 'VISMIN Showroom') {
+                    //     $color = '4fc917';  
+                    //     $bold = true;       
+                    //     $applyStyle = true; 
+                    // } else {
+                    //     $bold = false;      
+                    // }
+
+                    $bold = false;
+
+                    $sheet->setCellValue('A' . $rowIndex, $row['new_zone'] ?? $row['zone']);
+                    $sheet->setCellValue('B' . $rowIndex, $row['new_region'] ?? $row['region']);
+                    $sheet->setCellValue('C' . $rowIndex, $row['new_branch_name'] ?? $row['branch_name']);
 
                     $total = $row['basic_pay_regular'] + $row['basic_pay_trainee'];
                     $mid = $total * 2 / 9;
                     $thirteenth = $total * 2 / 12;
                     $overall = $mid + $thirteenth;
-        
-                    $sheet->setCellValue('A' . $rowIndex, $row['branch_code']);
-                    $sheet->setCellValue('B' . $rowIndex, $row['branch_name']);
 
                     // Use setCellValueExplicit for setting the value and format it as a number
-                    $sheet->setCellValueExplicit('C' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                    $sheet->getStyle('C' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                    
-                    $sheet->setCellValueExplicit('D' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->setCellValueExplicit('D' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('D' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                    
-                    $sheet->setCellValueExplicit('E' . $rowIndex, $overall, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->setCellValueExplicit('E' . $rowIndex, $mid, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
                     $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+                    $sheet->setCellValueExplicit('F' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('F' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
+                    $sheet->setCellValueExplicit('G' . $rowIndex, $thirteenth, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    $sheet->getStyle('G' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
                     
-                    if ($applyStyle) {
-                        $sheet->getStyle('A' . $rowIndex . ':E' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                            ->getStartColor()->setARGB($color);
-                    }
+                    // if ($applyStyle) {
+                    //     $sheet->getStyle('A' . $rowIndex . ':E' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    //         ->getStartColor()->setARGB($color);
+                    // }
                 
                     // Apply bold style regardless of background color
                     $sheet->getStyle('A' . $rowIndex . ':E' . $rowIndex)->getFont()->setBold($bold);
@@ -361,16 +333,24 @@
                 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
                 if($status==='Active'){
                     if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                        $filename = "EDI_Provision_Report_" . $mainzone . "_" . $region . "_" . $restrictedDate . ".xls";
+                        $filename = "EDI_Provision_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "_NEW-FORMAT.xls";
                     }else{
-                        $filename = "EDI_Provision_Report_" . $zone . "_" . $region . "_" . $restrictedDate . ".xls";
+                        if(empty($region)){
+                            $filename = "EDI_Provision_Report_" . $zone . "_" . $restrictedDate . "_NEW-FORMAT.xls";
+                        }else{
+                            $filename = "EDI_Provision_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "_NEW-FORMAT.xls";
+                        }
                     }
                     
                 }else{
                     if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                        $filename = "EDI_Provision_Report_" . $mainzone . "_" . $region . "_" . $restrictedDate . "(Inactive or Pending).xls";
+                        $filename = "EDI_Provision_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "_NEW-FORMAT.xls";
                     }else{
-                        $filename = "EDI_Provision_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "(Inactive or Pending).xls";
+                        if(empty($region)){
+                            $filename = "EDI_Provision_Report_" . $zone . "_" . $restrictedDate . "_NEW-FORMAT.xls";
+                        }else{
+                            $filename = "EDI_Provision_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "_NEW-FORMAT.xls";
+                        }
                     }
                 }
                 
