@@ -155,7 +155,16 @@
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('KP DOMESTIC', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_payroll.php" role="menuitem">Payroll</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_provision.php" role="menuitem">Provision</a>
+                                    <div class="dropdown-group">
+                                        <button class="group-btn" type="button">Provision</button>
+                                        <div class="group-content" role="submenu">
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_provision.php" role="menuitem">Provision - Old Format</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_provision-new.php" role="menuitem">Provision - New Format</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-mid-year-bonus_provision-new.php" role="menuitem">Mid Year Bonus - New Format</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-13th-month_provision-new.php" role="menuitem">13th Month - New Format</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_sick-leave-new.php" role="menuitem">Sick Leave - New Format</a>
+                                        </div>
+                                    </div>
 
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-mid-year-bonus_payroll.php" role="menuitem">Mid Year Bonus - (Payroll Format)</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-mid-year-bonus_provision.php" role="menuitem">Mid Year Bonus - (Provision Format)</a>
@@ -168,8 +177,14 @@
                                     <?php //if ($currYM >= $thisYear . '-10' && $currYM <= $nextYear . '-02'): ?>
                                         <?php //endif; ?>
 
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-old.php" role="menuitem">Remitance OLD</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-new.php" role="menuitem">Remitance NEW</a>
+                                    <div class="dropdown-group">
+                                        <button class="group-btn" type="button">Remittance</button>
+                                        <div class="group-content" role="submenu">
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-old.php" role="menuitem">Remitance OLD</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-new.php" role="menuitem">Remitance NEW</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-new-2.php" role="menuitem">Remitance NEW ver2</a>
+                                        </div>
+                                    </div>
                                     <!-- <a id="user" href="#">Mid Year Bonus</a> -->
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_sick-leave.php" role="menuitem">Sick Leave</a>
                                     <!--<a id="user" href="#">GL Code Reports</a>-->

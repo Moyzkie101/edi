@@ -638,102 +638,86 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['proceed'])) {
     $_SESSION['restrictedDate'] = $restrictedDate;
 
 
-    $sql = "SELECT 
-            p.zone, p.region, p.payroll_date, p.branch_code, p.branch_name, 
-            p.basic_pay_regular, p.basic_pay_trainee, p.zone, p.cost_center, 
-            p.ml_matic_status, 
-            COUNT(DISTINCT p.branch_code) AS branch_count, 
-            SUM(p.basic_pay_regular) AS total_basic_pay_regular,
-            SUM(p.basic_pay_trainee) AS total_basic_pay_trainee
-        FROM 
-            " . $database[0] . ".payroll_edi_report p
-        WHERE p.payroll_date = '$restrictedDate'
-        AND p.description = 'payroll'";
+        $sql = "WITH filtered_branch_data AS (
+            SELECT
+                CASE 
+                    WHEN branch_id = '2162' THEN 'JVIS' 
+                    ELSE zone 
+                END AS zone,
+                branch_id,
+                region_code,
+                gl_region,
+                ml_matic_region,
+                code,
+                ml_matic_branch_name
+            FROM " . $database[1] . ".branch_profile
+        ),
+        final_data AS (
+            SELECT 
+                CASE WHEN nd.zone IN ('JVIS', 'VIS') THEN 'VISAYAS'
+                    WHEN nd.zone = 'MIN' THEN 'MINDANAO'
+                    WHEN nd.zone = 'LZN' THEN 'LUZON'
+                    WHEN nd.zone = 'NCR' THEN 'NCR'
+                ELSE nd.zone END AS new_zone,
+
+                nd.gl_region AS new_region,
+                nd.ml_matic_branch_name AS new_branch_name,
+                nd.branch_id,
+
+                p.payroll_date,
+                p.basic_pay_regular,
+                p.basic_pay_trainee,
+                p.cost_center,
+                p.ml_matic_status,
+                COUNT(DISTINCT p.branch_code) AS branch_count
+            FROM " . $database[0] . ".payroll_edi_report p
+            JOIN filtered_branch_data nd 
+            ON p.branch_code = nd.code 
+            AND (
+                    (nd.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') 
+                    AND p.ml_matic_region = nd.ml_matic_region)
+                    OR 
+                    (p.zone = nd.zone AND p.region_code = nd.region_code)
+                )
+            WHERE p.payroll_date = '$restrictedDate'
+            AND p.description = 'payroll'";
+
         if ($mainzone === 'ALL'){
-            // Adjust the SQL query based on the selected all mainzone
             $sql .= " AND p.mainzone IN ('LNCR','VISMIN') ";
             if ($zone === 'ALL'){
-                // Adjust the SQL query based on the selected all zone
                 $sql .= " AND p.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
             }
-        }else{
-            // Adjust the SQL query based on the selected mainzone
+        } else {
             $sql .= " AND p.mainzone = '$mainzone' ";
             if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                // Adjust the SQL query based on the selected zone
                 $sql .= " AND p.ml_matic_region = '$zone' AND p.zone LIKE '%$region%' ";
-            }else{
-                // Adjust the SQL query based on the selected zone
-                $sql .= " AND p.zone = '$zone' AND p.region_code LIKE '%$region%' AND NOT ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
+            } else {
+                $sql .= " AND p.zone = '$zone' AND p.region_code LIKE '%$region%' 
+                        AND NOT p.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
             }
         }
+
         $sql .= " AND (
-                CASE 
-                    WHEN p.ml_matic_status = 'Active' THEN 'Active'
-                    WHEN p.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
-                END
-            ) = '$status' 
-                GROUP BY
-                p.zone, p.region, p.payroll_date, p.branch_code, p.region, p.cost_center, p.ml_matic_status,
-                p.branch_name, p.basic_pay_regular, p.basic_pay_trainee
-            ORDER BY p.branch_name asc";
+                    CASE 
+                        WHEN p.ml_matic_status = 'Active' THEN 'Active'
+                        WHEN p.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
+                    END
+                ) = '$status'
+        GROUP BY
+            new_zone,
+            new_region,
+            nd.ml_matic_branch_name,
+            nd.branch_id,
+            p.payroll_date,
+            p.basic_pay_regular,
+            p.basic_pay_trainee,
+            p.cost_center,
+            p.ml_matic_status
+        )
+        SELECT *
+        FROM final_data
+        ORDER BY new_branch_name ASC";
 
-    // if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') { 
-    //     $sql = "SELECT 
-    //             p.zone, p.region, p.payroll_date, p.branch_code, p.branch_name, 
-    //             p.basic_pay_regular, p.basic_pay_trainee, p.zone, p.cost_center,  
-    //             COUNT(DISTINCT p.branch_code) AS branch_count, 
-    //             SUM(p.basic_pay_regular) AS total_basic_pay_regular,
-    //             SUM(p.basic_pay_trainee) AS total_basic_pay_trainee
-    //         FROM 
-    //             " . $database[0] . ".payroll_edi_report p
-    //         WHERE 
-    //             p.payroll_date = '$restrictedDate'
-    //         AND p.mainzone = '$mainzone'
-    //         AND NOT (p.branch_code = 18 AND p.zone = 'VIS')
-    //         AND p.ml_matic_region = '$zone'
-    //         AND p.zone like '%$region%'
-	// 		AND (
-	// 				CASE 
-	// 					WHEN p.ml_matic_status = 'Active' THEN 'Active'
-	// 					WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
-	// 				END
-	// 			) = '".$status."'
-    //          GROUP BY
-    //          GROUP BY    p.zone, p.region, p.payroll_date, p.branch_code, p.region, p.cost_center,
-    //          GROUP BY    p.branch_name, p.basic_pay_regular, p.basic_pay_trainee
-    //          GROUP BYORDER BY p.branch_name asc";
-    // }else{
-    //         $sql = "SELECT 
-    //             p.zone, p.region, p.payroll_date, p.branch_code, p.branch_name, 
-    //             p.basic_pay_regular, p.basic_pay_trainee, p.zone, p.cost_center,
-    //             COUNT(DISTINCT p.branch_code) AS branch_count, 
-    //             SUM(p.basic_pay_regular) AS total_basic_pay_regular,
-    //             SUM(p.basic_pay_trainee) AS total_basic_pay_trainee
-    //         FROM 
-    //             " . $database[0] . ".payroll_edi_report p
-    //         WHERE 
-    //             p.region_code LIKE '%$region%' 
-    //         AND p.payroll_date = '$restrictedDate'
-    //         AND p.mainzone = '$mainzone'
-    //         AND p.zone != 'JVIS' 
-    //         AND p.zone = '$zone'
-    //         AND p.ml_matic_region != 'LNCR Showroom'
-    //         AND p.ml_matic_region != 'VISMIN Showroom'
-	// 		AND (
-	// 				CASE 
-	// 					WHEN p.ml_matic_status = 'Active' THEN 'Active'
-	// 					WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
-	// 				END
-	// 			) = '".$status."'
-    //         GROUP BY
-    //             p.zone, p.region, p.payroll_date, p.branch_code, p.region, p.cost_center,
-    //             p.branch_name, p.basic_pay_regular, p.basic_pay_trainee
-    //         ORDER BY p.branch_name asc"; 
-    // } 
-
-        //echo $sql; 
-        // Get the result
         $result = mysqli_query($conn, $sql);
 
         echo "<div class='table-wrapper'>"; // Start wrapper div
@@ -747,21 +731,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['proceed'])) {
 
             // first row
             echo "<tr>";
-            echo "<th colspan='7'>Payroll Date : ".$restrictedDate."</th>";
+            echo "<th colspan='10'>Payroll Date : ".$restrictedDate."</th>";
             echo "</tr>";
 
             // second row
             echo "<tr>";
-            echo "<th>ZONE</th>";
-            echo "<th>REGION NAME</th>";
-            echo "<th>BOS CODE</th>";
+            echo "<th>Zone Name</th>";
+            echo "<th>Region Name</th>";
+            echo "<th>Branch ID</th>";
             echo "<th>Branch Name</th>";
             echo "<th>Mid - Year DEBIT</th>";
             echo "<th>Mid - Year CREDIT</th>";
             echo "<th>13th Month DEBIT</th>";
             echo "<th>13th Month CREDIT</th>";
-            echo "<th>Region</th>";
-            echo "<th>Branch Status</th>";
             echo "</tr>";
             echo "</thead>";
             echo "<tbody>";
@@ -773,7 +755,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['proceed'])) {
             // Output the data rows
             mysqli_data_seek($result, 0); // Reset result pointer to the beginning
             while ($row = mysqli_fetch_assoc($result)) {
-                
+                $total = (float)$row['basic_pay_regular'] + (float)$row['basic_pay_trainee'];
+                $mid = $total * 2 / 9;
+                $thirteenth = $total * 2 / 12;
+
                 if (strpos($row['cost_center'], '0001') === 0 && $zone !== 'LNCR Showroom' && $zone !== 'VISMIN Showroom') {
                     $color = '#4fc917';
                     $bold = 'bold';
@@ -782,31 +767,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['proceed'])) {
                     $bold = 'normal';
                 }
 
-                $total = $row['basic_pay_regular'] + $row['basic_pay_trainee'];
-                $mid = $total * 2 / 9;
-                $thirteenth = $total * 2 / 12;
-                $overall = $mid + $thirteenth;
-                
-                if ($row['ml_matic_status'] === 'TBO') {
-                    $statusText = 'TO BE OPEN';
-                } else {
-                    $statusText = $row['ml_matic_status'];
-                }
-                
                 echo "<tr>";
-                echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['branch_code']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['branch_name']) . "</td>";
-                echo "<td class='right' style='background-color: $color; font-weight: $bold; text-align: right'>" . number_format($mid, 2) . "</td>";
-                echo "<td class='right' style='background-color: $color; font-weight: $bold; text-align: right'>" . number_format($thirteenth, 2) . "</td>";
-                echo "<td class='right' style='background-color: $color; font-weight: $bold; text-align: right'>" . number_format($overall, 2) . "</td>";
-                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['region']) . "</td>";
-                echo "<td class='center' style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($statusText) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['new_zone']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['new_region']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['branch_id']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['new_branch_name']) . "</td>";
+                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . number_format($mid, 2) . "</td>";
+                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . number_format($mid, 2) . "</td>";
+                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . number_format($thirteenth, 2) . "</td>";
+                echo "<td class='right' style='background-color: $color; font-weight: $bold;'>" . number_format($thirteenth, 2) . "</td>";
                 echo "</tr>";
 
                 $totalmid += $mid;
                 $totalthirteen += $thirteenth;
                 $totalcount++;
-                
             }
 
             if (empty($region)) {
