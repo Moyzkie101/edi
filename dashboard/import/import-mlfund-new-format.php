@@ -219,8 +219,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
 
             // New format starts at row 2
             for ($rowIndex = 2; $rowIndex <= $highestRow; $rowIndex++) {
-                $idNo = trim((string)$worksheet->getCell('A' . $rowIndex)->getValue());
-                $regionCodeInput = trim((string)$worksheet->getCell('B' . $rowIndex)->getValue());
+                $idNo = trim((string)$worksheet->getCell('B' . $rowIndex)->getValue());
+                $regionCodeInput = trim((string)$worksheet->getCell('A' . $rowIndex)->getValue());
                 $lastName = trim((string)$worksheet->getCell('C' . $rowIndex)->getValue());
                 $firstName = trim((string)$worksheet->getCell('D' . $rowIndex)->getValue());
                 $loanTypeRaw = trim((string)$worksheet->getCell('E' . $rowIndex)->getValue());
