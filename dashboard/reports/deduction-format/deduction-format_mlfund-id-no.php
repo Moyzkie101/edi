@@ -66,7 +66,17 @@
     // Fetch users from database using MySQLi
     $data_raw = [];
     try {
-    $query = "SELECT payroll_date, mainzone, zone, region_code, region, employee_id_no, employee_name, ml_fund_amount FROM " . $database[0] . ".mlfund_payroll ORDER BY payroll_date";
+    $query = "
+    SELECT payroll_date, mainzone, zone, region_code, region, employee_id_no, employee_name, ml_fund_amount
+    FROM " . $database[0] . ".mlfund_payroll
+
+    UNION ALL
+
+    SELECT payroll_date, mainzone, zone, region_code, region, employee_id_no, employee_name, ml_fund_amount
+    FROM " . $database[0] . ".mlfund_payroll_new
+
+    ORDER BY payroll_date
+";
     $result = mysqli_query($conn, $query);
 
     if ($result) {

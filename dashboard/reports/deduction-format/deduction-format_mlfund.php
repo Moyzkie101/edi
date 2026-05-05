@@ -83,27 +83,36 @@
         $grand_total_number_per_employees = $_SESSION['grand_total_number_per_employees'] ?? 0;
         $grand_total_amount_per_region = $_SESSION['grand_total_amount_per_region'] ?? 0;
 
-        $dlsql = "SELECT * FROM " . $database[0] . ".mlfund_payroll
-                    WHERE mainzone = '$mainzone'
-                    AND payroll_date = '$restrictedDate'";
+        $where = " WHERE mainzone = '$mainzone'
+            AND payroll_date = '$restrictedDate'";
 
             if ($zone === 'VISMIN-SUPPORT') {
-                    $dlsql .= " AND zone = 'VISMIN-SUPPORT'";
-            }elseif ($zone === 'LNCR-SUPPORT') {
-                $dlsql .= " AND zone = 'LNCR-SUPPORT'";
-
-            }elseif ($zone === 'VISMIN-MANCOMM') {
-                $dlsql .= " AND zone = 'VISMIN-MANCOMM'";
-
-            }elseif ($zone === 'LNCR-MANCOMM') {
-                $dlsql .= " AND zone = 'LNCR-MANCOMM'";
-            }else{
-                if(!empty($region)) {
-                    $dlsql .= " AND zone = '$zone' AND region_code = '$region'";
-                }else {
-                    $dlsql .= " AND zone = '$zone'";
+                $where .= " AND zone = 'VISMIN-SUPPORT'";
+            } elseif ($zone === 'LNCR-SUPPORT') {
+                $where .= " AND zone = 'LNCR-SUPPORT'";
+            } elseif ($zone === 'VISMIN-MANCOMM') {
+                $where .= " AND zone = 'VISMIN-MANCOMM'";
+            } elseif ($zone === 'LNCR-MANCOMM') {
+                $where .= " AND zone = 'LNCR-MANCOMM'";
+            } else {
+                if (!empty($region)) {
+                    $where .= " AND zone = '$zone' AND region_code = '$region'";
+                } else {
+                    $where .= " AND zone = '$zone'";
                 }
-            } 
+            }
+
+            $dlsql = "
+                SELECT payroll_date, mainzone, zone, region_code, region,
+                    employee_id_no, employee_name, ml_fund_amount
+                FROM " . $database[0] . ".mlfund_payroll
+                $where
+                UNION ALL
+                SELECT payroll_date, mainzone, zone, region_code, region,
+                    employee_id_no, employee_name, ml_fund_amount
+                FROM " . $database[0] . ".mlfund_payroll_new
+                $where
+            ";
 
         //echo $dlsql;
         $dlresult = mysqli_query($conn, $dlsql);
@@ -468,27 +477,37 @@
 				$_SESSION['payroll_year'] = $payrollYear;
 			}
 
-            $sql =" SELECT * FROM " . $database[0] . ".mlfund_payroll
-                    WHERE mainzone = '$mainzone'
-                    AND payroll_date = '$restrictedDate'";
+            $where = " WHERE mainzone = '$mainzone'
+            AND payroll_date = '$restrictedDate'";
 
             if ($zone === 'VISMIN-SUPPORT') {
-                    $sql .= " AND zone = 'VISMIN-SUPPORT'";
-            }elseif ($zone === 'LNCR-SUPPORT') {
-                $sql .= " AND zone = 'LNCR-SUPPORT'";
-
-            }elseif ($zone === 'VISMIN-MANCOMM') {
-                $sql .= " AND zone = 'VISMIN-MANCOMM'";
-
-            }elseif ($zone === 'LNCR-MANCOMM') {
-                $sql .= " AND zone = 'LNCR-MANCOMM'";
-            }else{
-                if(!empty($region)) {
-                    $sql .= " AND zone = '$zone' AND region_code = '$region'";
-                }else {
-                    $sql .= " AND zone = '$zone'";
+                $where .= " AND zone = 'VISMIN-SUPPORT'";
+            } elseif ($zone === 'LNCR-SUPPORT') {
+                $where .= " AND zone = 'LNCR-SUPPORT'";
+            } elseif ($zone === 'VISMIN-MANCOMM') {
+                $where .= " AND zone = 'VISMIN-MANCOMM'";
+            } elseif ($zone === 'LNCR-MANCOMM') {
+                $where .= " AND zone = 'LNCR-MANCOMM'";
+            } else {
+                if (!empty($region)) {
+                    $where .= " AND zone = '$zone' AND region_code = '$region'";
+                } else {
+                    $where .= " AND zone = '$zone'";
                 }
             }
+
+            $sql = "
+                SELECT payroll_date, mainzone, zone, region_code, region,
+                    employee_id_no, employee_name, ml_fund_amount
+                FROM " . $database[0] . ".mlfund_payroll
+                $where
+                UNION ALL
+                SELECT payroll_date, mainzone, zone, region_code, region,
+                    employee_id_no, employee_name, ml_fund_amount
+                FROM " . $database[0] . ".mlfund_payroll_new
+                $where
+            ";
+
             $result = mysqli_query($conn, $sql);
     ?>
     <div class="table-container">
