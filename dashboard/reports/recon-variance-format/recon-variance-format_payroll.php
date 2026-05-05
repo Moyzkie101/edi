@@ -1782,6 +1782,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
+                                echo "<td></td>";
                             echo "</tr>";
 
                             // Output SUB-TOTAL row for CEBU MANCOMM + SUPPORT
@@ -1794,6 +1795,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                                 echo "<td></td>";
                                 echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_net_pay, 2)) . "</td>";
                                 echo "<td style='text-align: right;'>" . htmlspecialchars(number_format($special_total_variance, 2)) . "</td>";
+                                echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";
                                 echo "<td></td>";

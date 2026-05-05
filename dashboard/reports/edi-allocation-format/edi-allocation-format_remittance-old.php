@@ -751,8 +751,8 @@ $sql="WITH closed_branch_sums AS (
         SELECT
             region_code,
             COUNT(*) AS active_count
-        FROM " . $database[0] . ".payroll_edi_report
-        WHERE payroll_date = '$restrictedDate'
+        FROM " . $database[0] . ".remitance_edi_report
+        WHERE remitance_date = '$restrictedDate'
         AND ml_matic_status = 'Active'
         GROUP BY region_code
     )

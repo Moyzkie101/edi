@@ -1,4 +1,5 @@
 <?php
+    
     include '../../config/connection.php';
     session_start();
 
@@ -68,7 +69,7 @@
         $zone = $_SESSION['zone'] ?? '';
         $region = $_SESSION['region'] ?? '';
         $restrictedDate = $_SESSION['restrictedDate'] ?? '';
-		$endDate = $_SESSION['endDate'] ?? '';
+        $endDate = $_SESSION['endDate'] ?? '';
     
         if (checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate, $endDate)) {
             // Set a flag for already posted data
@@ -124,39 +125,69 @@
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'";
-                        if($restrictedDate === $endDate){
-                            $sql .="AND p.payroll_date = '$restrictedDate'";
-                        }else{
-                            $sql .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                        }
-                        $sql .="AND bp.ml_matic_region = '$zone'
+                    
+                    if($restrictedDate === $endDate){
+                            $sql .= " AND p.payroll_date = '$restrictedDate'";
+                    }else{
+                            $sql .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                    }
+                        $sql .= " AND bp.ml_matic_region = '$zone'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.zone like '%$region%'
-                        and p.description = 'Sick-Leave'";
+                        AND description = 'Sick-Leave'";
         }else{
             $sql = "SELECT post_edi 
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                     AND p.zone = '$zone'
                     AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                    AND bp.region_code LIKE '%$region%'
-                    and p.description = 'Sick-Leave'";
+                    AND bp.region_code LIKE '%$region%'";
+                    
                     if($restrictedDate === $endDate){
-                        $sql .="AND p.payroll_date = '$restrictedDate'";
+                            $sql .= " AND p.payroll_date = '$restrictedDate'";
                     }else{
-                        $sql .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                            $sql .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
                     }
-                    $sql .="AND bp.ml_matic_region != 'LNCR Showroom'
-                            AND bp.ml_matic_region != 'VISMIN Showroom'";
+                        $sql .= " AND bp.ml_matic_region != 'LNCR Showroom'
+                    AND bp.ml_matic_region != 'VISMIN Showroom'
+                    AND description = 'Sick-Leave'";
         }
-        echo $sql;
+        //echo $sql;
         $result = $conn->query($sql);
         
         if ($result) {
@@ -179,7 +210,6 @@
                         p.cost_center, 
                         bp.region, 
                         p.zone,
-						MAX(mp.zone) as mlmatic_zone,
                         p.payroll_date,
                         MAX(bp.region_code) as region_code,
                         MAX(bp.ml_matic_region) as ml_matic_region,
@@ -205,8 +235,7 @@
                         MAX(p.gl_code_all_other_deductions) as gl_code_all_other_deductions,
                         MAX(p.gl_code_total) as gl_code_total,
                         p.bos_code,
-                        MAX(p.branch_name) as branch_name_hr,
-						MAX(mp.branch_name) as branch_name_mlmatic,
+                        MAX(p.branch_name) as branch_name,
                         p.region,
                         MAX(p.basic_pay_regular) as basic_pay_regular,
                         MAX(p.basic_pay_trainee) as basic_pay_trainee,
@@ -233,23 +262,33 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
-					INNER JOIN
-						" . $database[0] . ".mlmatic_profile mp
-					ON
-						mp.code = p.bos_code AND mp.mlmatic_region = bp.ml_matic_region AND mp.uploaded_date BETWEEN DATE_FORMAT(NOW(), '%Y-%m-01') AND LAST_DAY(NOW())
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'";
-                        if($restrictedDate === $endDate){
-                            $fetchQuery .="AND p.payroll_date = '$restrictedDate'";
-                        }else{
-                            $fetchQuery .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                        }
-                        $fetchQuery .="AND bp.ml_matic_region = '$zone'
+                    if($restrictedDate === $endDate){
+                            $fetchQuery .= " AND p.payroll_date = '$restrictedDate'";
+                    }else{
+                            $fetchQuery .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                    }
+                        $fetchQuery .= " AND bp.ml_matic_region = '$zone'
                         AND p.zone like '%$region%'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.post_edi = 'pending'
-                        AND p.description = 'Sick-Leave'
+                        AND description = 'Sick-Leave'
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -266,7 +305,6 @@
                         p.cost_center, 
                         bp.region, 
                         p.zone,
-						MAX(mp.zone) as mlmatic_zone,
                         p.payroll_date,
                         MAX(bp.region_code) as region_code,
                         MAX(bp.ml_matic_region) as ml_matic_region,
@@ -292,8 +330,7 @@
                         MAX(p.gl_code_all_other_deductions) as gl_code_all_other_deductions,
                         MAX(p.gl_code_total) as gl_code_total,
                         p.bos_code,
-                        MAX(p.branch_name) as branch_name_hr,
-						MAX(mp.branch_name) as branch_name_mlmatic,
+                        MAX(p.branch_name) as branch_name,
                         p.region,
                         MAX(p.basic_pay_regular) as basic_pay_regular,
                         MAX(p.basic_pay_trainee) as basic_pay_trainee,
@@ -320,33 +357,44 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
-					INNER JOIN
-						" . $database[0] . ".mlmatic_profile mp
-					ON
-						mp.code = p.bos_code AND mp.mlmatic_region = bp.ml_matic_region AND mp.uploaded_date BETWEEN DATE_FORMAT(NOW(), '%Y-%m-01') AND LAST_DAY(NOW())
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND p.zone = '$zone'
                         AND p.zone != 'JVIS' -- to exclude sm seaside showroom
                         AND bp.region_code LIKE '%$region%'";
-                        if($restrictedDate === $endDate){
-                            $fetchQuery .="AND p.payroll_date = '$restrictedDate'";
-                        }else{
-                            $fetchQuery .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                        }
-                        $fetchQuery .=" AND bp.ml_matic_region != 'LNCR Showroom'
+                    
+                    if($restrictedDate === $endDate){
+                            $fetchQuery .= " AND p.payroll_date = '$restrictedDate'";
+                    }else{
+                            $fetchQuery .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                    }
+                        $fetchQuery .= " AND bp.ml_matic_region != 'LNCR Showroom'
                         AND bp.ml_matic_region != 'VISMIN Showroom'
                         AND p.post_edi = 'pending'
-                        AND p.description = 'Sick-Leave'
+                        AND description = 'Sick-Leave'
                     GROUP BY 
                         bp.code,
                         p.cost_center,
                         bp.region,
                         p.zone,
-                        p.payroll_date,
-                        p.bos_code,
-                        p.region
+                        P.payroll_date,
+                        P.bos_code,
+                        P.region
                     ORDER BY 
                         bp.region;"; 
         } 
@@ -360,15 +408,13 @@
 
                 $e_payroll_date = $conn->real_escape_string($row['payroll_date']);
                 $e_zone = $conn->real_escape_string($row['zone']);
-				$e_ml_matic_zone = $conn->real_escape_string($row['mlmatic_zone']);
                 $e_region = $conn->real_escape_string($row['region']);
                 $e_ml_matic_region = $conn->real_escape_string($row['ml_matic_region']);
                 $e_region_code = $conn->real_escape_string($row['region_code']);
                 $e_kp_code = $conn->real_escape_string($row['kp_code']);
                 $e_ml_matic_status = $conn->real_escape_string($row['ml_matic_status']);
-                $e_code = $conn->real_escape_string($row['code']);
-				$e_branch_name_mlmatic = $conn->real_escape_string($row['branch_name_mlmatic']);
-                $e_branch_name_hr = $conn->real_escape_string($row['branch_name_hr']);
+                $e_code = ($row['code'] === null || $row['code'] === '') ? "NULL" : (int) $row['code'];
+                $e_branch_name = $conn->real_escape_string($row['branch_name']);
                 $e_basic_pay_regular = $conn->real_escape_string($row['basic_pay_regular']);
                 $e_gl_code_basic_pay_regular = $conn->real_escape_string($row['gl_code_basic_pay_regular']);
                 $e_basic_pay_trainee = $conn->real_escape_string($row['basic_pay_trainee']);
@@ -412,27 +458,27 @@
                 // date_default_timezone_set('Asia/Manila');
 
                 $posted_date = date('Y-m-d H:i:s');
-                $posted_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown User';
+                $posted_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown user';
             
-                $insertQuery = "INSERT INTO " . $database[0] . ".payroll_edi_report (payroll_date, mainzone, zone, mlmatic_zone, region, ml_matic_region, region_code, kp_code, ml_matic_status, 
-                                branch_code, mlmatic_branch_name, branch_name, basic_pay_regular, gl_code_basic_pay_regular, basic_pay_trainee, gl_code_basic_pay_trainee, allowances, 
+                $insertQuery = "INSERT INTO " . $database[0] . ".payroll_edi_report (payroll_date, mainzone, `zone`, region, ml_matic_region, region_code, kp_code, ml_matic_status, 
+                                branch_code, branch_name, basic_pay_regular, gl_code_basic_pay_regular, basic_pay_trainee, gl_code_basic_pay_trainee, allowances, 
                                 gl_code_allowances, bm_allowance, gl_code_bm_allowance, overtime_regular, gl_code_overtime_regular, overtime_trainee, 
                                 gl_code_overtime_trainee, cola, gl_code_cola, excess_pb, gl_code_excess_pb, other_income, gl_code_other_income, salary_adjustment, 
                                 gl_code_salary_adjustment, graveyard, gl_code_graveyard, late_regular, gl_code_late_regular, late_trainee, gl_code_late_trainee, 
                                 leave_regular, gl_code_leave_regular, leave_trainee, gl_code_leave_trainee, all_other_deductions, gl_code_all_other_deductions, 
-                                total, gl_code_total, cost_center, no_of_branch_employee, no_of_employees_allocated, sheetname, posted_by, posted_date, description) 
-                                VALUES ('" . $e_payroll_date . "', '" . $mainzone . "', '" . $e_zone . "', '" . $e_ml_matic_zone . "', '" . $e_region . "', '" . $e_ml_matic_region . "', 
-                                '" . $e_region_code . "', '" . $e_kp_code . "', '" . $e_ml_matic_status . "', '" . $e_code . "', 
-                                '" . $e_branch_name_mlmatic . "', '" . $e_branch_name_hr . "', '" . $e_basic_pay_regular . "', '" . $e_gl_code_basic_pay_regular . "', '" . $e_basic_pay_trainee . "',
-                                '" . $e_gl_code_basic_pay_trainee . "', '" . $e_allowances . "', '" . $e_gl_code_allowances . "', '" . $e_bm_allowance . "',
-                                '" . $e_gl_code_bm_allowance . "', '" . $e_overtime_regular . "', '" . $e_gl_code_overtime_regular . "', '" . $e_overtime_trainee . "',
-                                '" . $e_gl_code_overtime_trainee . "', '" . $e_cola . "', '" . $e_gl_code_cola . "', '" . $e_excess_pb . "', 
-                                '" . $e_gl_code_excess_pb . "', '" . $e_other_income . "', '" . $e_gl_code_other_income . "', '" . $e_salary_adjustment . "',
-                                '" . $e_gl_code_salary_adjustment . "', '" . $e_graveyard . "', '" . $e_gl_code_graveyard . "', '" . $e_late_regular . "',
-                                '" . $e_gl_code_late_regular . "', '" . $e_late_trainee . "', '" . $e_gl_code_late_trainee . "', '" . $e_leave_regular . "',
-                                '" . $e_gl_code_leave_regular . "', '" . $e_leave_trainee . "', '" . $e_gl_code_leave_trainee . "', '" . $e_all_other_deductions . "',
-                                '" . $e_gl_code_all_other_deductions . "', '" . $e_total . "', '" . $e_gl_code_total . "', '" . $e_cost_center . "',
-                                '" . $e_no_of_branch_employee . "', '" . $e_no_of_employees_allocated . "', '" . $e_sheet_name . "', '" . $posted_by . "',
+                                total, gl_code_total, cost_center, no_of_branch_employee, no_of_employees_allocated, sheetname, posted_by, posted_date, `description`) 
+                                VALUES ('" . $e_payroll_date . "', '" . $mainzone . "', '" . $e_zone . "', '" . $e_region . "', '" . $e_ml_matic_region . "', 
+                                '" . $e_region_code . "', '" . $e_kp_code . "', '" . $e_ml_matic_status . "', " . $e_code . ", 
+                                '" . $e_branch_name . "', " . $e_basic_pay_regular . ", " . $e_gl_code_basic_pay_regular . ", " . $e_basic_pay_trainee . ",
+                                " . $e_gl_code_basic_pay_trainee . ", " . $e_allowances . ", " . $e_gl_code_allowances . ", " . $e_bm_allowance . ",
+                                " . $e_gl_code_bm_allowance . ", " . $e_overtime_regular . ", " . $e_gl_code_overtime_regular . ", " . $e_overtime_trainee . ",
+                                " . $e_gl_code_overtime_trainee . ", " . $e_cola . ", " . $e_gl_code_cola . ", " . $e_excess_pb . ", 
+                                " . $e_gl_code_excess_pb . ", " . $e_other_income . ", " . $e_gl_code_other_income . ", " . $e_salary_adjustment . ",
+                                " . $e_gl_code_salary_adjustment . ", " . $e_graveyard . ", " . $e_gl_code_graveyard . ", " . $e_late_regular . ",
+                                " . $e_gl_code_late_regular . ", " . $e_late_trainee . ", " . $e_gl_code_late_trainee . ", " . $e_leave_regular . ",
+                                " . $e_gl_code_leave_regular . ", " . $e_leave_trainee . ", " . $e_gl_code_leave_trainee . ", " . $e_all_other_deductions . ",
+                                " . $e_gl_code_all_other_deductions . ", " . $e_total . ", " . $e_gl_code_total . ", '" . $e_cost_center . "',
+                                " . $e_no_of_branch_employee . ", " . $e_no_of_employees_allocated . ", '" . $e_sheet_name . "', '" . $posted_by . "',
                                 '" . $posted_date . "', 'Sick-Leave')";
                 
                 // Execute insert query and collect status
@@ -449,40 +495,70 @@
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted'
                                     WHERE 
                                         bp.mainzone = '$mainzone'";
-                                    if($restrictedDate === $endDate){
-                                        $updatePost .="AND p.payroll_date = '$restrictedDate'";
-                                    }else{
-                                        $updatePost .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                                    }
-                                    $updatePost .="AND bp.ml_matic_region = '$zone'
-                                    AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
+                                    
+                    if($restrictedDate === $endDate){
+                            $updatePost .= " AND p.payroll_date = '$restrictedDate'";
+                    }else{
+                            $updatePost .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                    }
+                        $updatePost .= " AND bp.ml_matic_region = '$zone'
+                                    AND NOT (bp.code = 18 AND p.zone = 'VIS')  
                                     AND bp.zone like '%$region%'
-                                    AND p.description = 'Sick-Leave'";
+                                    and description = 'Sick-Leave'";
                                     
                 }else{
                     $updatePost = "UPDATE " . $database[0] . ".payroll p
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted' 
-                                     WHERE
+                                    WHERE
                                         bp.mainzone = '$mainzone'
                                     AND bp.zone = '$zone'
-                                    AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                                    AND bp.region_code LIKE '%$region%'
-                                    AND p.description = 'Sick-Leave'";
-                                    if($restrictedDate === $endDate){
-                                        $updatePost .="AND p.payroll_date = '$restrictedDate'";
-                                    }else{
-                                        $updatePost .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                                    }
-                                    $updatePost .=" AND bp.ml_matic_region != 'LNCR Showroom'
-                                    AND bp.ml_matic_region != 'VISMIN Showroom'";
+                                    AND p.zone != 'JVIS' 
+                                    AND bp.region_code LIKE '%$region%'";
+                                
+                    if($restrictedDate === $endDate){
+                            $updatePost .= " AND p.payroll_date = '$restrictedDate'";
+                    }else{
+                            $updatePost .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                    }
+                        $updatePost .= " AND bp.ml_matic_region != 'LNCR Showroom'
+                                    AND bp.ml_matic_region != 'VISMIN Showroom'
+                                    and description = 'Sick-Leave'";
                 }
 
                 if ($conn->query($updatePost) === TRUE) {
@@ -493,6 +569,8 @@
 
             } else {
                 echo "Error inserting records: " . implode(', ', $errors);
+                echo $fetchQuery;
+                echo $insertQuery;
             }
 
         } else {
@@ -516,7 +594,7 @@
     <link rel="stylesheet" href="<?php echo $relative_path; ?>assets/css/admin/default/default.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-
+    
     <style>
         #user:hover{
             background-color: #db120b;
@@ -668,11 +746,11 @@
 </head>
 
 <body>
- 
+
     <div class="top-content">
         <?php include $relative_path . 'templates/sidebar.php' ?>
     </div>
-
+    
     <center><h2>SICK LEAVE CONVERSION <span>[POST EDI]</span></center>
 
     <div class="import-file">
@@ -720,8 +798,7 @@
                 <label for="restricted-date">Start date </label>
                 <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : '';?>" required>
             </div>
-			
-			<div class="custom-select-wrapper">
+            <div class="custom-select-wrapper">
                 <label for="end-date">End date </label>
                 <input type="date" id="end-date" name="end-date" value="<?php echo isset($_POST['end-date']) ? $_POST['end-date'] : '';?>" required>
             </div>
@@ -734,63 +811,62 @@
             <button class="post-btn" onclick="postEdi()">Post EDI</button>
         </div>
     </div>
-    <script>
-		function updateZone(callback) {
-			var mainzone = document.getElementById("mainzone").value;
-			var selectedZone = document.getElementById("zone").value;
-
-			var xhr = new XMLHttpRequest();
-			xhr.open("POST", "../../fetch/get_zone.php", true);
-			xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState === 4 && xhr.status === 200) {
-					document.getElementById("zone").innerHTML = xhr.responseText;
-
-					if (typeof callback === "function") {
-						callback(); // Call updateRegions after zones are loaded
-					}
-				}
-			};
-			xhr.send("mainzone=" + encodeURIComponent(mainzone) + "&selected_zone=" + encodeURIComponent(selectedZone));
-		}
-
-		function updateRegions() {
-			var zone = document.getElementById("zone").value;
-			var selectedRegion = document.getElementById("region").value;
-
-			var xhr = new XMLHttpRequest();
-			xhr.open("POST", "../../fetch/get_regions.php", true);
-			xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-			xhr.onreadystatechange = function () {
-				if (xhr.readyState === 4 && xhr.status === 200) {
-					document.getElementById("region").innerHTML = xhr.responseText;
-				}
-			};
-			xhr.send("zone=" + encodeURIComponent(zone) + "&selected_region=" + encodeURIComponent(selectedRegion));
-		}
-
-		// Ensure region updates when zone changes
-		document.addEventListener("DOMContentLoaded", function () {
-			document.getElementById("zone").addEventListener("change", updateRegions);
-
-			var mainzone = document.getElementById("mainzone").value;
-			var zone = document.getElementById("zone").value;
-
-			if (mainzone !== "") {
-				updateZone(function () {
-					if (document.getElementById("zone").value !== "") {
-						updateRegions();
-					}
-				});
-			} else if (zone !== "") {
-				updateRegions();
-			}
-		});
-	</script>
-
-
 </body>
 </html>
+
+<script>
+    //for fetching zone
+    function updateZone() {
+        var mainzone = document.getElementById("mainzone").value;
+        var selectedZone = document.getElementById("zone").value; // Get the currently selected zone, if any
+        
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "../../fetch/get_zone.php", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                document.getElementById("zone").innerHTML = xhr.responseText;
+            }
+        };
+        // Pass the current zone as well to preserve the selection
+        xhr.send("mainzone=" + mainzone + "&selected_zone=" + selectedZone);
+    }
+
+    // Ensure the zones are updated automatically on page load based on the current mainzone
+    window.onload = function() {
+        var mainzone = document.getElementById("mainzone").value;
+        if (mainzone !== "") {
+            updateZone(); // Fetch and set the zones automatically if a mainzone is already selected
+        }
+    };
+    
+    // Function to fetch regions based on the selected zone
+    function updateRegions() {
+        var zone = document.getElementById("zone").value;
+        var selectedRegion = document.getElementById("region").value; // Get the currently selected region, if any
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "../../fetch/get_regions.php", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                document.getElementById("region").innerHTML = xhr.responseText;
+            }
+        };
+        // Pass the current region as well to preserve the selection
+        xhr.send("zone=" + zone + "&selected_region=" + selectedRegion);
+    }
+
+    // Ensure the regions are updated automatically when a zone is selected or when the page reloads
+    document.getElementById("zone").addEventListener('change', updateRegions);
+
+    window.onload = function() {
+        var zone = document.getElementById("zone").value;
+        if (zone !== "") {
+            updateRegions(); // Fetch and set the regions automatically if a zone is already selected
+        }
+    };
+</script>
 
 <script>
     function postEdi() {
@@ -822,13 +898,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     $region = $_POST['region'];
     $zone = $_POST['zone'];
     $restrictedDate = $_POST['restricted-date'];
-	$endDate = $_POST['end-date'];
+    $endDate = $_POST['end-date'];
 
     $_SESSION['mainzone'] = $mainzone;
     $_SESSION['zone'] = $zone;
     $_SESSION['region'] = $region;
     $_SESSION['restrictedDate'] = $restrictedDate;
-	$_SESSION['endDate'] = $endDate;
+    $_SESSION['endDate'] = $endDate;
 
     if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
         $sql = "SELECT
@@ -856,8 +932,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     MAX(p.gl_code_all_other_deductions) as gl_code_all_other_deductions,
                     MAX(p.gl_code_total) as gl_code_total,
                     p.bos_code,
-                    MAX(p.branch_name) as branch_name_hr,
-					MAX(mp.branch_name) as branch_name_mlmatic,
+                    MAX(p.branch_name) as branch_name,
                     p.region,
                     MAX(p.basic_pay_regular) as basic_pay_regular,
                     MAX(p.basic_pay_trainee) as basic_pay_trainee,
@@ -884,22 +959,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 INNER JOIN 
                     " . $database[1] . ".branch_profile bp
                 ON 
-                    p.bos_code = bp.code AND p.region_code = bp.region_code
-				INNER JOIN
-                    " . $database[0] . ".mlmatic_profile mp
-                ON
-                    mp.code = p.bos_code AND mp.mlmatic_region = bp.ml_matic_region AND mp.uploaded_date BETWEEN DATE_FORMAT(NOW(), '%Y-%m-01') AND LAST_DAY(NOW())
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                 WHERE
-                    bp.mainzone = '$mainzone'
-                    and p.description = 'Sick-Leave'";
-                    if($restrictedDate === $endDate){
-                        $sql .="AND p.payroll_date = '$restrictedDate'";
-                    }else{
-                        $sql .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                    }
-                    $sql .="AND bp.ml_matic_region = '$zone'
+                    bp.mainzone = '$mainzone'";
+                if($restrictedDate === $endDate){
+                        $sql .= " AND p.payroll_date = '$restrictedDate'";
+                }else{
+                        $sql .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                }
+                $sql .= " AND bp.ml_matic_region = '$zone'
                     AND bp.zone like '%$region%'
                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
+                    AND description = 'Sick-Leave'
                 GROUP BY 
                     bp.code,
                     p.cost_center,
@@ -936,8 +1021,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     MAX(p.gl_code_all_other_deductions) as gl_code_all_other_deductions,
                     MAX(p.gl_code_total) as gl_code_total,
                     p.bos_code,
-                    MAX(p.branch_name) as branch_name_hr,
-					MAX(mp.branch_name) as branch_name_mlmatic,
+                    MAX(p.branch_name) as branch_name,
                     p.region,
                     MAX(p.basic_pay_regular) as basic_pay_regular,
                     MAX(p.basic_pay_trainee) as basic_pay_trainee,
@@ -964,24 +1048,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 INNER JOIN 
                     " . $database[1] . ".branch_profile bp
                 ON 
-                    p.bos_code = bp.code AND p.region_code = bp.region_code
-				INNER JOIN
-                    " . $database[0] . ".mlmatic_profile mp
-                ON
-                    mp.code = p.bos_code AND mp.mlmatic_region = bp.ml_matic_region AND mp.uploaded_date BETWEEN DATE_FORMAT(NOW(), '%Y-%m-01') AND LAST_DAY(NOW())
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                 WHERE
                     bp.mainzone = '$mainzone'
                     AND bp.zone = '$zone'
                     AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                    AND bp.region_code LIKE '%$region%'
-                    AND p.description = 'Sick-Leave'";
-                    if($restrictedDate === $endDate){
-                        $sql .="AND p.payroll_date = '$restrictedDate'";
-                    }else{
-                        $sql .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                    }
-                    $sql .="AND bp.ml_matic_region != 'LNCR Showroom'
+                    AND bp.region_code LIKE '%$region%'";
+                
+                if($restrictedDate === $endDate){
+                        $sql .= " AND p.payroll_date = '$restrictedDate'";
+                }else{
+                        $sql .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                }
+                $sql .= " AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
+                    AND description = 'Sick-Leave'
                 GROUP BY 
                     bp.code,
                     p.cost_center,
@@ -1029,7 +1124,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 
             //  first row
             echo "<tr>";
-            echo "<th colspan='3'>Date Range : " . $payroll_date . " TO ".$endDate. "</th>";
+            echo "<th colspan='2'>Payroll Date - " . $payroll_date . "</th>";
             echo "<th>Basic Pay Regular</th>";
             echo "<th>Basic Pay Trainee</th>";
             echo "<th>Allowances</th>";
@@ -1037,7 +1132,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th>Overtime Regular</th>";
             echo "<th>Overtime Trainee</th>";
             echo "<th>COLA</th>";
-            echo "<th>Sick Leave</th>";
+            echo "<th>Excess PB</th>";
             echo "<th>Other Income</th>";
             echo "<th>Salary Adjustment</th>";
             echo "<th>Graveyard</th>";
@@ -1056,7 +1151,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             // second row
             echo "<tr>";
             echo "<th></th>";
-			echo "<th></th>";
             echo "<th></th>";
             echo "<th>Debit</th>";
             echo "<th>Debit</th>";
@@ -1084,8 +1178,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             //third row
             echo "<tr>";
             echo "<th style='white-space: nowrap'>BOS Code</th>";
-            echo "<th>Branch Name from HRMD DATA</th>";
-			echo "<th>Branch Name from MLMATIC DATA</th>";
+            echo "<th>Branch Name</th>";
             echo "<th>". $gl_code_basic_pay_regular ."</th>";
             echo "<th>". $gl_code_basic_pay_trainee ."</th>";
             echo "<th>". $gl_code_allowances ."</th>";
@@ -1137,30 +1230,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 
                 echo "<tr>";
                 echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['bos_code']) . "</td>";
-                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_hr']) . "</td>";
-				echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_mlmatic']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['basic_pay_regular']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['basic_pay_trainee']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['allowances']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['bm_allowance']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['overtime_regular']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['overtime_trainee']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['cola']) . "</td>"; 
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['excess_pb']) . "</td>"; 
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['other_income']) . "</td>"; 
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['salary_adjustment']) . "</td>"; 
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['graveyard']) . "</td>";
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['allowances'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['bm_allowance'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['cola'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['other_income'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['salary_adjustment'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['graveyard'], 2)) . "</td>";
                 // convert to negative if positive value 
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee'], 2)) . "</td>";
 
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'> $total </td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'> ".htmlspecialchars(number_format($total, 2))." </td>"; 
                 echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center1']) . "</td>";
                 echo "<td style='white-space: nowrap; background-color: #f2f2f2; font-weight: $bold'></td>";
                 echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['all_other_deductions']) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['all_other_deductions'], 2)) . "</td>"; 
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_branch_employee']) . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_employees_allocated']) . "</td>";
                 echo "</tr>";
@@ -1187,4 +1279,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     // Close the connection
     mysqli_close($conn);
 }
-?> 
+?>

@@ -94,6 +94,9 @@
         $restrictedDate = $_SESSION['restrictedDate'] ?? '';
 		$endDate = $_SESSION['endDate'] ?? '';
 
+        $restrictedDate_raw = date('F-Y', strtotime($restrictedDate));
+        $endDate_raw = date('F-Y', strtotime($endDate));
+
         $dlsql = "WITH filtered_branch_data AS (
             SELECT
                 CASE 
@@ -109,52 +112,22 @@
             FROM " . $database[1] . ".branch_profile
         ), 
         final_data AS (
-            SELECT
+            SELECT 
+                CASE WHEN nd.zone IN ('JVIS', 'VIS') THEN 'VISAYAS'
+                    WHEN nd.zone = 'MIN' THEN 'MINDANAO'
+                    WHEN nd.zone = 'LZN' THEN 'LUZON'
+                    WHEN nd.zone = 'NCR' THEN 'NCR'
+                ELSE nd.zone END AS new_zone,
+
+                nd.gl_region AS new_region,
+
+                nd.ml_matic_branch_name AS new_branch_name,
+                nd.branch_id,
+
                 p.payroll_date,
 
-                MAX(p.gl_code_basic_pay_regular) AS gl_code_basic_pay_regular,
-                MAX(p.gl_code_basic_pay_trainee) AS gl_code_basic_pay_trainee,
-                MAX(p.gl_code_allowances) AS gl_code_allowances,
-                MAX(p.gl_code_bm_allowance) AS gl_code_bm_allowance,
-                MAX(p.gl_code_overtime_regular) AS gl_code_overtime_regular,
-                MAX(p.gl_code_overtime_trainee) AS gl_code_overtime_trainee,
-                MAX(p.gl_code_cola) AS gl_code_cola,
-                MAX(p.gl_code_excess_pb) AS gl_code_excess_pb,
-                MAX(p.gl_code_other_income) AS gl_code_other_income,
-                MAX(p.gl_code_salary_adjustment) AS gl_code_salary_adjustment,
-                MAX(p.gl_code_graveyard) AS gl_code_graveyard,
-                MAX(p.gl_code_late_regular) AS gl_code_late_regular,
-                MAX(p.gl_code_late_trainee) AS gl_code_late_trainee,
-                MAX(p.gl_code_leave_regular) AS gl_code_leave_regular,
-                MAX(p.gl_code_leave_trainee) AS gl_code_leave_trainee,
-                MAX(p.gl_code_all_other_deductions) AS gl_code_all_other_deductions,
-                MAX(p.gl_code_total) AS gl_code_total,
+                p.excess_pb, p.other_income,
 
-                nd.zone,
-
-                max(nd.ml_matic_region) as region,
-                MAX(p.branch_name) AS branch_name_hr,
-                MAX(nd.ml_matic_branch_name) AS branch_name_mlmatic,
-                
-                MAX(p.basic_pay_regular) AS basic_pay_regular,
-                MAX(p.basic_pay_trainee) AS basic_pay_trainee,
-                MAX(p.allowances) AS allowances,
-                MAX(p.bm_allowance) AS bm_allowance,
-                MAX(p.overtime_regular) AS overtime_regular,
-                MAX(p.overtime_trainee) AS overtime_trainee,
-                MAX(p.cola) AS cola,
-                MAX(p.excess_pb) AS excess_pb,
-                MAX(p.other_income) AS other_income,
-                MAX(p.salary_adjustment) AS salary_adjustment,
-                MAX(p.graveyard) AS graveyard,
-                MAX(p.late_regular) AS late_regular,
-                MAX(p.late_trainee) AS late_trainee,
-                MAX(p.leave_regular) AS leave_regular,
-                MAX(p.leave_trainee) AS leave_trainee,
-                MAX(p.all_other_deductions) AS all_other_deductions,
-                MAX(p.total) AS total,
-                MAX(p.no_of_branch_employee) AS no_of_branch_employee,
-                MAX(p.no_of_employees_allocated) AS no_of_employees_allocated,
                 COUNT(DISTINCT p.branch_code) AS branch_count
             FROM 
                 " . $database[0] . ".payroll_edi_report p
@@ -171,9 +144,9 @@
             AND p.status is null
             AND p.remarks is null";
             if($restrictedDate === $endDate){
-                $dlsql .="AND p.payroll_date = '$restrictedDate'";
+                $dlsql .=" AND p.payroll_date = '$restrictedDate'";
             }else{
-                $dlsql .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                $dlsql .=" AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
             }
             if ($mainzone === 'ALL'){
                 $dlsql .= " AND p.mainzone IN ('LNCR','VISMIN') ";
@@ -196,16 +169,17 @@
                     END
                 ) = '$status' 
             GROUP BY
+                new_zone,
+                new_region,
+                nd.ml_matic_branch_name,
+                nd.branch_id,
                 p.payroll_date,
-
-                nd.zone,
-                region,
-                p.branch_name,
-                nd.ml_matic_branch_name
+                p.excess_pb,
+                p.other_income
         )
         SELECT *
         FROM final_data
-        ORDER BY region ASC";
+        ORDER BY new_region ASC";
 
         $dlresult = mysqli_query($conn, $dlsql);
 
@@ -221,90 +195,106 @@
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-
-        if($mainzone !== 'ALL' || $zone !== 'ALL') {
-            if(mysqli_num_rows($dlresult) > 0) {
-                // $first_row = mysqli_fetch_assoc($dlresult);
-                // $payroll_date = htmlspecialchars($first_row['payroll_date']);
-                // $gl_code_excess_pb = htmlspecialchars($first_row['gl_code_excess_pb']);
-                // $gl_code_total = htmlspecialchars($first_row['gl_code_total']);
-                                
-                // Reset the result pointer to the beginning
-                mysqli_data_seek($dlresult, 0);
-                    
-                $headerRow1 = [
-                    'Date', 'GL Code', 'Zone', 'Region', 'Branch Name','Description', 'Amount', 'Category'
-                ];
-                    
-                $sheet->fromArray([$headerRow1], null, 'A1');
-                        
-                foreach(range('A', 'Z') as $columnID) {
-                    $sheet->getColumnDimension($columnID)->setAutoSize(true);
-                }
-                                
-                $rowIndex = 3;
-                                    
-                foreach ($dlRows as $row) {
-                    $Month = date('Y', strtotime($row['payroll_date']));
-                    $dateValue = new \DateTime($row['payroll_date']);
-                    $description = ucwords("Sick Leave Conversion Year $Month");
-
-                    // Prepare GL Codes array - adjust field names if different
-                    $glCodes = [$row['gl_code_excess_pb'], $row['gl_code_total']];
-
-                    foreach ($glCodes as $glCode) {
-                        // Determine style
-                        // $applyStyle = false;
-                        // if (strpos($row['cost_center'], '0001') === 0 && $zone !== 'LNCR Showroom' && $zone !== 'VISMIN Showroom') {
-                        //     $color = '4fc917';
-                        //     $bold = true;
-                        //     $applyStyle = true;
-                        // } else {
-                        //     $bold = false;
-                        // }
-
-                        // Fill in the Excel sheet
-                        $sheet->setCellValue('A' . $rowIndex, Date::PHPToExcel($dateValue));
-                        $sheet->getStyle('A' . $rowIndex)->getNumberFormat()->setFormatCode('yyyy-mm-dd');
-                        $sheet->setCellValue('B' . $rowIndex, $glCode);
-                        if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                            $sheet->setCellValue('C' . $rowIndex, 'JEW');
-                        }else {
-                            $sheet->setCellValue('C' . $rowIndex, $row['zone']);
-                        }
-                        $sheet->setCellValue('D' . $rowIndex, $row['region']);
-                        $sheet->setCellValue('E' . $rowIndex, $row['branch_name_mlmatic']);
-                        $sheet->setCellValue('F' . $rowIndex, $description);
-                        $sheet->setCellValueExplicit('G' . $rowIndex, $row['excess_pb'], DataType::TYPE_NUMERIC);
-                        $sheet->getStyle('G' . $rowIndex)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
-                        $sheet->setCellValue('H' . $rowIndex, 'Adjustment');
-
-                        $rowIndex++;
-                    }
-                }
+        
+        if(mysqli_num_rows($dlresult) > 0) {
+            // $first_row = mysqli_fetch_assoc($dlresult);
+            // $payroll_date = htmlspecialchars($first_row['payroll_date']);
+            // $gl_code_excess_pb = htmlspecialchars($first_row['gl_code_excess_pb']);
+            // $gl_code_total = htmlspecialchars($first_row['gl_code_total']);
                             
-                header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            // Reset the result pointer to the beginning
+            mysqli_data_seek($dlresult, 0);
                 
-                if($status==='Active'){
-                    if($zone === 'VISMIN Showroom' || $zone === 'LNCR Showroom'){
-                        $filename = "EDI_Sick-Leave_conversion_Report_" . $mainzone . "_" . $restrictedDate . ".xls";
-                    }else{
-                        $filename = "EDI_Sick-Leave_conversion_Report_" . $zone . "_" . $region . "_" . $restrictedDate . ".xls";
+            // Set the header rows in the Excel sheet
+            $headerRow1 = [
+                'Sick Leave Conversion '. date('Y', strtotime($restrictedDate)), '', '', '', ''
+            ];
+            $headerRow3 = [
+                'Zone Name', 'Region Name', 'BranchID', 'Branch', '522310'
+            ];
+                
+            $sheet->fromArray([$headerRow1], null, 'A1');
+            $sheet->fromArray([$headerRow3], null, 'A3');
+                    
+            foreach(range('A', 'Z') as $columnID) {
+                $sheet->getColumnDimension($columnID)->setAutoSize(true);
+            }
+
+            $sheet->getStyle('A1:E1')->getFont()->setBold(true);
+            $sheet->getStyle('A3:E3')->getFont()->setBold(true);
+                            
+            $rowIndex = 4;
+            $total = 0;
+                                
+            foreach ($dlRows as $row) {
+
+                $total = ($row['excess_pb'] ?? 0) + ($row['other_income'] ?? 0);
+
+                // Fill in the Excel sheet
+                $sheet->setCellValue('A' . $rowIndex, $row['new_zone']);
+                $sheet->setCellValue('B' . $rowIndex, $row['new_region']);
+                $sheet->setCellValue('C' . $rowIndex, $row['branch_id']);
+                $sheet->setCellValue('D' . $rowIndex, $row['new_branch_name']);
+                $sheet->setCellValueExplicit('E' . $rowIndex, $total, DataType::TYPE_NUMERIC);
+                $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
+
+                $rowIndex++;
+
+            }
+                        
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            
+            if($status==='Active'){
+                if($mainzone === 'ALL' || $zone === 'ALL') {
+                    if($restrictedDate === $endDate){
+                        $filename = "EDI_Sick-Leave_conversion_Report_NATIONWIDE_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                    } else {
+                        $filename = "EDI_Sick-Leave_conversion_Report_NATIONWIDE_from_" . $restrictedDate_raw . "_to_" . $endDate_raw . "_NEW-FORMAT.xls";
                     }
-                }else{
-                    if($zone === 'VISMIN Showroom' || $zone === 'LNCR Showroom'){
-                        $filename = "EDI_Sick-Leave_conversion_Report_" . $mainzone . "_" . $restrictedDate . "(Inactive or Pending).xls";
-                    }else{
-                        $filename = "EDI_Sick-Leave_conversion_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "(Inactive or Pending).xls";
+                } else {
+                    if($restrictedDate === $endDate){
+                        if($zone === 'VISMIN Showroom' || $zone === 'LNCR Showroom'){
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $mainzone . "_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                        } else {
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $zone . "_" . $region . "_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                        }
+                    } else {
+                        if($zone === 'VISMIN Showroom' || $zone === 'LNCR Showroom'){
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $mainzone . "_from_" . $restrictedDate_raw . "_to_" . $endDate_raw . "_NEW-FORMAT.xls";
+                        } else {
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $zone . "_" . $region . "_from_" . $restrictedDate_raw . "_to_" . $endDate_raw . "_NEW-FORMAT.xls";
+                        }
                     }
                 }
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                header('Cache-Control: max-age=0');
-                            
-                $writer = PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xls');
-                $writer->save('php://output');
-                exit();
+            } else {
+                if($mainzone === 'ALL' || $zone === 'ALL') {
+                    if($restrictedDate === $endDate){
+                        $filename = "EDI_Sick-Leave_conversion_Report_NATIONWIDE_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive or Pending).xls";
+                    } else {
+                        $filename = "EDI_Sick-Leave_conversion_Report_NATIONWIDE_from_" . $restrictedDate_raw . "_to_" . $endDate_raw . "_NEW-FORMAT-(Inactive or Pending).xls";
+                    }
+                } else {
+                    if($restrictedDate === $endDate){
+                        if($zone === 'VISMIN Showroom' || $zone === 'LNCR Showroom'){
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $mainzone . "_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive or Pending).xls";
+                        } else {
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $zone . "_" . $region . "_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive or Pending).xls";
+                        }
+                    } else {
+                        if($zone === 'VISMIN Showroom' || $zone === 'LNCR Showroom'){
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $mainzone . "_from_" . $restrictedDate_raw . "_to_" . $endDate_raw . "_NEW-FORMAT-(Inactive or Pending).xls";
+                        } else {
+                            $filename = "EDI_Sick-Leave_conversion_Report_" . $zone . "_" . $region . "_from_" . $restrictedDate_raw . "_to_" . $endDate_raw . "_NEW-FORMAT-(Inactive or Pending).xls";
+                        }
+                    }
+                }
             }
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+                        
+            $writer = PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xls');
+            $writer->save('php://output');
+            exit();
         }
     }
 ?>
@@ -477,7 +467,7 @@
         <?php include $relative_path . 'templates/sidebar.php' ?>
     </div>
 
-    <center><h2>Sick Leave Conversion Report <span>[EDI-Format]</span></h2></center>
+    <center><h2>Sick Leave Conversion Report <span>[EDI-Format NEW]</span></h2></center>
 
     <div class="import-file">
         
@@ -489,6 +479,7 @@
                     <option value="">Select Mainzone</option>
                     <option value="VISMIN" <?php echo (isset($_POST['mainzone']) && $_POST['mainzone'] == 'VISMIN') ? 'selected' : ''; ?>>VISMIN</option>
                     <option value="LNCR" <?php echo (isset($_POST['mainzone']) && $_POST['mainzone'] == 'LNCR') ? 'selected' : ''; ?>>LNCR</option>
+                    <option value="ALL" <?php echo (isset($_POST['mainzone']) && $_POST['mainzone'] == 'ALL') ? 'selected' : ''; ?>>ALL Mainzone</option>
                 </select>
                 <div class="custom-arrow"></div>
             </div>
@@ -545,7 +536,7 @@
 
 		 <div id="showdl" style="display: none">
             <form id="exportForm" action="" method="post">
-                <input type="submit" class="download-btn" name="download" value="Export to Excel for MLMatic">
+                <input type="submit" class="download-btn" name="download" value="Export to Excel">
             </form>
         </div>
     </div>
@@ -623,119 +614,172 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     $_SESSION['restrictedDate'] = $restrictedDate;
 	$_SESSION['endDate'] = $endDate;
 
-    $sql = "WITH filtered_branch_data AS (
-            SELECT
-                CASE 
-                    WHEN branch_id = '2162' THEN 'JVIS' 
-                    ELSE zone 
-                END AS zone,
-                branch_id,
-                region_code,
-                gl_region,
-                ml_matic_region,
-                code,
-                ml_matic_branch_name
-            FROM " . $database[1] . ".branch_profile
-        ), 
-        final_data AS (
-            SELECT
-                p.payroll_date,
-                p.cost_center,
+    $sql = "SELECT 
+        p.branch_code,
+        p.cost_center,
+        max(p.ml_matic_region) as region,
+        p.zone,
+        p.payroll_date,
+        MAX(p.gl_code_basic_pay_regular) AS gl_code_basic_pay_regular,
+        MAX(p.gl_code_basic_pay_trainee) AS gl_code_basic_pay_trainee,
+        MAX(p.gl_code_allowances) AS gl_code_allowances,
+        MAX(p.gl_code_bm_allowance) AS gl_code_bm_allowance,
+        MAX(p.gl_code_overtime_regular) AS gl_code_overtime_regular,
+        MAX(p.gl_code_overtime_trainee) AS gl_code_overtime_trainee,
+        MAX(p.gl_code_cola) AS gl_code_cola,
+        MAX(p.gl_code_excess_pb) AS gl_code_excess_pb,
+        MAX(p.gl_code_other_income) AS gl_code_other_income,
+        MAX(p.gl_code_salary_adjustment) AS gl_code_salary_adjustment,
+        MAX(p.gl_code_graveyard) AS gl_code_graveyard,
+        MAX(p.gl_code_late_regular) AS gl_code_late_regular,
+        MAX(p.gl_code_late_trainee) AS gl_code_late_trainee,
+        MAX(p.gl_code_leave_regular) AS gl_code_leave_regular,
+        MAX(p.gl_code_leave_trainee) AS gl_code_leave_trainee,
+        MAX(p.gl_code_all_other_deductions) AS gl_code_all_other_deductions,
+        MAX(p.gl_code_total) AS gl_code_total,
+        MAX(p.branch_name) AS branch_name_hr,
+        MAX(p.basic_pay_regular) AS basic_pay_regular,
+        MAX(p.basic_pay_trainee) AS basic_pay_trainee,
+        MAX(p.allowances) AS allowances,
+        MAX(p.bm_allowance) AS bm_allowance,
+        MAX(p.overtime_regular) AS overtime_regular,
+        MAX(p.overtime_trainee) AS overtime_trainee,
+        MAX(p.cola) AS cola,
+        MAX(p.excess_pb) AS excess_pb,
+        MAX(p.other_income) AS other_income,
+        MAX(p.salary_adjustment) AS salary_adjustment,
+        MAX(p.graveyard) AS graveyard,
+        MAX(p.late_regular) AS late_regular,
+        MAX(p.late_trainee) AS late_trainee,
+        MAX(p.leave_regular) AS leave_regular,
+        MAX(p.leave_trainee) AS leave_trainee,
+        MAX(p.all_other_deductions) AS all_other_deductions,
+        MAX(p.total) AS total,
+        MAX(p.no_of_branch_employee) AS no_of_branch_employee,
+        MAX(p.no_of_employees_allocated) AS no_of_employees_allocated,
+        COUNT(DISTINCT p.branch_code) AS branch_count 
+    FROM 
+        " . $database[0] . ".payroll_edi_report p 
+    WHERE 
+        p.description = 'Sick-Leave'
+        AND NOT p.description IN ('payroll', '13thMonth', 'midYearBonus')
+        AND p.status is null
+        AND p.remarks is null 
+        AND (
+            CASE 
+                WHEN p.ml_matic_status = 'Active' THEN 'Active'
+                WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+            END
+        ) = '".$status."'"; 
+        if($restrictedDate === $endDate){
+            $sql .=" AND p.payroll_date = '$restrictedDate'";
+        }else{
+            $sql .=" AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+        }
 
-                MAX(p.gl_code_basic_pay_regular) AS gl_code_basic_pay_regular,
-                MAX(p.gl_code_basic_pay_trainee) AS gl_code_basic_pay_trainee,
-                MAX(p.gl_code_allowances) AS gl_code_allowances,
-                MAX(p.gl_code_bm_allowance) AS gl_code_bm_allowance,
-                MAX(p.gl_code_overtime_regular) AS gl_code_overtime_regular,
-                MAX(p.gl_code_overtime_trainee) AS gl_code_overtime_trainee,
-                MAX(p.gl_code_cola) AS gl_code_cola,
-                MAX(p.gl_code_excess_pb) AS gl_code_excess_pb,
-                MAX(p.gl_code_other_income) AS gl_code_other_income,
-                MAX(p.gl_code_salary_adjustment) AS gl_code_salary_adjustment,
-                MAX(p.gl_code_graveyard) AS gl_code_graveyard,
-                MAX(p.gl_code_late_regular) AS gl_code_late_regular,
-                MAX(p.gl_code_late_trainee) AS gl_code_late_trainee,
-                MAX(p.gl_code_leave_regular) AS gl_code_leave_regular,
-                MAX(p.gl_code_leave_trainee) AS gl_code_leave_trainee,
-                MAX(p.gl_code_all_other_deductions) AS gl_code_all_other_deductions,
-                MAX(p.gl_code_total) AS gl_code_total,
-
-                nd.zone,
-
-                max(nd.ml_matic_region) as region,
-                MAX(p.branch_name) AS branch_name_hr,
-                MAX(nd.ml_matic_branch_name) AS branch_name_mlmatic,
-                
-                MAX(p.basic_pay_regular) AS basic_pay_regular,
-                MAX(p.basic_pay_trainee) AS basic_pay_trainee,
-                MAX(p.allowances) AS allowances,
-                MAX(p.bm_allowance) AS bm_allowance,
-                MAX(p.overtime_regular) AS overtime_regular,
-                MAX(p.overtime_trainee) AS overtime_trainee,
-                MAX(p.cola) AS cola,
-                MAX(p.excess_pb) AS excess_pb,
-                MAX(p.other_income) AS other_income,
-                MAX(p.salary_adjustment) AS salary_adjustment,
-                MAX(p.graveyard) AS graveyard,
-                MAX(p.late_regular) AS late_regular,
-                MAX(p.late_trainee) AS late_trainee,
-                MAX(p.leave_regular) AS leave_regular,
-                MAX(p.leave_trainee) AS leave_trainee,
-                MAX(p.all_other_deductions) AS all_other_deductions,
-                MAX(p.total) AS total,
-                MAX(p.no_of_branch_employee) AS no_of_branch_employee,
-                MAX(p.no_of_employees_allocated) AS no_of_employees_allocated,
-                COUNT(DISTINCT p.branch_code) AS branch_count
-            FROM 
-                " . $database[0] . ".payroll_edi_report p
-            JOIN filtered_branch_data nd 
-            ON p.branch_code = nd.code
-            AND (
-                (nd.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') 
-                    AND p.ml_matic_region = nd.ml_matic_region)
-                OR 
-                (p.zone = nd.zone AND p.region_code = nd.region_code)
-            )
-            WHERE p.description = 'Sick-Leave'
-            AND NOT p.description IN ('payroll', '13thMonth', 'midYearBonus')
-            AND p.status is null
-            AND p.remarks is null";
-            if($restrictedDate === $endDate){
-                $sql .="AND p.payroll_date = '$restrictedDate'";
+        if($mainzone === 'ALL'){
+            $sql .= " AND p.mainzone IN ('LNCR','VISMIN') ";
+            if ($zone === 'ALL'){
+                $sql .= " AND p.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
+            }
+        } else {
+            $sql .= " AND p.mainzone = '$mainzone'";
+            if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
+                $sql .=" AND p.ml_matic_region = '$zone' AND p.zone LIKE '%$region%'";
             }else{
-                $sql .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+                $sql .=" AND p.ml_matic_region != 'LNCR Showroom' AND p.ml_matic_region != 'VISMIN Showroom'
+                AND p.zone = '$zone' AND p.region_code LIKE '%$region%'";
             }
-            if ($mainzone === 'ALL'){
-                $sql .= " AND p.mainzone IN ('LNCR','VISMIN') ";
-                if ($zone === 'ALL'){
-                    $sql .= " AND p.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
-                }
-            }
-            else{
-                $sql .= " AND p.mainzone = '$mainzone' ";
-                if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                    $sql .= " AND p.ml_matic_region = '$zone' AND p.zone LIKE '%$region%' ";
-                }else{
-                    $sql .= " AND p.zone = '$zone' AND p.region_code LIKE '%$region%' AND NOT p.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
-                }
-            }
-            $sql .= " AND (
-                    CASE 
-                        WHEN p.ml_matic_status = 'Active' THEN 'Active'
-                        WHEN p.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
-                    END
-                ) = '$status' 
-            GROUP BY
-                p.payroll_date,
-                p.cost_center,
-                nd.zone,
-                region,
-                p.branch_name,
-                nd.ml_matic_branch_name
-        )
-        SELECT *
-        FROM final_data
-        ORDER BY region ASC";
+        }
+        
+    $sql .="GROUP BY 
+        p.branch_code, 
+        p.cost_center, 
+        p.region, 
+        p.zone, 
+        p.payroll_date
+    ORDER BY 
+        p.region;";
+
+    // if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
+        
+    // }else{
+    //             $sql = "SELECT 
+    //                 p.branch_code,
+    //                 p.cost_center,
+    //                 p.region,
+    //                 p.zone,
+    //                 p.payroll_date,
+    //                 MAX(p.gl_code_basic_pay_regular) AS gl_code_basic_pay_regular,
+    //                 MAX(p.gl_code_basic_pay_trainee) AS gl_code_basic_pay_trainee,
+    //                 MAX(p.gl_code_allowances) AS gl_code_allowances,
+    //                 MAX(p.gl_code_bm_allowance) AS gl_code_bm_allowance,
+    //                 MAX(p.gl_code_overtime_regular) AS gl_code_overtime_regular,
+    //                 MAX(p.gl_code_overtime_trainee) AS gl_code_overtime_trainee,
+    //                 MAX(p.gl_code_cola) AS gl_code_cola,
+    //                 MAX(p.gl_code_excess_pb) AS gl_code_excess_pb,
+    //                 MAX(p.gl_code_other_income) AS gl_code_other_income,
+    //                 MAX(p.gl_code_salary_adjustment) AS gl_code_salary_adjustment,
+    //                 MAX(p.gl_code_graveyard) AS gl_code_graveyard,
+    //                 MAX(p.gl_code_late_regular) AS gl_code_late_regular,
+    //                 MAX(p.gl_code_late_trainee) AS gl_code_late_trainee,
+    //                 MAX(p.gl_code_leave_regular) AS gl_code_leave_regular,
+    //                 MAX(p.gl_code_leave_trainee) AS gl_code_leave_trainee,
+    //                 MAX(p.gl_code_all_other_deductions) AS gl_code_all_other_deductions,
+    //                 MAX(p.gl_code_total) AS gl_code_total,
+    //                 MAX(p.branch_name) AS branch_name_hr,
+    //                 MAX(p.basic_pay_regular) AS basic_pay_regular,
+    //                 MAX(p.basic_pay_trainee) AS basic_pay_trainee,
+    //                 MAX(p.allowances) AS allowances,
+    //                 MAX(p.bm_allowance) AS bm_allowance,
+    //                 MAX(p.overtime_regular) AS overtime_regular,
+    //                 MAX(p.overtime_trainee) AS overtime_trainee,
+    //                 MAX(p.cola) AS cola,
+    //                 MAX(p.excess_pb) AS excess_pb,
+    //                 MAX(p.other_income) AS other_income,
+    //                 MAX(p.salary_adjustment) AS salary_adjustment,
+    //                 MAX(p.graveyard) AS graveyard,
+    //                 MAX(p.late_regular) AS late_regular,
+    //                 MAX(p.late_trainee) AS late_trainee,
+    //                 MAX(p.leave_regular) AS leave_regular,
+    //                 MAX(p.leave_trainee) AS leave_trainee,
+    //                 MAX(p.all_other_deductions) AS all_other_deductions,
+    //                 MAX(p.total) AS total,
+    //                 MAX(p.no_of_branch_employee) AS no_of_branch_employee,
+    //                 MAX(p.no_of_employees_allocated) AS no_of_employees_allocated,
+    //                 COUNT(DISTINCT p.branch_code) AS branch_count 
+    //             FROM 
+    //                 " . $database[0] . ".payroll_edi_report p
+    //             WHERE
+    //                 p.mainzone = '$mainzone'
+    //                 AND p.zone = '$zone'
+    //                 AND p.zone != 'JVIS' 
+    //                 AND p.region_code LIKE '%$region%'
+    //                 AND p.description = 'Sick-Leave'";
+    //                 if($restrictedDate === $endDate){
+    //                     $sql .="AND p.payroll_date = '$restrictedDate'";
+    //                 }else{
+    //                     $sql .="AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
+    //                 }
+    //                     // not done yet
+                        
+    //                 $sql .="AND p.ml_matic_region != 'LNCR Showroom'
+    //                 AND p.ml_matic_region != 'VISMIN Showroom'
+	// 				AND (
+	// 						CASE 
+	// 							WHEN p.ml_matic_status = 'Active' THEN 'Active'
+	// 							WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+	// 						END
+	// 					) = '".$status."'
+    //             GROUP BY 
+    //                 p.branch_code, 
+    //                 p.cost_center, 
+    //                 p.region, 
+    //                 p.zone, 
+    //                 p.payroll_date
+    //             ORDER BY 
+    //                 p.region;"; 
+    // }  
         
         //echo $sql;
         $result = mysqli_query($conn, $sql);
@@ -783,20 +827,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th>Category</th>";
             
             echo "</tr>";
-            // second row
-            echo "<tr>";
-            echo "<th></th>";
-			echo "<th></th>";
-            echo "<th></th>";
-            echo "<th></th>";
-            echo "<th></th>";
-            echo "<th></th>";
-            echo "<th></th>";
-            echo "<th></th>";
-            echo "<th></th>";
-            
-            
-            echo "</tr>";
             echo "</thead>";
             echo "<tbody>";
 
@@ -816,6 +846,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     $bold = 'normal';
                 }
 
+                
+                $total = $row['excess_pb'] + $row['other_income'];
+
                 $totalNumberOfBranches++;
                 $Month = date('Y', strtotime($row['payroll_date']));
                 echo "<tr>";
@@ -830,7 +863,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_hr']) . "</td>";
 				echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_mlmatic'] ?? '') . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(ucwords('Sick Leave Conversion Year' . " $Month")) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($total, 2)) . "</td>"; 
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars('Adjustment') . "</td>";
                 
                 echo "</tr>";
@@ -847,7 +880,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_hr']) . "</td>";
 				echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name_mlmatic'] ?? '') . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars(ucwords('Sick Leave Conversion Year' . " $Month")) . "</td>";
-                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($total, 2)) . "</td>"; 
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars('Adjustment') . "</td>";
                 
                 echo "</tr>";

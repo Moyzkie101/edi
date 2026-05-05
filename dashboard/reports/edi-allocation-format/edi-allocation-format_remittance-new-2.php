@@ -1,13 +1,13 @@
 <?php
-include '../../../config/connection.php';
-session_start();
+    include '../../../config/connection.php';
+    session_start();
 
-if (!isset($_SESSION['user_type']) || ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'user')) {
-    header('location: ' . $auth_url . 'logout.php');
-    session_destroy();
-    exit();
-}else{
-    // Check if user_roles session exists and user has HRMD role
+    if (!isset($_SESSION['user_type']) || ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'user')) {
+        header('location: ' . $auth_url . 'logout.php');
+        session_destroy();
+        exit();
+    }else{
+        // Check if user_roles session exists and user has HRMD role
         if (!isset($_SESSION['user_roles']) || empty($_SESSION['user_roles'])) {
             header('location: ' . $auth_url . 'logout.php');
             session_destroy();
@@ -59,157 +59,192 @@ if (!isset($_SESSION['user_type']) || ($_SESSION['user_type'] !== 'admin' && $_S
             session_destroy();
             exit();
         }
-}
+    }
 
-require '../../../vendor/autoload.php';
+    require '../../../vendor/autoload.php';
 
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+    use PhpOffice\PhpSpreadsheet\Spreadsheet;
+    use PhpOffice\PhpSpreadsheet\IOFactory;
+    use PhpOffice\PhpSpreadsheet\Cell\DataType;
+    use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
+    if (isset($_POST['download'])) {
 
-if (isset($_POST['download'])) {
+        $mainzone = $_SESSION['mainzone'] ?? '';
+        $zone = $_SESSION['zone'] ?? '';
+        $region = $_SESSION['region'] ?? '';
+        $status = $_SESSION['status'] ?? '';
+        $restrictedDate = $_SESSION['restrictedDate'] ?? '';
 
-    $mainzone = $_SESSION['mainzone'] ?? '';
-    $zone = $_SESSION['zone'] ?? '';
-    $region = $_SESSION['region'] ?? '';
-    $status = $_SESSION['status'] ?? '';
-    $restrictedDate = $_SESSION['restrictedDate'] ?? '';
+        generateDownload($conn, $database, $mainzone, $zone, $region, $restrictedDate);
 
-    generateDownload($conn, $mainzone, $zone, $region, $status, $restrictedDate);
-}
+    }
 
-// Function to generate the download excel file
-function generateDownload($conn, $mainzone, $zone, $region, $status, $restrictedDate){
+    // Function to generate the download excel file
+    function generateDownload($conn, $database, $mainzone, $zone, $region, $restrictedDate) {
 
-    $mainzone = $_SESSION['mainzone'] ?? '';
-    $zone = $_SESSION['zone'] ?? '';
-    $region = $_SESSION['region'] ?? '';
-    $status = $_SESSION['status'] ?? '';
-    $restrictedDate = $_SESSION['restrictedDate'] ?? '';
+        $mainzone = $_SESSION['mainzone'] ?? '';
+        $zone = $_SESSION['zone'] ?? '';
+        $region = $_SESSION['region'] ?? '';
+        $status = $_SESSION['status'] ?? '';
+        $restrictedDate = $_SESSION['restrictedDate'] ?? '';
 
-    $dlsql = "WITH filtered_branch_data AS (
-        SELECT
-            CASE 
-                WHEN branch_id = '2162' THEN 'JVIS' 
-                ELSE zone 
-            END AS zone,
-            branch_id,
-            region_code,
-            gl_region,
-            ml_matic_region,
-            code,
-            ml_matic_branch_name
-        FROM masterdata.branch_profile
-    ),
+        $restrictedDate_raw = date('F-Y', strtotime($restrictedDate));
 
-    final_data AS (
-        SELECT
+        $status_raw = '';
+
+        if($status === 'Inactive'){
+            $status_raw = "IN ('Pending', 'Inactive')";
+            $excel_filename = '_amount_from_closed_branches';
+        }elseif($status === 'TBO'){
+            $status_raw = "= 'TBO'";
+            $excel_filename = '_amount_from_TO_BE_OPEN_branches';
+        }
+    
+        $dlsql="WITH closed_branch_sums AS (
+            SELECT
+                region_code,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN ee_dr1 ELSE 0 END) AS sum_sss_ee_share,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN dr1 ELSE 0 END) AS sum_sss_er_share,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN sss_loan ELSE 0 END) AS sum_sss_loan,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN total_ee_er_dr1 ELSE 0 END) AS sum_sss_total_ee_er_share,
+
+                SUM(CASE WHEN ml_matic_status $status_raw THEN ee_dr2 ELSE 0 END) AS sum_philhealth_ee_share,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN dr2 ELSE 0 END) AS sum_philhealth_er_share,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN total_ee_er_dr2 ELSE 0 END) AS sum_philhealth_total_ee_er_share,
+
+                SUM(CASE WHEN ml_matic_status $status_raw THEN ee_dr3 ELSE 0 END) AS sum_pagibig_ee_share,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN dr3 ELSE 0 END) AS sum_pagibig_er_share,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN pagibig_loan ELSE 0 END) AS sum_pagibig_loan,
+                SUM(CASE WHEN ml_matic_status $status_raw THEN total_ee_er_dr3 ELSE 0 END) AS sum_pagibig_total_ee_er_share
+                
+            FROM " . $database[0] . ".remitance_edi_report
+            WHERE remitance_date = '$restrictedDate'
+            AND ml_matic_status $status_raw
+            GROUP BY region_code
+        ),
+
+        filtered_branch_data AS (
+            SELECT
+                CASE 
+                    WHEN branch_id = '2162' THEN 'JVIS' 
+                    ELSE zone 
+                END AS zone,
+                branch_id,
+                region_code,
+                gl_region,
+                ml_matic_region,
+                code,
+                ml_matic_branch_name
+            FROM masterdata.branch_profile
+        ),
+
+        active_branch_count AS (
+            SELECT
+                region_code,
+                COUNT(*) AS active_count
+            FROM " . $database[0] . ".remitance_edi_report
+            WHERE remitance_date = '$restrictedDate'
+            AND ml_matic_status = 'Active'
+            GROUP BY region_code
+        )
+
+        SELECT 
+            err.remitance_date,
             CASE WHEN nd.zone IN ('JVIS', 'VIS') THEN 'VISAYAS'
                 WHEN nd.zone = 'MIN' THEN 'MINDANAO'
                 WHEN nd.zone = 'LZN' THEN 'LUZON'
                 WHEN nd.zone = 'NCR' THEN 'NCR'
             ELSE nd.zone END AS new_zone,
             nd.gl_region AS new_region,
+            err.ml_matic_region,
             nd.branch_id,
             nd.ml_matic_branch_name AS new_branch_name,
             
-            r.remitance_date,
-            r.dr1, -- SSS ERS
-            r.ee_dr1, -- SSS EES
-            r.sss_loan,
-            
-            r.dr2, -- PHILHEALTH ERS
-            r.ee_dr2, -- PHILHEALTH EES
-            
-            r.dr3, -- PAGIBIG ERS
-            r.ee_dr3, -- PAGIBIG EES
-            r.pagibig_loan,
-            
-            SUM(COALESCE(r.dr1, 0) + 
-                COALESCE(r.ee_dr1, 0) + 
-                COALESCE(r.sss_loan, 0) + 
-                COALESCE(r.dr2, 0) + 
-                COALESCE(r.ee_dr2, 0) + 
-                COALESCE(r.dr3, 0) + 
-                COALESCE(r.ee_dr3, 0) + 
-                COALESCE(r.pagibig_loan, 0)
-            ) AS total_credit,
-            r.cost_center,
-            COUNT(DISTINCT r.branch_code) as branch_count
+            cbs.sum_sss_er_share / NULLIF(abc.active_count, 0) AS dr1,
+            cbs.sum_sss_ee_share / NULLIF(abc.active_count, 0) AS ee_dr1,
+            cbs.sum_sss_loan / NULLIF(abc.active_count, 0) AS sss_loan,
+            cbs.sum_sss_total_ee_er_share / NULLIF(abc.active_count, 0) AS total_ee_er_dr1,
 
-        FROM edi.remitance_edi_report r
+            cbs.sum_philhealth_er_share / NULLIF(abc.active_count, 0) AS dr2,
+            cbs.sum_philhealth_ee_share / NULLIF(abc.active_count, 0) AS ee_dr2,
+            cbs.sum_philhealth_total_ee_er_share / NULLIF(abc.active_count, 0) AS total_ee_er_dr2,
+
+            cbs.sum_pagibig_er_share / NULLIF(abc.active_count, 0) AS dr3,
+            cbs.sum_pagibig_ee_share / NULLIF(abc.active_count, 0) AS ee_dr3,
+            cbs.sum_pagibig_loan / NULLIF(abc.active_count, 0) AS pagibig_loan,
+            cbs.sum_pagibig_total_ee_er_share / NULLIF(abc.active_count, 0) AS total_ee_er_dr3,
+
+            SUM(COALESCE(cbs.sum_sss_er_share / NULLIF(abc.active_count, 0), 0) + 
+                COALESCE(cbs.sum_sss_ee_share / NULLIF(abc.active_count, 0), 0) + 
+                COALESCE(cbs.sum_sss_loan / NULLIF(abc.active_count, 0), 0) + 
+                COALESCE(cbs.sum_philhealth_er_share / NULLIF(abc.active_count, 0), 0) + 
+                COALESCE(cbs.sum_philhealth_ee_share / NULLIF(abc.active_count, 0), 0) + 
+                COALESCE(cbs.sum_pagibig_er_share / NULLIF(abc.active_count, 0), 0) + 
+                COALESCE(cbs.sum_pagibig_ee_share / NULLIF(abc.active_count, 0), 0) + 
+                COALESCE(cbs.sum_pagibig_loan / NULLIF(abc.active_count, 0), 0)
+            ) AS total_credit,
+            err.cost_center
+            
+        FROM " . $database[0] . ".remitance_edi_report AS err
+        INNER JOIN closed_branch_sums cbs ON cbs.region_code = err.region_code
+        INNER JOIN active_branch_count abc ON abc.region_code = err.region_code
         JOIN filtered_branch_data nd 
-        ON	r.branch_code = nd.code
+        ON	err.branch_code = nd.code
         AND (
             (nd.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') 
-                AND r.ml_matic_region = nd.ml_matic_region)
+                AND err.ml_matic_region = nd.ml_matic_region)
             OR 
-            (r.zone = nd.zone AND r.region_code = nd.region_code)
+            (err.zone = nd.zone AND err.region_code = nd.region_code)
         )
-        WHERE r.remitance_date='$restrictedDate'
-        AND r.remitance_format_type = 'NEW'";
-        if ($mainzone === 'ALL'){
-                $dlsql .= " AND r.mainzone IN ('LNCR','VISMIN') ";
-                if ($zone === 'ALL'){
-                    $dlsql .= " AND r.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
-                }
-            } else{
-                $dlsql .= " AND r.mainzone = '$mainzone' ";
-                if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                    $dlsql .= " AND r.ml_matic_region = '$zone' AND r.zone LIKE '%$region%' ";
-                }else{
-                    $dlsql .= " AND r.zone = '$zone' AND r.region_code LIKE '%$region%' AND NOT r.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
-                }
+
+        WHERE err.ml_matic_status = 'Active'
+            AND err.remitance_date = '$restrictedDate'";
+
+        if($mainzone !== 'ALL' || $zone !== 'ALL') {
+            $dlsql .= " AND err.mainzone = '$mainzone'";
+            if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
+                $dlsql .= " AND err.ml_matic_region = '$zone' AND err.zone LIKE '%$region%' ";
+            }else{
+                $dlsql .= " AND err.zone = '$zone' AND err.region_code LIKE '%$region%' AND NOT err.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') ";
             }
-        
-        $dlsql .= " AND (
-            CASE 
-                WHEN r.ml_matic_status = 'Active' THEN 'Active'
-                WHEN r.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
-            END
-        ) = '$status'
-        GROUP BY
+        }
+        $dlsql .= " GROUP BY 
             new_zone,
             new_region,
             nd.ml_matic_branch_name,
+            err.ml_matic_region,
             nd.branch_id,
-            r.remitance_date,
-            r.dr1, -- SSS ERS
-            r.ee_dr1, -- SSS EES
-            r.sss_loan,
-            
-            r.dr2, -- PHILHEALTH ERS
-            r.ee_dr2, -- PHILHEALTH EES
-            
-            r.dr3, -- PAGIBIG ERS
-            r.ee_dr3, -- PAGIBIG EES
-            r.pagibig_loan,
-            r.cost_center
-    )
+            cbs.sum_sss_ee_share,
+            cbs.sum_sss_er_share,
+            cbs.sum_sss_loan,
+            cbs.sum_sss_total_ee_er_share,
+            cbs.sum_philhealth_ee_share,
+            cbs.sum_philhealth_er_share,
+            cbs.sum_philhealth_total_ee_er_share,
+            cbs.sum_pagibig_ee_share,
+            cbs.sum_pagibig_er_share,
+            cbs.sum_pagibig_loan,
+            cbs.sum_pagibig_total_ee_er_share,
+            abc.active_count,
+            err.cost_center
+            ORDER BY new_region";
+        $dlresult = mysqli_query($conn, $dlsql);
 
-    SELECT *
-    FROM final_data
-    ORDER BY new_branch_name ASC";
+        if (!$dlresult) {
+            die("Query failed: " . mysqli_error($conn));
+        }
 
-    $dlresult = mysqli_query($conn, $dlsql);
-
-    if (!$dlresult) {
-        die("Query failed: " . mysqli_error($conn));
-    }
-
-    // Fetch all result rows into an array so we can iterate multiple times
-    $dlRows = [];
-    while ($r = mysqli_fetch_assoc($dlresult)) {
-        $dlRows[] = $r;
-    }
-
-    $spreadsheet = new Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
-
-    if($mainzone === 'ALL' || $zone === 'ALL') {
+        // Fetch all result rows into an array so we can iterate multiple times
+        $dlRows = [];
+        while ($r = mysqli_fetch_assoc($dlresult)) {
+            $dlRows[] = $r;
+        }
+    
+        $spreadsheet = new PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        
         if(mysqli_num_rows($dlresult) > 0) {
             $sheet = $spreadsheet->getActiveSheet();
 
@@ -274,101 +309,22 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
             }
             // Output single workbook (one sheet) after writing all rows
             header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            $filename = 'EDI_Remittance_Report_NATIONWIDE_' . $restrictedDate . '_NEW-FORMAT-VER2.xls';
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
-            header('Cache-Control: max-age=0');
-
-            $writer = IOFactory::createWriter($spreadsheet, 'Xls');
-            $writer->save('php://output');
-            exit();
-        }
-    } else {
-        if(mysqli_num_rows($dlresult) > 0) {
-
-            $headerRow1 = ['Payroll Remittance '. date('F Y', strtotime($restrictedDate)), '', '', '', 'Debit', '', '', '', '', '', '', '', 'Credit'];
-            $headerRow2 = ['', '', '', '', 'SSS - Employer Share', 'SSS - Employee Share', 'SSS Loan', 'PhilHealth Employer Share', 'PhilHealth Employee Share', 'PagIBIG - Employer Share', 'PagIBIG - Employee Share', 'PagIBIG Loan', 'Payroll Remittance '. date('F Y', strtotime($restrictedDate))];
-            $headerRow3 = ['Zone Name', 'Region Name','BranchID', 'Branch Name', '522101', '216201', '216204', '522102', '216202', '522103', '216203', '216205', '311401'];
-
-            $sheet->fromArray($headerRow1, null, 'A1');
-            $sheet->fromArray($headerRow2, null, 'A2');
-            $sheet->fromArray($headerRow3, null, 'A3');
-
-            foreach (range('A', 'M') as $columnID) {
-                $sheet->getColumnDimension($columnID)->setAutoSize(true);
-            }
-            $sheet->getStyle('A1:M1')->getFont()->setBold(true);
-            $sheet->getStyle('A3:M3')->getFont()->setBold(true);
-
-            $rowIndex = 4;
-            $totalcount = 0;
-
-            // Iterate once and write branch details (A-C) and provisions (D-G) on the same row
-            foreach ($dlRows as $row) {
-                $bold = false;
-
-                $sheet->setCellValue('A' . $rowIndex, $row['new_zone'] ?? $row['zone']);
-                $sheet->setCellValue('B' . $rowIndex, $row['new_region'] ?? $row['region']);
-                $sheet->setCellValue('C' . $rowIndex, $row['branch_id'] ?? '');
-                $sheet->setCellValue('D' . $rowIndex, $row['new_branch_name'] ?? $row['branch_name'] ?? '');
-
-                $sheet->setCellValueExplicit('E' . $rowIndex, $row['dr1'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('E' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-                
-                $sheet->setCellValueExplicit('F' . $rowIndex, $row['ee_dr1'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('F' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-                $sheet->setCellValueExplicit('G' . $rowIndex, $row['sss_loan'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('G' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-
-                $sheet->setCellValueExplicit('H' . $rowIndex, $row['dr2'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('H' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-                $sheet->setCellValueExplicit('I' . $rowIndex, $row['ee_dr2'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('I' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-
-                $sheet->setCellValueExplicit('J' . $rowIndex, $row['dr3'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('J' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-                $sheet->setCellValueExplicit('K' . $rowIndex, $row['ee_dr3'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('K' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-                $sheet->setCellValueExplicit('L' . $rowIndex, $row['pagibig_loan'] ?? 0, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('L' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-                $sheet->setCellValueExplicit('M' . $rowIndex, $row['total_credit'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
-                $sheet->getStyle('M' . $rowIndex)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_00);
-
-                $sheet->getStyle('A' . $rowIndex . ':M' . $rowIndex)->getFont()->setBold($bold);
-
-                $rowIndex++;
-                    $totalcount++;
-
-            }
-        
-            // If execution reaches here (other branch), output workbook
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            if($status==='Active'){
+            if($mainzone !== 'ALL' || $zone !== 'ALL'){
                 if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                    $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
+                    if(empty($region)){
+                        $filename = "EDI_Allocation".$excel_filename."_Remittance_Report_" . $mainzone . "_SHOWROOM_". $restrictedDate_raw ."_NEW-FORMAT-VER2.xls";
+                    } else {
+                        $filename = "EDI_Allocation".$excel_filename."_Remittance_Report_" . $mainzone . "_SHOWROOM_". $region ."_" . $restrictedDate_raw ."_NEW-FORMAT-VER2.xls";
+                    }
                 }else{
                     if(empty($region)){
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
+                        $filename = "EDI_Allocation".$excel_filename."_Remittance_Report_" . $zone ."_". $restrictedDate_raw ."_NEW-FORMAT-VER2.xls";
                     }else{
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
+                        $filename = "EDI_Allocation".$excel_filename."_Remittance_Report_" . $zone ."_". $region ."_". $restrictedDate_raw ."_NEW-FORMAT-VER2.xls";
                     }
                 }
             }else{
-                if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                    $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
-                }else{
-                    if(empty($region)){
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
-                    }else{
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
-                    }
-                }
+                $filename = 'EDI_Allocation'.$excel_filename.'_Remittance_Report_NATIONWIDE_'. $restrictedDate_raw .'_NEW-FORMAT-VER2.xls';
             }
             header('Content-Disposition: attachment; filename="' . $filename . '"');
             header('Cache-Control: max-age=0');
@@ -378,20 +334,16 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
             exit();
         }
     }
-}
 
-
-
-?>
+?> 
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>E D I</title>
-    <link rel="icon" href="<?php echo $relative_path; ?>assets/picture/MLW Logo.png" type="image/x-icon" />
+    <link rel="icon" href="<?php echo $relative_path; ?>assets/picture/MLW Logo.png" type="image/x-icon"/>
     <link rel="stylesheet" href="<?php echo $relative_path; ?>assets/css/admin/default/default.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
@@ -546,22 +498,19 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
         }
     </style>
 </head>
-
 <body>
 
     <div class="top-content">
         <?php include $relative_path . 'templates/sidebar.php' ?>
     </div>
 
-    <center>
-        <h2>REMITTANCE REPORT <span>[EDI - NEW FORMAT VERSION 2]</span></h2>
-    </center>
+    <center><h2>Remitance Allocation Report for Active Branch <span>[EDI- NEW FORMAT VERSION 2]</span></h2></center>
 
     <div class="import-file">
-
+        
         <form action="" method="post">
 
-            <div class="custom-select-wrapper">
+        <div class="custom-select-wrapper">
                 <label for="mainzone">Mainzone </label>
                 <select name="mainzone" id="mainzone" autocomplete="off" required onchange="updateZone()">
                     <option value="">Select Mainzone</option>
@@ -577,10 +526,10 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
                     <option value="">Select Zone</option>
                     <!-- Zones will be populated dynamically by JavaScript -->
                     <?php
-                    // If a zone is selected, display it after the page reloads
-                    if (isset($_POST['zone'])) {
-                        echo '<option value="' . htmlspecialchars($_POST['zone']) . '" selected>' . htmlspecialchars($_POST['zone']) . '</option>';
-                    }
+                        // If a zone is selected, display it after the page reloads
+                        if (isset($_POST['zone'])) {
+                            echo '<option value="' . htmlspecialchars($_POST['zone']) . '" selected>' . htmlspecialchars($_POST['zone']) . '</option>';
+                        }
                     ?>
                 </select>
                 <div class="custom-arrow"></div>
@@ -591,30 +540,31 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
                     <option value="">Select Region</option>
                     <!-- Regions will be populated dynamically by JavaScript -->
                     <?php
-                    // If a region is selected, display it after the page reloads
-                    if (isset($_POST['region'])) {
-                        echo '<option value="' . htmlspecialchars($_POST['region']) . '" selected>' . htmlspecialchars($_POST['region']) . '</option>';
-                    }
+                        // If a region is selected, display it after the page reloads
+                        if (isset($_POST['region'])) {
+                            echo '<option value="' . htmlspecialchars($_POST['region']) . '" selected>' . htmlspecialchars($_POST['region']) . '</option>';
+                        }
                     ?>
                 </select>
                 <div class="custom-arrow"></div>
             </div>
             <div class="custom-select-wrapper">
                 <label for="status">Status</label>
-                <select name="status" id="status" autocomplete="off" required>
+                <select name="status" id="status" autocomplete="off">
                     <option value="">Select Status</option>
-                    <option value="Active">Active</option>
                     <option value="Inactive">Pending & Inactive</option>
+                    <option value="TBO">To be Open</option>
                 </select>
                 <div class="custom-arrow"></div>
             </div>
             <div class="custom-select-wrapper">
                 <label for="restricted-date">Payroll date </label>
-                <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : ''; ?>" required>
+                <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : '';?>" required>
             </div>
-
+            
             <input type="submit" class="proceed-btn" name="generate" value="Proceed">
         </form>
+
         <div id="showdl" style="display: none;">
             <form action="" method="post">
                 <input type="submit" class="download-btn" name="download" value="Export to Excel">
@@ -623,112 +573,128 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
 
     </div>
 
-    <script src="<?php echo $relative_path; ?>assets/js/admin/remitance-report-edi/edi-format/script1.js"></script>
+    <script src="<?php echo $relative_path; ?>assets/js/admin/remitance-report-edi/edi-allocation-format/script1.js"></script>
 </body>
-
 </html>
 
 <?php
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 
-    $mainzone = $_POST['mainzone'];
-    $zone = $_POST['zone'];
-    $region = $_POST['region'];
-    $status = $_POST['status'];
-    $restrictedDate = $_POST['restricted-date'];
+$mainzone = $_POST['mainzone'];
+$zone = $_POST['zone'];
+$region = $_POST['region'];
+$status = $_POST['status'];
+$restrictedDate = $_POST['restricted-date']; 
 
-    $_SESSION['mainzone'] = $mainzone;
-    $_SESSION['zone'] = $zone;
-    $_SESSION['region'] = $region;
-    $_SESSION['status'] = $status;
-    $_SESSION['restrictedDate'] = $restrictedDate;
+$_SESSION['mainzone'] = $mainzone;
+$_SESSION['zone'] = $zone;
+$_SESSION['region'] = $region;
+$_SESSION['status'] = $status;
+$_SESSION['restrictedDate'] = $restrictedDate; 
 
-    $sql = "SELECT
-            r.branch_code,
-            r.cost_center, 
-            r.region, 
-            r.zone,
-            r.remitance_date,
+$status_raw = '';
 
-            MAX(r.ee_gl_code_dr1) as ee_gl_code_dr1,
-            MAX(r.gl_code_dr1) as gl_code_dr1,
-            MAX(r.gl_code_total_ee_er_dr1) as gl_code_total_ee_er_dr1,
+if($status === 'Inactive'){
+    $status_raw = "IN ('Pending', 'Inactive')";
+}elseif($status === 'TBO'){
+    $status_raw = "= 'TBO'";
+}
 
-            MAX(r.ee_gl_code_dr2) as ee_gl_code_dr2,
-            MAX(r.gl_code_dr2) as gl_code_dr2,
-            MAX(r.gl_code_total_ee_er_dr2) as gl_code_total_ee_er_dr2,
+$sql="WITH closed_branch_sums AS (
+        SELECT
+            region_code,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN ee_dr1 ELSE 0 END) AS sum_sss_ee_share,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN dr1 ELSE 0 END) AS sum_sss_er_share,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN sss_loan ELSE 0 END) AS sum_sss_loan,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN total_ee_er_dr1 ELSE 0 END) AS sum_sss_total_ee_er_share,
 
-            MAX(r.ee_gl_code_dr3) as ee_gl_code_dr3,
-            MAX(r.gl_code_dr3) as gl_code_dr3,
-            MAX(r.gl_code_total_ee_er_dr3) as gl_code_total_ee_er_dr3,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN ee_dr2 ELSE 0 END) AS sum_philhealth_ee_share,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN dr2 ELSE 0 END) AS sum_philhealth_er_share,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN total_ee_er_dr2 ELSE 0 END) AS sum_philhealth_total_ee_er_share,
+
+            SUM(CASE WHEN ml_matic_status $status_raw THEN ee_dr3 ELSE 0 END) AS sum_pagibig_ee_share,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN dr3 ELSE 0 END) AS sum_pagibig_er_share,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN pagibig_loan ELSE 0 END) AS sum_pagibig_loan,
+            SUM(CASE WHEN ml_matic_status $status_raw THEN total_ee_er_dr3 ELSE 0 END) AS sum_pagibig_total_ee_er_share
             
-            MAX(r.gl_code_dr4) as gl_code_dr4,
+        FROM " . $database[0] . ".remitance_edi_report
+        WHERE remitance_date = '$restrictedDate'
+        AND ml_matic_status $status_raw
+        GROUP BY region_code
+    ),
 
-            MAX(r.branch_name) as branch_name,
+    active_branch_count AS (
+        SELECT
+            region_code,
+            COUNT(*) AS active_count
+        FROM " . $database[0] . ".remitance_edi_report
+        WHERE remitance_date = '$restrictedDate'
+        AND ml_matic_status = 'Active'
+        GROUP BY region_code
+    )
 
-            MAX(r.ee_dr1) as ee_dr1,
-            MAX(r.dr1) as dr1,
-            SUM(
-                COALESCE(r.ee_dr1, 0)+
-                COALESCE(r.dr1, 0)
-            ) as total_ee_er_dr1,
+    SELECT 
+        err.remitance_date,
+        err.mainzone,
+        err.zone,
+        err.region,
+        err.ml_matic_region,
+        err.region_code,
+        err.branch_code,
+        err.branch_name,
+        
+        cbs.sum_sss_ee_share / NULLIF(abc.active_count, 0) AS ee_dr1,
+        err.ee_gl_code_dr1,
+        cbs.sum_sss_er_share / NULLIF(abc.active_count, 0) AS dr1,
+        err.gl_code_dr1, 
+        cbs.sum_sss_loan / NULLIF(abc.active_count, 0) AS sss_loan,
+        err.gl_code_sss_loan,
+        cbs.sum_sss_total_ee_er_share / NULLIF(abc.active_count, 0) AS total_ee_er_dr1,
+        err.gl_code_total_ee_er_dr1,
 
-            MAX(r.ee_dr2) as ee_dr2,
-            MAX(r.dr2) as dr2,
-            SUM(
-                COALESCE(r.ee_dr2, 0)+
-                COALESCE(r.dr2, 0)
-            ) as total_ee_er_dr2,
+        cbs.sum_philhealth_ee_share / NULLIF(abc.active_count, 0) AS ee_dr2,
+        err.ee_gl_code_dr2,
+        cbs.sum_philhealth_er_share / NULLIF(abc.active_count, 0) AS dr2,
+        err.gl_code_dr2,
+        cbs.sum_philhealth_total_ee_er_share / NULLIF(abc.active_count, 0) AS total_ee_er_dr2,
+        err.gl_code_total_ee_er_dr2,
 
-            MAX(r.ee_dr3) as ee_dr3,
-            MAX(r.dr3) as dr3,
-            SUM(
-                COALESCE(r.ee_dr3, 0)+
-                COALESCE(r.dr3, 0)
-            ) as total_ee_er_dr3,
+        cbs.sum_pagibig_ee_share / NULLIF(abc.active_count, 0) AS ee_dr3,
+        err.ee_gl_code_dr3,
+        cbs.sum_pagibig_er_share / NULLIF(abc.active_count, 0) AS dr3,
+        err.gl_code_dr3, 
+        cbs.sum_pagibig_loan / NULLIF(abc.active_count, 0) AS pagibig_loan,
+        err.gl_code_pagibig_loan,
+        cbs.sum_pagibig_total_ee_er_share / NULLIF(abc.active_count, 0) AS total_ee_er_dr3,
+        err.gl_code_total_ee_er_dr3,
+        err.gl_code_dr4,
+        err.cost_center
+        
+    FROM " . $database[0] . ".remitance_edi_report AS err
+    INNER JOIN closed_branch_sums cbs ON cbs.region_code = err.region_code
+    INNER JOIN active_branch_count abc ON abc.region_code = err.region_code
 
-            COUNT(DISTINCT r.branch_code) as branch_count
-        FROM
-            " . $database[0] . ".remitance_edi_report r
-        WHERE r.remitance_date = '$restrictedDate'
-        AND r.remitance_format_type = 'NEW'";
-        if ($mainzone === 'ALL'){
-            // Adjust the SQL query based on the selected all mainzone
-            $sql .= " AND r.mainzone IN ('LNCR','VISMIN') ";
-            if ($zone === 'ALL'){
-                // Adjust the SQL query based on the selected all zone
-                $sql .= " AND r.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN')";
+    WHERE err.ml_matic_status = 'Active'
+        AND err.remitance_date = '$restrictedDate'";
+
+        if($mainzone === 'ALL') {
+            $sql .= " AND err.mainzone IN ('LNCR','VISMIN') ";
+            if($zone === 'ALL') {
+                $sql .= " AND err.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN') ";
             }
-        }else{
-            // Adjust the SQL query based on the selected mainzone
-            $sql .= " AND r.mainzone = '$mainzone' ";
-            if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                // Adjust the SQL query based on the selected zone
-                $sql .= " AND r.ml_matic_region = '$zone' AND r.zone LIKE '%$region%' ";
+        } else {
+            $sql .= " AND err.mainzone = '$mainzone'";
+            if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
+                $sql .= " AND err.ml_matic_region = '$zone' AND err.zone LIKE '%$region%' ";
             }else{
-                // Adjust the SQL query based on the selected zone
-                $sql .= " AND r.zone = '$zone' AND r.region_code LIKE '%$region%' AND NOT r.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
+                $sql .= " AND err.zone = '$zone' AND err.region_code LIKE '%$region%' AND NOT err.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') ";
             }
         }
-        $sql .= " AND (
-                CASE 
-                    WHEN r.ml_matic_status = 'Active' THEN 'Active'
-                    WHEN r.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
-                END
-            ) = '$status' 
-        GROUP BY 
-            r.branch_code,
-            r.cost_center, 
-            r.region, 
-            r.zone,
-            r.remitance_date
-        ORDER BY 
-            r.region;";
-
+        
     $result = mysqli_query($conn, $sql);
 
-    // Check if there are results
+     // Check if there are results
     if (mysqli_num_rows($result) > 0) {
 
         // Output the table header
@@ -782,8 +748,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th style='color: darkred;'>PAYABLE</th>";
             echo "<th>EE LOAN</th>";
             echo "<th style='color: darkred;'>PAYABLE</th>";
-            // echo "<th>". $gl_code_dr2 ."</th>";
-            // echo "<th>". $gl_code_dr4 ."</th>";
         echo "</tr>";
 		
 		// third row
@@ -861,7 +825,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 				echo "<td style='background-color: $color; font-weight: $bold'></td>";
 				echo "<td style='background-color: $color; font-weight: $bold'></td>";
 				echo "<td></td>";
-				//echo "<td style='white-space: nowrap'>" . htmlspecialchars($row['cost_center']) . "</td>";
 				echo "<td class='word' style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center']) . "</td>";
 				echo "<td class='word' style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>";
             echo "</tr>";
@@ -888,7 +851,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     } else {
         echo "No results found.";
     }
-
 
     // Close the connection
     mysqli_close($conn);

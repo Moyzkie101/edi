@@ -1104,6 +1104,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     $sql = " SELECT 
                 p.branch_code,
                 p.cost_center,
+                p.ml_matic_status,
                 p.region,
                 p.zone,
                 p.payroll_date,
@@ -1177,6 +1178,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     GROUP BY 
                         p.branch_code, 
                         p.cost_center, 
+                        p.ml_matic_status,
                         p.region, 
                         p.zone, 
                         p.payroll_date
@@ -1378,6 +1380,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th>Cost Center</th>";
             echo "<th style='width: 10px;'></th>";
             echo "<th>Region</th>";
+            echo "<th>Branch Status</th>";
             echo "<th>All Other Deductions</th>";
             echo "<th>No. of Branch Employees</th>";
             echo "<th>No. of Employees Allocated</th>";
@@ -1408,6 +1411,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th></th>";
             echo "<th></th>";
             echo "<th></th>";
+            echo "<th></th>";
             echo "</tr>";
             //third row
             echo "<tr>";
@@ -1429,6 +1433,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th>". $gl_code_leave_regular ."</th>";
             echo "<th>". $gl_code_leave_trainee ."</th>";
             echo "<th>". $gl_code_total ."</th>";
+            echo "<th></th>";
             echo "<th></th>";
             echo "<th></th>";
             echo "<th></th>";
@@ -1486,6 +1491,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center']) . "</td>";
                 echo "<td style='white-space: nowrap; background-color: #f2f2f2; font-weight: $bold'></td>";
                 echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>";
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['ml_matic_status']) . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['all_other_deductions'], 2)) . "</td>"; 
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_branch_employee']) . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_employees_allocated']) . "</td>";

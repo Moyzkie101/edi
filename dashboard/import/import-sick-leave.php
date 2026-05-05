@@ -1,7 +1,8 @@
 <?php
     include '../../config/connection.php';
-    session_start();
 
+    session_start();
+    
     if (!isset($_SESSION['user_type']) || ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'user')) {
         header('location: ' . $auth_url . 'logout.php');
         session_destroy();
@@ -61,6 +62,8 @@
         }
     }
 
+    
+
 ?>
 
 <!DOCTYPE html>
@@ -69,10 +72,11 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E D I</title>
+    <title>E D I | <?php if($_SESSION['user_type'] === 'admin' || $_SESSION['user_type'] === 'user') echo ucfirst($_SESSION['user_type']); else echo "Guest";?></title>
     <link rel="icon" href="<?php echo $relative_path; ?>assets/picture/MLW Logo.png" type="image/x-icon"/>
     <link rel="stylesheet" href="<?php echo $relative_path; ?>assets/css/admin/default/default.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
     
     <style>
         .display_data {
@@ -366,20 +370,18 @@
             </div>
         </div>
     </div>
-    
+
 </body>
 
 </html>
 
 <?php
 
-
 require '../../vendor/autoload.php';
-
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-function insertData($spreadsheet, $conn, $database, $restrictedDate, $mainzone) {
+function insertData($spreadsheet, $conn, $conn1, $database, $restrictedDate, $mainzone) {
 
     $allInsertionsSuccessful = true; 
 
@@ -400,7 +402,12 @@ function insertData($spreadsheet, $conn, $database, $restrictedDate, $mainzone) 
                 break;
             }
 
-            $column1 = $conn->real_escape_string(intval($worksheet->getCell('A' . $row)->getValue()));
+            $rawBosCode = trim((string) $worksheet->getCell('A' . $row)->getValue());
+            if ($rawBosCode === '') {
+                $column1 = "NULL";
+            } else {
+                $column1 = (int) $rawBosCode;
+            }
             $column2 = $conn->real_escape_string(strval($worksheet->getCell('B' . $row)->getValue()));
             $column3 = $conn->real_escape_string(floatval($worksheet->getCell('C' . $row)->getValue()));
             $column4 = $conn->real_escape_string(floatval($worksheet->getCell('D' . $row)->getValue()));
@@ -425,14 +432,11 @@ function insertData($spreadsheet, $conn, $database, $restrictedDate, $mainzone) 
             $column23 = $conn->real_escape_string(strval($worksheet->getCell('V' . $row)->getValue()));
             $column24 = $conn->real_escape_string(strval($sheetName));
             $column25 = $conn->real_escape_string($_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown user');
-
-            // Set the time zone to Philippines time.
-            // date_default_timezone_set('Asia/Manila');
-
+            
             $column26 = date('Y-m-d H:i:s');
 
             $select_desc = "SELECT DISTINCT region_description, zone_code FROM " . $database[1] . ".region_masterfile WHERE region_code = '" . $conn->real_escape_string($column23) . "'";
-            $result_desc = $conn->query($select_desc);
+            $result_desc = $conn1->query($select_desc);
 
             if ($result_desc && $result_desc->num_rows > 0) {
                 $row_desc = $result_desc->fetch_assoc();
@@ -443,110 +447,19 @@ function insertData($spreadsheet, $conn, $database, $restrictedDate, $mainzone) 
                 $zone_code = 'Unknown zone';
             }
 
-            $sql = "INSERT INTO " . $database[0] . ".payroll (
-                                    payroll_date, 
-                                    mainzone, 
-                                    zone, 
-                                    region, 
-                                    region_code, 
-                                    bos_code, 
-                                    branch_name, 
-
-                                    basic_pay_regular, 
-                                    gl_code_basic_pay_regular, 
-                                    basic_pay_trainee, 
-                                    gl_code_basic_pay_trainee, 
-                                    allowances, 
-                                    gl_code_allowances, 
-                                    bm_allowance, 
-                                    gl_code_bm_allowance, 
-                                    overtime_regular, 
-                                    gl_code_overtime_regular, 
-                                    overtime_trainee, 
-                                    gl_code_overtime_trainee, 
-                                    cola, 
-                                    gl_code_cola, 
-                                    excess_pb, 
-                                    gl_code_excess_pb, 
-                                    other_income, 
-                                    gl_code_other_income, 
-                                    salary_adjustment, 
-                                    gl_code_salary_adjustment, 
-                                    graveyard, 
-                                    gl_code_graveyard, 
-                                    late_regular, 
-                                    gl_code_late_regular, 
-                                    late_trainee, 
-                                    gl_code_late_trainee, 
-                                    leave_regular, 
-                                    gl_code_leave_regular, 
-                                    leave_trainee, 
-                                    gl_code_leave_trainee, 
-                                    all_other_deductions, 
-                                    gl_code_all_other_deductions, 
-                                    total, 
-                                    gl_code_total, 
-                                    cost_center, 
-                                    no_of_branch_employee, 
-                                    no_of_employees_allocated, 
-                                    sheet_name, 
-                                    uploaded_by, 
-                                    uploaded_date, 
-                                    description, 
-                                    post_edi
-                                ) 
-                                VALUES (
-                                    '$restrictedDate', 
-                                    '$mainzone', 
-                                    '$zone_code', 
-                                    '$region_description', 
-                                    '$column23', 
-                                     $column1, 
-                                    '$column2', 
-
-                                    $column3, 
-                                    $glCodes[0], 
-                                    $column4, 
-                                    $glCodes[1],
-                                    $column5, 
-                                    $glCodes[2], 
-                                    $column6, 
-                                    $glCodes[3], 
-                                    $column7, 
-                                    $glCodes[4], 
-                                    $column8, 
-                                    $glCodes[5], 
-                                    $column9, 
-                                    $glCodes[6], 
-                                    $column10, 
-                                    5270001,
-                                    $column11, 
-                                    $glCodes[7], 
-                                    $column12, 
-                                    $glCodes[8], 
-                                    $column13, 
-                                    $glCodes[9], 
-                                    $column14, 
-                                    $glCodes[10], 
-                                    $column15, 
-                                    $glCodes[11], 
-                                    $column16, 
-                                    $glCodes[12], 
-                                    $column17, 
-                                    $glCodes[13], 
-                                    $column18, 
-                                    $glCodes[14], 
-                                    $column19, 
-                                    $glCodes[15], 
-                                    '$column20', 
-                                    $column21, 
-                                    $column22, 
-                                    '$column24', 
-                                    '$column25', 
-                                    '$column26',
-                                    'Sick-Leave', 
-                                    'pending'
-                                )";
+            $sql = "INSERT INTO " . $database[0] . ".payroll (payroll_date, mainzone, zone, region, region_code, bos_code, branch_name, basic_pay_regular, gl_code_basic_pay_regular, 
+                                    basic_pay_trainee, gl_code_basic_pay_trainee, allowances, gl_code_allowances, bm_allowance, gl_code_bm_allowance, 
+                                    overtime_regular, gl_code_overtime_regular, overtime_trainee, gl_code_overtime_trainee, cola, gl_code_cola, excess_pb, 
+                                    gl_code_excess_pb, other_income, gl_code_other_income, salary_adjustment, gl_code_salary_adjustment, graveyard, 
+                                    gl_code_graveyard, late_regular, gl_code_late_regular, late_trainee, gl_code_late_trainee, leave_regular, 
+                                    gl_code_leave_regular, leave_trainee, gl_code_leave_trainee, all_other_deductions, gl_code_all_other_deductions, 
+                                    total, gl_code_total, cost_center, no_of_branch_employee, no_of_employees_allocated, sheet_name, uploaded_by, 
+                                    uploaded_date, description, post_edi) 
+                                    VALUES ('$restrictedDate', '$mainzone', '$zone_code', '$region_description', '$column23', $column1, '$column2', $column3, $glCodes[0], $column4, $glCodes[1],
+                        $column5, $glCodes[2], $column6, $glCodes[3], $column7, $glCodes[4], $column8, $glCodes[5], $column9, $glCodes[6], $column10, $glCodes[7], 
+                        $column11, $glCodes[8], $column12, 5100001, $column13, $glCodes[9], $column14, $glCodes[10], $column15, $glCodes[11], $column16, 
+                        $glCodes[12], $column17, $glCodes[13], $column18, $glCodes[14], $column19, $glCodes[15], '$column20', $column21, $column22, 
+                        '$column24', '$column25', '$column26', 'Sick-Leave', 'pending')";
 
             if (!$conn->query($sql)) {
                 $allInsertionsSuccessful = false; 
@@ -566,7 +479,7 @@ if (isset($_POST['upload'])) {
         $spreadsheet = IOFactory::load($filePath);
         $restrictedDate = $_POST['restricted-date'];
 
-        $destination = '../uploaded_excel_files/' . $fileName; 
+        $destination = '../../uploaded_excel_files/' . $fileName; 
 
         if (move_uploaded_file($filePath, $destination)) {
 
@@ -636,11 +549,29 @@ if (isset($_POST['upload'])) {
                     ';
             }
 
-            echo '<table>';
-            echo "<thead><tr><center><th colspan='6' style='border: none;'>Payroll Report</th></center></tr>";
-            echo "<tr><th colspan='6' style='border: none;'>Date : " . $_POST['restricted-date'] . "</th></tr>";
-            echo "<tr><th colspan='6' style='border: none;'>Filename : " . $_FILES['excelFile']['name'] . "</th></tr>";
-            echo '<tr><th>Status</th><th>Sheet Name</th><th>Branch Code</th><th>Branch Name</th><th>Region</th><th>Remarks</th></tr></thead>';
+            echo "<table>
+                <thead>
+                    <tr>
+                        <center>
+                            <th colspan='7' style='border: none;'>Sick Leave Conversion Report</th>
+                        </center>
+                    </tr>
+                    <tr>
+                        <th colspan='7' style='border: none;'>Date : " . $_POST['restricted-date'] . "</th>
+                    </tr>
+                    <tr>
+                        <th colspan='7' style='border: none;'>Filename : " . $_FILES['excelFile']['name'] . "</th>
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        <th>Sheet Name</th>
+                        <th>Branch Code</th>
+                        <th>Branch Name</th>
+                        <th>Region</th>
+                        <th>Region Code</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>";
             echo '<tbody>';
             foreach ($messages as $msg) {
                 if ($msg['type'] === 'error') {
@@ -651,6 +582,7 @@ if (isset($_POST['upload'])) {
                         <td>{$msg['A']}</td>
                         <td>{$msg['B']}</td>
                         <td>{$msg['V']}</td>
+                        <td>{$msg['region_code']}</td>
                         <td>{$msg['message']}</td>";
             
                     if ($msg['withButton'] === 'true') {
@@ -711,7 +643,7 @@ if (isset($_POST['upload'])) {
     // Check if the region_code, date, and zone already exist
     function checkExistingRecords($conn, $database, $regionCode, $date, $mainzone) {
         $sql = "SELECT COUNT(*) as count FROM " . $database[0] . ".payroll WHERE region_code = '" . $conn->real_escape_string($regionCode) . "' 
-                AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' and description = 'Sick-Leave';";
+                AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' and description = 'Sick-Leave'";
         $result = $conn->query($sql);
         
         if ($result) {
@@ -721,8 +653,34 @@ if (isset($_POST['upload'])) {
         return false;
     }
 
+    function validateEmptyBosAsTboBranch($conn, $conn1, $database, $zoneValue, $regionCodeValue, $branchNameValue) {
+    $zoneValue = trim((string) $zoneValue);
+    $regionCodeValue = trim((string) $regionCodeValue);
+    $branchNameValue = trim((string) $branchNameValue);
+
+    if ($zoneValue === '' || $regionCodeValue === '' || $branchNameValue === '') {
+        return false;
+    }
+
+    $sql = "SELECT branch_name, region_code, zone, ml_matic_status
+            FROM " . $database[1] . ".branch_profile
+            WHERE zone = '" . $conn->real_escape_string($zoneValue) . "'
+                AND region_code = '" . $conn->real_escape_string($regionCodeValue) . "'
+                AND TRIM(LOWER(branch_name)) = TRIM(LOWER('" . $conn->real_escape_string($branchNameValue) . "'))
+                AND ml_matic_status = 'TBO'
+            LIMIT 1";
+
+    $result = $conn1->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        return $result->fetch_assoc();
+    }
+
+    return false;
+}
+
     // Function to get data from the database
-    function getDatabaseData($conn, $database, $columnAValue, $columnVValue) {
+    function getDatabaseData($conn, $conn1, $database, $columnAValue, $columnVValue) {
         // Check if columnAValue is numeric, and if so, convert it to an integer to remove leading zeros
         if (ctype_digit($columnAValue)) {
             // Convert the string to a number, stripping leading zeros
@@ -730,7 +688,7 @@ if (isset($_POST['upload'])) {
         }
 
         $sql = "SELECT region_code, code FROM " . $database[1] . ".branch_profile WHERE code = '" . $conn->real_escape_string($columnAValue) . "' AND region_code = '" . $conn->real_escape_string($columnVValue) . "'";
-        $result = $conn->query($sql);
+        $result = $conn1->query($sql);
 
         if ($result->num_rows > 0) {
             return $result->fetch_assoc();
@@ -740,7 +698,7 @@ if (isset($_POST['upload'])) {
     }
 
     // function to check Inactive status
-    function checkStatus($conn, $database, $columnAValue, $columnVValue) {
+    function checkStatus($conn, $conn1, $database, $columnAValue, $columnVValue) {
         // Check if columnAValue is numeric, and if so, convert it to an integer to remove leading zeros
         if (ctype_digit($columnAValue)) {
             // Convert the string to a number, stripping leading zeros
@@ -748,7 +706,7 @@ if (isset($_POST['upload'])) {
         }
 
         $sql = "SELECT ml_matic_status, region_code, code FROM " . $database[1] . ".branch_profile WHERE code = '" . $conn->real_escape_string($columnAValue) . "' AND region_code = '" . $conn->real_escape_string($columnVValue) . "'";
-        $result = $conn->query($sql);
+        $result = $conn1->query($sql);
 
         if ($result->num_rows > 0) {
             while ($row = mysqli_fetch_assoc($result)) {
@@ -763,7 +721,7 @@ if (isset($_POST['upload'])) {
 
     // Fetch distinct region codes for the given zone
     $zoneQuery = "SELECT DISTINCT region_code FROM " . $database[1] . ".branch_profile WHERE mainzone = '" . $conn->real_escape_string($check_mainzone) . "'";
-    $zoneResult = $conn->query($zoneQuery);
+    $zoneResult = $conn1->query($zoneQuery);
     $validRegionCodes = [];
     while ($row = $zoneResult->fetch_assoc()) {
         $validRegionCodes[] = $row['region_code'];
@@ -774,7 +732,7 @@ if (isset($_POST['upload'])) {
 
     // Fetch all region descriptions once
     $select_all_desc = "SELECT region_code, region_description FROM " . $database[1] . ".region_masterfile";
-    $result_all_desc = $conn->query($select_all_desc);
+    $result_all_desc = $conn1->query($select_all_desc);
     if ($result_all_desc && $result_all_desc->num_rows > 0) {
         while ($row = $result_all_desc->fetch_assoc()) {
             $regionDescriptions[$row['region_code']] = $row['region_description'];
@@ -817,25 +775,49 @@ if (isset($_POST['upload'])) {
             }
 
             // Compare values with the database
-            $dbData = getDatabaseData($conn, $database, $cellValues['A'], $cellValues['V']);
+            $dbData = getDatabaseData($conn, $conn1, $database, $cellValues['A'], $cellValues['V']);
             if (!$dbData) {
                 $region_description = $regionDescriptions[$cellValues['V']] ?? 'Unknown region';
-                if(empty($cellValues['A'])) {
-                    $errorMessage = 'Branch code is empty';
-                }else {
-                    if(!in_array($cellValues['V'], $validRegionCodes)){
-                        $errorMessage = 'Wrong Branch Code';
+                $bosCode = trim((string) $cellValues['A']);
+                $branchName = trim((string) $cellValues['B']);
+                $regionCode = trim((string) $cellValues['V']);
+                $zoneCode = trim((string) $cellValues['W']);
+
+                $isValidTboBranch = false;
+
+                if ($bosCode === '') {
+                    $tboBranch = validateEmptyBosAsTboBranch(
+                        $conn,
+                        $conn1,
+                        $database,
+                        $zoneCode,
+                        $regionCode,
+                        $branchName
+                    );
+
+                    if ($tboBranch !== false) {
+                        $isValidTboBranch = true;
                     }
                 }
-                $messages[] = [
-                    'type' => 'error',
-                    'withButton' => 'false',
-                    'sheet' => $sheetName,
-                    'A' => $cellValues['A'],
-                    'B' => $cellValues['B'],
-                    'V' => $region_description,
-                    'message' => 'Branch code is empty / Maybe not belong to this Region.'
-                ];
+
+                if (!$isValidTboBranch) {
+                    if ($bosCode === '') {
+                        $errorMessage = "Branch code is empty";
+                    } else {
+                        $errorMessage = "Wrong Branch Code / Maybe not belong to this Region.";
+                    }
+
+                    $messages[] = [
+                        'type' => 'error',
+                        'withButton' => 'false',
+                        'sheet' => $sheetName,
+                        'A' => $cellValues['A'],
+                        'B' => $cellValues['B'],
+                        'V' => $region_description,
+                        'region_code' => $regionCode,
+                        'message' => $errorMessage
+                    ];
+                }
             }
 
             // Validate if the zone matches the region code in column W
@@ -862,7 +844,7 @@ if (isset($_POST['upload'])) {
                     'A' => $cellValues['A'],
                     'B' => $cellValues['B'],
                     'V' => $region_description,
-                    'message' => "Inactive branch. Region: '$region_description', Branch code: '{$cellValues['A']}', Branch name: '{$cellValues['B']}'"
+                    'message' => "Inactive branch / Region: '$region_description' / Branch code: '{$cellValues['A']}' / Branch name: '{$cellValues['B']}'"
                 ];
             }*/
 
@@ -897,7 +879,7 @@ if (isset($_POST['upload'])) {
             }
         }
     }
-
+ 
     // After processing all rows, check for duplicates
     foreach ($codeDetails as $zone => $branchCodes) {
         foreach ($branchCodes as $branchCode => $details) {
@@ -945,8 +927,8 @@ if (isset($_GET['proceed']) && $_GET['proceed'] === 'true') {
     $mainzone = $_SESSION['existingMainzone'];
     $spreadsheet = IOFactory::load($filePath);
 
-    $insertSuccess = insertData($spreadsheet, $conn, $database, $date, $mainzone);
-
+    $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
+    
     if ($insertSuccess) {
         echo "<script>alert('Data successfully loaded.'); window.location.href='import-sick-leave.php';</script>";
     } else {
@@ -977,7 +959,7 @@ if (isset($_POST['overrideData'])) {
     foreach ($regionCodesToDelete as $regionCode) {
        
         $sql = "SELECT DISTINCT post_edi FROM " . $database[0] . ".payroll WHERE region_code = '" . $conn->real_escape_string($regionCode) . "' 
-                AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' and description = 'Sick-Leave'";
+                AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' AND description = 'Sick-Leave'";
         $resultPost = $conn->query($sql);
         $row_resultPost = $resultPost->fetch_assoc();
 
@@ -987,12 +969,12 @@ if (isset($_POST['overrideData'])) {
             foreach ($regionCodesToDelete as $regionCode) {
             
                 $sql = "DELETE FROM " . $database[0] . ".payroll WHERE region_code = '" . $conn->real_escape_string($regionCode) . "' 
-                        AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' and description = 'Sick-Leave'";
-                $conn->query($sql);
+                        AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' AND description = 'Sick-Leave'";
+                $conn1->query($sql);
             }
 
             // Re-insert data
-            $insertSuccess = insertData($spreadsheet, $conn, $database, $date, $mainzone);
+            $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
 
             if ($insertSuccess) {
                 echo "<script>alert('Data successfully loaded.'); window.location.href='import-sick-leave.php';</script>";
