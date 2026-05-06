@@ -485,7 +485,7 @@
         <?php include $relative_path . 'templates/sidebar.php' ?>
     </div>
 
-    <center><h2>RFP Payroll <span>[DATA ENTRY]</span></h2></center>
+    <center><h2>RFP Sick Leave Conversion <span>[DATA ENTRY]</span></h2></center>
 
     <div class="import-file">
         
