@@ -151,7 +151,9 @@
                         $sql .= " AND bp.ml_matic_region = '$zone'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.zone like '%$region%'
-                        AND description = 'Sick-Leave'";
+                        AND p.description = 'Sick-Leave'
+                        AND p.remarks is null 
+                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
         }else{
             $sql = "SELECT post_edi 
                     FROM " . $database[0] . ".payroll p
@@ -185,7 +187,9 @@
                     }
                         $sql .= " AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                    AND description = 'Sick-Leave'";
+                    AND p.description = 'Sick-Leave'
+                    AND p.remarks is null 
+                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
         }
         //echo $sql;
         $result = $conn->query($sql);
@@ -288,7 +292,9 @@
                         AND p.zone like '%$region%'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.post_edi = 'pending'
-                        AND description = 'Sick-Leave'
+                        AND p.description = 'Sick-Leave'
+                        AND p.remarks is null 
+                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -386,7 +392,9 @@
                         $fetchQuery .= " AND bp.ml_matic_region != 'LNCR Showroom'
                         AND bp.ml_matic_region != 'VISMIN Showroom'
                         AND p.post_edi = 'pending'
-                        AND description = 'Sick-Leave'
+                        AND p.description = 'Sick-Leave'
+                        AND p.remarks is null 
+                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -522,7 +530,9 @@
                         $updatePost .= " AND bp.ml_matic_region = '$zone'
                                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  
                                     AND bp.zone like '%$region%'
-                                    and description = 'Sick-Leave'";
+                                    and p.description = 'Sick-Leave'
+                                    AND p.remarks is null
+                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
                                     
                 }else{
                     $updatePost = "UPDATE " . $database[0] . ".payroll p
@@ -558,7 +568,9 @@
                     }
                         $updatePost .= " AND bp.ml_matic_region != 'LNCR Showroom'
                                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                                    and description = 'Sick-Leave'";
+                                    and p.description = 'Sick-Leave'
+                                    AND p.remarks is null 
+                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
                 }
 
                 if ($conn->query($updatePost) === TRUE) {
@@ -984,7 +996,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 $sql .= " AND bp.ml_matic_region = '$zone'
                     AND bp.zone like '%$region%'
                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
-                    AND description = 'Sick-Leave'
+                    AND p.description = 'Sick-Leave'
+                    AND p.remarks is null 
+                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
                 GROUP BY 
                     bp.code,
                     p.cost_center,
@@ -1076,7 +1090,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 }
                 $sql .= " AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                    AND description = 'Sick-Leave'
+                    AND p.description = 'Sick-Leave'
+                    AND p.remarks is null 
+                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
                 GROUP BY 
                     bp.code,
                     p.cost_center,

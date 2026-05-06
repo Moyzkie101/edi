@@ -1,12 +1,13 @@
 <?php
     include '../../config/connection.php';
-    session_start();
 
+    session_start();
+    
     if (!isset($_SESSION['user_type']) || ($_SESSION['user_type'] !== 'admin' && $_SESSION['user_type'] !== 'user')) {
         header('location: ' . $auth_url . 'logout.php');
         session_destroy();
         exit();
-    } else {
+    }else{
         // Check if user_roles session exists and user has HRMD role
         if (!isset($_SESSION['user_roles']) || empty($_SESSION['user_roles'])) {
             header('location: ' . $auth_url . 'logout.php');
@@ -60,303 +61,318 @@
             exit();
         }
     }
+
+    
+
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <?php include $base_path . 'templates/header.php' ?>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-        <style>
-            .display_data {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            #user:hover{
-                background-color: #db120b;
-                color: #fff;
-                padding: 10px;
-            }
-            .opt-group {
-                display: flex;
-                background-color: #3262e6;
-                color: white;
-                width: 100%;
-                align-items: center;
-                height: 35px;
-            }
-            .card{
-                padding: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .form{
-                display: flex;
-                align-items: center;
-                width: 100%;
-                height: auto;
-                padding: 10px;
-            }
+<head>
 
-            .cancel_date label {
-                font-size: 14px;
-                margin-right: 15px;
-                /* color: #333; */
-            }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E D I | <?php if($_SESSION['user_type'] === 'admin' || $_SESSION['user_type'] === 'user') echo ucfirst($_SESSION['user_type']); else echo "Guest";?></title>
+    <link rel="icon" href="<?php echo $relative_path; ?>assets/picture/MLW Logo.png" type="image/x-icon"/>
+    <link rel="stylesheet" href="<?php echo $relative_path; ?>assets/css/admin/default/default.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
-            div .cancel_date{
-                margin-right: 15px;
-                color: #000000;
-            }
+    
+    <style>
+        .display_data {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #user:hover{
+            background-color: #db120b;
+            color: #fff;
+            padding: 10px;
+        }
+        .opt-group {
+            display: flex;
+            background-color: #3262e6;
+            color: white;
+            width: 100%;
+            align-items: center;
+            height: 35px;
+        }
+        .card{
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .form{
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: auto;
+            padding: 10px;
+        }
 
-            .cdate {
-                border: 1px solid #db120b;
-                padding: 10px 20px;
-                border-radius: 50px;
-                font-weight: 500;
-                /* color: #333; */
-            }
-            .import-file {
-                display: flex;
-            }
-            select {
-                width: 200px;
-                padding: 10px;
-                font-size: 16px;
-                border: 2px solid #ccc;
-                border-radius: 15px;
-                background-color: #f9f9f9;
-                -webkit-appearance: none; /* Remove default arrow in WebKit browsers */
-                -moz-appearance: none; /* Remove default arrow in Firefox */
-                appearance: none; /* Remove default arrow in most modern browsers */
-                color: #F14A51;
-            }
-            .custom-select-wrapper {
-                position: relative;
-                display: inline-block;
-                margin-left: 20px;
-            }
+        .cancel_date label {
+            font-size: 14px;
+            margin-right: 15px;
+            /* color: #333; */
+        }
 
-            input[type="date"] {
-                width: 200px;
-                padding: 10px;
-                font-size: 14px;
-                border: 2px solid #ccc;
-                border-radius: 15px;
-                background-color: #f9f9f9;
-                margin-right: 20px;
-                color: #F14A51;
-            }
-            .upload-btn {
-                background-color: #d70c0c;
-                color: #fff;
-                padding: 5px 10px;
-                font-size: 12px;
-                font-weight: 700;
-                border: 1px solid #fff;
-                border-top-right-radius: 10px;
-                border-bottom-right-radius: 10px;
-                width: 100px;
-                margin-right: 25px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-            }
+        div .cancel_date{
+            margin-right: 15px;
+            color: #000000;
+        }
 
-            .upload-btn:hover {
-                background-color:rgb(180, 31, 31);
-            }
+        .cdate {
+            border: 1px solid #db120b;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 500;
+            /* color: #333; */
+        }
+        .import-file {
+            display: flex;
+        }
+        select {
+            width: 200px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 15px;
+            background-color: #f9f9f9;
+            -webkit-appearance: none; /* Remove default arrow in WebKit browsers */
+            -moz-appearance: none; /* Remove default arrow in Firefox */
+            appearance: none; /* Remove default arrow in most modern browsers */
+            color: #F14A51;
+        }
+        .custom-select-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-left: 20px;
+        }
 
-            .choose-file input[type="file"] {
-                display: block;
-                padding: 5px;
-                cursor: pointer;
-                border: 1px solid  #ccc;
-                border-top-left-radius: 10px;
-                border-bottom-left-radius: 10px;
-                margin-left: 25px;
-                background-color: #fff;
-                font-weight: 500;
-                color: #F14A51;
-            }
+        input[type="date"] {
+            width: 200px;
+            padding: 10px;
+            font-size: 14px;
+            border: 2px solid #ccc;
+            border-radius: 15px;
+            background-color: #f9f9f9;
+            margin-right: 20px;
+            color: #F14A51;
+        }
+        .upload-btn {
+            background-color: #d70c0c;
+            color: #fff;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid #fff;
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+            width: 100px;
+            margin-right: 25px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
 
-            input[type="file"]::file-selector-button {
-                border-radius: 15px;
-                padding: 0 16px;
-                height: 46px;
-                cursor: pointer;
-                background-color: white;
-                border: 1px solid rgba(0, 0, 0, 0.16);
-                box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.05);
-                margin-right: 16px;
-                transition: background-color 200ms;
-            }
-            input[type="file"]::file-selector-button:hover {
-                background-color: #f3f4f6;
-            }
-            input[type="file"]::file-selector-button:active {
-                background-color: #e5e7eb;
-            }
+        .upload-btn:hover {
+            background-color:rgb(180, 31, 31);
+        }
 
-            /* loading screen */
-            #loading-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(255, 255, 255, 0.7);
-                z-index: 9999;
-            }
+        .choose-file input[type="file"] {
+            display: block;
+            padding: 5px;
+            cursor: pointer;
+            border: 1px solid  #ccc;
+            border-top-left-radius: 10px;
+            border-bottom-left-radius: 10px;
+            margin-left: 25px;
+            background-color: #fff;
+            font-weight: 500;
+            color: #F14A51;
+        }
 
-            .loading-spinner {
+        input[type="file"]::file-selector-button {
+            border-radius: 15px;
+            padding: 0 16px;
+            height: 46px;
+            cursor: pointer;
+            background-color: white;
+            border: 1px solid rgba(0, 0, 0, 0.16);
+            box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.05);
+            margin-right: 16px;
+            transition: background-color 200ms;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #f3f4f6;
+        }
+        input[type="file"]::file-selector-button:active {
+            background-color: #e5e7eb;
+        }
+
+        /* loading screen */
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* empty cells or not empty cells */
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .export-btn {
+            background-color: #d70c0c;
+            border: none;
+            color: white;
+            padding: 9px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 20px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .export-btn:hover {
+            background-color: #8f2c16;
+        }
+        .print-btn {
+            background-color: #d70c0c;
+            border: none;
+            color: white;
+            padding: 9px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 20px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .print-btn:hover {
+            background-color: #423e3d; 
+        }
+        .override-btn {
+            background-color: #db120b; 
+            border: none;
+            color: white;
+            padding: 9px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 20px;
+            display: none;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .override-btn:hover {
+            background-color: #F15A24;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printableTable, #printableTable * {
+                visibility: visible;
+            }
+            #printableTable {
                 position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 50px;
-                height: 50px;
-                border-radius: 50%;
-                border: 5px solid #f3f3f3;
-                border-top: 5px solid #3498db;
-                animation: spin 1s linear infinite;
+                left: 0;
+                top: 0;
             }
+        }
+    </style>
 
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
+</head>
 
-            /* empty cells or not empty cells */
-            .message.success {
-                background-color: #d4edda;
-                color: #155724;
-                border: 1px solid #c3e6cb;
-            }
+<body>
 
-            .message.error {
-                background-color: #f8d7da;
-                color: #721c24;
-                border: 1px solid #f5c6cb;
-            }
-            .export-btn {
-                background-color: #d70c0c;
-                border: none;
-                color: white;
-                padding: 9px 15px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                border-radius: 20px;
-                margin: 5px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-            }
+    <div class="top-content">
+        <?php include $relative_path . 'templates/sidebar.php' ?>
+    </div>
+    <center><h2>13TH MONTH <span>[IMPORT]</span></h2></center>
+    <div id="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
 
-            .export-btn:hover {
-                background-color: #8f2c16;
-            }
-            .print-btn {
-                background-color: #d70c0c;
-                border: none;
-                color: white;
-                padding: 9px 15px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                border-radius: 20px;
-                margin: 5px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-            }
-            .print-btn:hover {
-                background-color: #423e3d; 
-            }
-            .override-btn {
-                background-color: #db120b; 
-                border: none;
-                color: white;
-                padding: 9px 15px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                border-radius: 20px;
-                display: none;
-                margin-top: 10px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-            }
-            .override-btn:hover {
-                background-color: #F15A24;
-            }
-
-            @media print {
-                body * {
-                    visibility: hidden;
-                }
-                #printableTable, #printableTable * {
-                    visibility: visible;
-                }
-                #printableTable {
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="top-content">
-            <?php include $base_path . 'templates/sidebar.php' ?>
-        </div>
-        <center><h2>13TH MONTH <span>[IMPORT]</span></h2></center>
-        <div id="loading-overlay">
-            <div class="loading-spinner"></div>
-        </div>
-        
-        <div class="card">
-            <div class="card-body">
-                <form id="uploadForm" method="POST" enctype="multipart/form-data" class="form">
-                    <div class="cancel_date">
-                        <label for="mainzone">Mainzone </label>
-                        <select name="mainzone" id="mainzone" required>
-                            <option value="">Select Mainzone</option>
-                            <option value="VISMIN">VISMIN</option>
-                            <option value="LNCR">LNCR</option>
-                        </select>
-                        <!-- <div class="custom-arrow"></div> -->
+    <div class="card">
+        <div class="card-body">
+            <form id="uploadForm" method="POST" enctype="multipart/form-data" class="form">
+                <div class="cancel_date">
+                    <label for="mainzone">Mainzone </label>
+                    <select name="mainzone" id="mainzone" required>
+                        <option value="">Select Mainzone</option>
+                        <option value="VISMIN">VISMIN</option>
+                        <option value="LNCR">LNCR</option>
+                    </select>
+                    <!-- <div class="custom-arrow"></div> -->
+                </div>
+                <div class="cancel_date">
+                    <label for="restricted-date">Payroll date </label>
+                    <input type="date" id="restricted-date" name="restricted-date" required>
+                </div>
+                <div class="choose-file">
+                    <div class="import-file">
+                        <input type="file" name="excelFile" accept=".xls,.xlsx" class="form-control" required />
+                        <input type="submit" class="upload-btn" name="upload" value="Upload">
                     </div>
-                    <div class="cancel_date">
-                        <label for="restricted-date">Payroll date </label>
-                        <input type="date" id="restricted-date" name="restricted-date" required>
-                    </div>
-                    <div class="choose-file">
-                        <div class="import-file">
-                            <input type="file" name="excelFile" accept=".xls,.xlsx" class="form-control" required />
-                            <input type="submit" class="upload-btn" name="upload" value="Upload">
-                        </div>
-                    </div>
-                </form>
-                <div class="display_data">
-                    <div class="showEP" style="display: none">
-                        <button type="submit" class="export-btn" onclick="exportToPDF()">
-                            Export to PDF
-                        </button>
-                    </div>
-                    <div class="showEP" style="display: none">
-                        <button type="submit" class="print-btn" onclick="printTable()">
-                            <i style="margin-right: 7px;" class="fa-solid fa-print"></i> Print
-                        </button>
-                    </div>
+                </div>
+            </form>
+            <div class="display_data">
+                <div class="showEP" style="display: none">
+                    <button type="submit" class="export-btn" onclick="exportToPDF()">
+                        Export to PDF
+                    </button>
+                </div>
+                <div class="showEP" style="display: none">
+                    <button type="submit" class="print-btn" onclick="printTable()">
+                        <i style="margin-right: 7px;" class="fa-solid fa-print"></i> Print
+                    </button>
                 </div>
             </div>
         </div>
-    </body>
-    
+    </div>
+
+</body>
+
 </html>
 
 <?php
@@ -386,7 +402,12 @@ function insertData($spreadsheet, $conn, $conn1, $database, $restrictedDate, $ma
                 break;
             }
 
-            $column1 = $conn->real_escape_string(intval($worksheet->getCell('A' . $row)->getValue()));
+            $rawBosCode = trim((string) $worksheet->getCell('A' . $row)->getValue());
+            if ($rawBosCode === '') {
+                $column1 = "NULL";
+            } else {
+                $column1 = (int) $rawBosCode;
+            }
             $column2 = $conn->real_escape_string(strval($worksheet->getCell('B' . $row)->getValue()));
             $column3 = $conn->real_escape_string(floatval($worksheet->getCell('C' . $row)->getValue()));
             $column4 = $conn->real_escape_string(floatval($worksheet->getCell('D' . $row)->getValue()));
@@ -426,111 +447,19 @@ function insertData($spreadsheet, $conn, $conn1, $database, $restrictedDate, $ma
                 $zone_code = 'Unknown zone';
             }
 
-            $sql = "INSERT INTO " . $database[0] . ".payroll (
-                                        payroll_date, 
-                                        mainzone, 
-                                        zone, 
-                                        region, 
-                                        region_code, 
-                                        bos_code, 
-                                        branch_name, 
-
-                                        basic_pay_regular, 
-                                        gl_code_basic_pay_regular, 
-                                        basic_pay_trainee, 
-                                        gl_code_basic_pay_trainee, 
-
-                                        allowances, 
-                                        gl_code_allowances, 
-                                        bm_allowance, 
-                                        gl_code_bm_allowance, 
-                                        overtime_regular, 
-                                        gl_code_overtime_regular, 
-                                        overtime_trainee, 
-                                        gl_code_overtime_trainee, 
-                                        cola, 
-                                        gl_code_cola, 
-                                        excess_pb, 
-                                        gl_code_excess_pb, 
-                                        other_income, 
-                                        gl_code_other_income, 
-                                        salary_adjustment, 
-                                        gl_code_salary_adjustment, 
-                                        graveyard, 
-                                        gl_code_graveyard, 
-                                        late_regular, 
-                                        gl_code_late_regular, 
-                                        late_trainee, 
-                                        gl_code_late_trainee, 
-                                        leave_regular, 
-                                        gl_code_leave_regular, 
-                                        leave_trainee, 
-                                        gl_code_leave_trainee, 
-                                        all_other_deductions, 
-                                        gl_code_all_other_deductions, 
-                                        total, 
-                                        gl_code_total, 
-                                        cost_center, 
-                                        no_of_branch_employee, 
-                                        no_of_employees_allocated, 
-                                        sheet_name, 
-                                        uploaded_by, 
-                                        uploaded_date, 
-                                        description, 
-                                        post_edi
-                                    ) 
-                                    VALUES (
-                                        '$restrictedDate', 
-                                        '$mainzone', 
-                                        '$zone_code', 
-                                        '$region_description', 
-                                        '$column23', 
-                                        $column1, 
-                                        '$column2', 
-
-                                        $column3, 
-                                        $glCodes[0], 
-                                        $column4, 
-                                        $glCodes[1],
-
-                                        $column5, 
-                                        $glCodes[2], 
-                                        $column6, 
-                                        $glCodes[3], 
-                                        $column7, 
-                                        $glCodes[4], 
-                                        $column8, 
-                                        $glCodes[5], 
-                                        $column9, 
-                                        $glCodes[6], 
-                                        $column10, 
-                                        $glCodes[7], 
-                                        $column11, 
-                                        $glCodes[8], 
-                                        $column12, 
-                                        5100001, 
-                                        $column13, 
-                                        $glCodes[9], 
-                                        $column14, 
-                                        $glCodes[10], 
-                                        $column15, 
-                                        $glCodes[11], 
-                                        $column16, 
-                                        $glCodes[12], 
-                                        $column17, 
-                                        $glCodes[13], 
-                                        $column18, 
-                                        $glCodes[14], 
-                                        $column19, 
-                                        $glCodes[15], 
-                                        '$column20', 
-                                        $column21, 
-                                        $column22, 
-                                        '$column24', 
-                                        '$column25', 
-                                        '$column26', 
-                                        '13thMonth', 
-                                        'pending')";
+            $sql = "INSERT INTO " . $database[0] . ".payroll (payroll_date, mainzone, zone, region, region_code, bos_code, branch_name, basic_pay_regular, gl_code_basic_pay_regular, 
+                                    basic_pay_trainee, gl_code_basic_pay_trainee, allowances, gl_code_allowances, bm_allowance, gl_code_bm_allowance, 
+                                    overtime_regular, gl_code_overtime_regular, overtime_trainee, gl_code_overtime_trainee, cola, gl_code_cola, excess_pb, 
+                                    gl_code_excess_pb, other_income, gl_code_other_income, salary_adjustment, gl_code_salary_adjustment, graveyard, 
+                                    gl_code_graveyard, late_regular, gl_code_late_regular, late_trainee, gl_code_late_trainee, leave_regular, 
+                                    gl_code_leave_regular, leave_trainee, gl_code_leave_trainee, all_other_deductions, gl_code_all_other_deductions, 
+                                    total, gl_code_total, cost_center, no_of_branch_employee, no_of_employees_allocated, sheet_name, uploaded_by, 
+                                    uploaded_date, description, post_edi) 
+                                    VALUES ('$restrictedDate', '$mainzone', '$zone_code', '$region_description', '$column23', $column1, '$column2', $column3, $glCodes[0], $column4, $glCodes[1],
+                        $column5, $glCodes[2], $column6, $glCodes[3], $column7, $glCodes[4], $column8, $glCodes[5], $column9, $glCodes[6], $column10, $glCodes[7], 
+                        $column11, $glCodes[8], $column12, 5100001, $column13, $glCodes[9], $column14, $glCodes[10], $column15, $glCodes[11], $column16, 
+                        $glCodes[12], $column17, $glCodes[13], $column18, $glCodes[14], $column19, $glCodes[15], '$column20', $column21, $column22, 
+                        '$column24', '$column25', '$column26', '13thMonth', 'pending')";
 
             if (!$conn->query($sql)) {
                 $allInsertionsSuccessful = false; 
@@ -560,7 +489,7 @@ if (isset($_POST['upload'])) {
 
         } else {
 
-            echo "<script>alert('File upload failed.'); window.location.href='import-13th-month.php';</script>";
+            echo "<script>alert('File upload failed.'); window.location.href='import-payroll.php';</script>";
             exit;
 
         }
@@ -624,14 +553,14 @@ if (isset($_POST['upload'])) {
                 <thead>
                     <tr>
                         <center>
-                            <th colspan='6' style='border: none;'>Payroll Report</th>
+                            <th colspan='7' style='border: none;'>Payroll Report</th>
                         </center>
                     </tr>
                     <tr>
-                        <th colspan='6' style='border: none;'>Date : " . $_POST['restricted-date'] . "</th>
+                        <th colspan='7' style='border: none;'>Date : " . $_POST['restricted-date'] . "</th>
                     </tr>
                     <tr>
-                        <th colspan='6' style='border: none;'>Filename : " . $_FILES['excelFile']['name'] . "</th>
+                        <th colspan='7' style='border: none;'>Filename : " . $_FILES['excelFile']['name'] . "</th>
                     </tr>
                     <tr>
                         <th>Status</th>
@@ -639,6 +568,7 @@ if (isset($_POST['upload'])) {
                         <th>Branch Code</th>
                         <th>Branch Name</th>
                         <th>Region</th>
+                        <th>Region Code</th>
                         <th>Remarks</th>
                     </tr>
                 </thead>";
@@ -652,6 +582,7 @@ if (isset($_POST['upload'])) {
                         <td>{$msg['A']}</td>
                         <td>{$msg['B']}</td>
                         <td>{$msg['V']}</td>
+                        <td>{$msg['region_code']}</td>
                         <td>{$msg['message']}</td>";
             
                     if ($msg['withButton'] === 'true') {
@@ -721,6 +652,32 @@ if (isset($_POST['upload'])) {
         }
         return false;
     }
+
+    function validateEmptyBosAsTboBranch($conn, $conn1, $database, $zoneValue, $regionCodeValue, $branchNameValue) {
+    $zoneValue = trim((string) $zoneValue);
+    $regionCodeValue = trim((string) $regionCodeValue);
+    $branchNameValue = trim((string) $branchNameValue);
+
+    if ($zoneValue === '' || $regionCodeValue === '' || $branchNameValue === '') {
+        return false;
+    }
+
+    $sql = "SELECT branch_name, region_code, zone, ml_matic_status
+            FROM " . $database[1] . ".branch_profile
+            WHERE zone = '" . $conn->real_escape_string($zoneValue) . "'
+                AND region_code = '" . $conn->real_escape_string($regionCodeValue) . "'
+                AND TRIM(LOWER(branch_name)) = TRIM(LOWER('" . $conn->real_escape_string($branchNameValue) . "'))
+                AND ml_matic_status = 'TBO'
+            LIMIT 1";
+
+    $result = $conn1->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        return $result->fetch_assoc();
+    }
+
+    return false;
+}
 
     // Function to get data from the database
     function getDatabaseData($conn, $conn1, $database, $columnAValue, $columnVValue) {
@@ -821,22 +778,46 @@ if (isset($_POST['upload'])) {
             $dbData = getDatabaseData($conn, $conn1, $database, $cellValues['A'], $cellValues['V']);
             if (!$dbData) {
                 $region_description = $regionDescriptions[$cellValues['V']] ?? 'Unknown region';
-                if(empty($cellValues['A'])) {
-                    $errorMessage = 'Branch code is empty';
-                }else {
-                    if(!in_array($cellValues['V'], $validRegionCodes)){
-                        $errorMessage = 'Wrong Branch Code';
+                $bosCode = trim((string) $cellValues['A']);
+                $branchName = trim((string) $cellValues['B']);
+                $regionCode = trim((string) $cellValues['V']);
+                $zoneCode = trim((string) $cellValues['W']);
+
+                $isValidTboBranch = false;
+
+                if ($bosCode === '') {
+                    $tboBranch = validateEmptyBosAsTboBranch(
+                        $conn,
+                        $conn1,
+                        $database,
+                        $zoneCode,
+                        $regionCode,
+                        $branchName
+                    );
+
+                    if ($tboBranch !== false) {
+                        $isValidTboBranch = true;
                     }
                 }
-                $messages[] = [
-                    'type' => 'error',
-                    'withButton' => 'false',
-                    'sheet' => $sheetName,
-                    'A' => $cellValues['A'],
-                    'B' => $cellValues['B'],
-                    'V' => $region_description,
-                    'message' => 'Branch code is empty / Maybe not belong to this Region.'
-                ];
+
+                if (!$isValidTboBranch) {
+                    if ($bosCode === '') {
+                        $errorMessage = "Branch code is empty";
+                    } else {
+                        $errorMessage = "Wrong Branch Code / Maybe not belong to this Region.";
+                    }
+
+                    $messages[] = [
+                        'type' => 'error',
+                        'withButton' => 'false',
+                        'sheet' => $sheetName,
+                        'A' => $cellValues['A'],
+                        'B' => $cellValues['B'],
+                        'V' => $region_description,
+                        'region_code' => $regionCode,
+                        'message' => $errorMessage
+                    ];
+                }
             }
 
             // Validate if the zone matches the region code in column W
@@ -927,9 +908,9 @@ if (isset($_POST['upload'])) {
         
         echo "<script>
                 if (confirm('File is ready to upload. Do you want to continue?')) {
-                    window.location.href = 'import-13th-month.php?proceed=true';
+                    window.location.href = 'import-payroll.php?proceed=true';
                 } else {
-                    window.location.href = 'import-13th-month.php';
+                    window.location.href = 'import-payroll.php';
                 }
             </script>";
 
@@ -949,9 +930,9 @@ if (isset($_GET['proceed']) && $_GET['proceed'] === 'true') {
     $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
     
     if ($insertSuccess) {
-        echo "<script>alert('Data successfully loaded.'); window.location.href='import-13th-month.php';</script>";
+        echo "<script>alert('Data successfully loaded.'); window.location.href='import-payroll.php';</script>";
     } else {
-        echo "<script>alert('Failed to upload.'); window.location.href='import-13th-month.php';</script>";
+        echo "<script>alert('Failed to upload.'); window.location.href='import-payroll.php';</script>";
     }
 }
 
@@ -962,69 +943,53 @@ if (isset($_POST['overrideData'])) {
     $mainzone = $_SESSION['existingMainzone'];
     $spreadsheet = IOFactory::load($filePath);
 
-    // Get region codes from the spreadsheet
+    // Get region codes and delete records
     $regionCodesToDelete = [];
     foreach ($spreadsheet->getAllSheets() as $sheet) {
         $startRow = 5;
         $endRow = $sheet->getHighestRow();
         for ($row = $startRow; $row <= $endRow; $row++) {
-            // Get region code from column V
-            $regionCode = $sheet->getCell('V' . $row)->getValue();
-            
-            // Only add non-empty and unique region codes
+            $regionCode = $sheet->getCell('W' . $row)->getValue();
             if (!empty($regionCode) && !in_array($regionCode, $regionCodesToDelete)) {
                 $regionCodesToDelete[] = $regionCode;
             }
         }
     }
-
-    // Check if ANY region has POSTED data (not pending) before proceeding
-    $hasPostedData = false;
-    $postedRegions = [];
-    
+    // for fecthing if posted or pending
     foreach ($regionCodesToDelete as $regionCode) {
+       
         $sql = "SELECT DISTINCT post_edi FROM " . $database[0] . ".payroll WHERE region_code = '" . $conn->real_escape_string($regionCode) . "' 
                 AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' AND description = '13thMonth'";
         $resultPost = $conn->query($sql);
-        
-        if ($resultPost && $resultPost->num_rows > 0) {
-            while ($row_resultPost = $resultPost->fetch_assoc()) {
-                // If ANY record is 'posted' (not 'pending'), prevent override
-                if ($row_resultPost['post_edi'] === 'posted') {
-                    $hasPostedData = true;
-                    if (!in_array($regionCode, $postedRegions)) {
-                        $postedRegions[] = $regionCode;
-                    }
-                }
-            }
-        }
-    }
+        $row_resultPost = $resultPost->fetch_assoc();
 
-    // If any region has posted data, prevent override
-    if ($hasPostedData) {
-        $postedRegionsList = implode(', ', $postedRegions);
-        echo "<script>alert('Unable to Override. Data Already Posted for region(s): $postedRegionsList'); window.location.href='import-13th-month.php';</script>";
-    } else {
-        // All regions have only pending data, proceed with deletion and re-insertion
-        $deletedCount = 0;
-        foreach ($regionCodesToDelete as $regionCode) {
-            $sql = "DELETE FROM " . $database[0] . ".payroll WHERE region_code = '" . $conn->real_escape_string($regionCode) . "' 
-                    AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' AND description = '13thMonth' AND post_edi = 'pending'";
+        if ($row_resultPost['post_edi'] === 'pending') {
+
+            // Delete existing records
+            foreach ($regionCodesToDelete as $regionCode) {
             
-            if ($conn1->query($sql)) {
-                $deletedCount += $conn1->affected_rows;
-            } else {
-                error_log("Delete failed for region $regionCode: " . $conn1->error);
+                $sql = "DELETE FROM " . $database[0] . ".payroll WHERE region_code = '" . $conn->real_escape_string($regionCode) . "' 
+                        AND payroll_date = '" . $conn->real_escape_string($date) . "' AND mainzone = '" . $conn->real_escape_string($mainzone) . "' AND description = '13thMonth'";
+                $conn1->query($sql);
             }
-        }
 
-        // Re-insert data
-        $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
+            // Re-insert data
+            $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
 
-        if ($insertSuccess) {
-            echo "<script>alert('Data successfully overridden and loaded. $deletedCount records were replaced.'); window.location.href='import-13th-month.php';</script>";
-        } else {
-            echo "<script>alert('Override failed during data insertion.'); window.location.href='import-13th-month.php';</script>";
+            if ($insertSuccess) {
+                echo "<script>alert('Data successfully loaded.'); window.location.href='import-payroll.php';</script>";
+            } else {
+                echo "<script>alert('Insertion Failed.'); window.location.href='import-payroll.php';</script>";
+            }
+
+            // Display messages
+            displayMessages($messages);
+
+        }else{
+            echo "<script>alert('Opps! Unable to Override. Data Already Posted.'); window.location.href='import-payroll.php';</script>";
         }
     }
+   
 }
+
+?> 

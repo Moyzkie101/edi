@@ -1,4 +1,5 @@
 <?php
+    
     include '../../config/connection.php';
     session_start();
 
@@ -61,7 +62,6 @@
         }
     }
 
-    
     echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>';
 
     if (isset($_GET['proceed']) && $_GET['proceed'] === 'true') {
@@ -124,20 +124,50 @@
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                         AND p.payroll_date = '$restrictedDate'
                         AND bp.ml_matic_region = '$zone'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.zone like '%$region%'
-                        and p.description = 'midYearBonus'";
+                        AND p.description = 'midYearBonus'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')";
         }else{
             $sql = "SELECT post_edi 
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                     AND p.zone = '$zone'
@@ -146,9 +176,11 @@
                     AND p.payroll_date = '$restrictedDate'
                     AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                    and p.description = 'midYearBonus'";
+                    AND p.description = 'midYearBonus'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')";
         }
-        echo $sql;
+        //echo $sql;
         $result = $conn->query($sql);
         
         if ($result) {
@@ -223,7 +255,21 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND p.payroll_date = '$restrictedDate'
@@ -232,6 +278,8 @@
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.post_edi = 'pending'
                         AND p.description = 'midYearBonus'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -300,7 +348,21 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND p.zone = '$zone'
@@ -311,6 +373,8 @@
                         AND bp.ml_matic_region != 'VISMIN Showroom'
                         AND p.post_edi = 'pending'
                         AND p.description = 'midYearBonus'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -337,7 +401,7 @@
                 $e_region_code = $conn->real_escape_string($row['region_code']);
                 $e_kp_code = $conn->real_escape_string($row['kp_code']);
                 $e_ml_matic_status = $conn->real_escape_string($row['ml_matic_status']);
-                $e_code = $conn->real_escape_string($row['code']);
+                $e_code = ($row['code'] === null || $row['code'] === '') ? "NULL" : (int) $row['code'];
                 $e_branch_name = $conn->real_escape_string($row['branch_name']);
                 $e_basic_pay_regular = $conn->real_escape_string($row['basic_pay_regular']);
                 $e_gl_code_basic_pay_regular = $conn->real_escape_string($row['gl_code_basic_pay_regular']);
@@ -382,35 +446,32 @@
                 // date_default_timezone_set('Asia/Manila');
 
                 $posted_date = date('Y-m-d H:i:s');
-                $posted_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown User';
+                $posted_by = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown user';
             
-                $insertQuery = "INSERT INTO " . $database[0] . ".payroll_edi_report (
-                    payroll_date, mainzone, zone, region, ml_matic_region, region_code, kp_code, ml_matic_status, 
-                    branch_code, branch_name, basic_pay_regular, gl_code_basic_pay_regular, basic_pay_trainee, gl_code_basic_pay_trainee, allowances, 
-                    gl_code_allowances, bm_allowance, gl_code_bm_allowance, overtime_regular, gl_code_overtime_regular, overtime_trainee, 
-                    gl_code_overtime_trainee, cola, gl_code_cola, excess_pb, gl_code_excess_pb, other_income, gl_code_other_income, salary_adjustment, 
-                    gl_code_salary_adjustment, graveyard, gl_code_graveyard, late_regular, gl_code_late_regular, late_trainee, gl_code_late_trainee, 
-                    leave_regular, gl_code_leave_regular, leave_trainee, gl_code_leave_trainee, all_other_deductions, gl_code_all_other_deductions, 
-                    total, gl_code_total, cost_center, no_of_branch_employee, no_of_employees_allocated, sheetname, posted_by, posted_date, description
-                ) VALUES (
-                    '$e_payroll_date', '$mainzone', '$e_zone', '$e_region', '$e_ml_matic_region', 
-                    '$e_region_code', '$e_kp_code', '$e_ml_matic_status', '$e_code', 
-                    '$e_branch_name', '$e_basic_pay_regular', '$e_gl_code_basic_pay_regular', '$e_basic_pay_trainee',
-                    '$e_gl_code_basic_pay_trainee', '$e_allowances', '$e_gl_code_allowances', '$e_bm_allowance',
-                    '$e_gl_code_bm_allowance', '$e_overtime_regular', '$e_gl_code_overtime_regular', '$e_overtime_trainee',
-                    '$e_gl_code_overtime_trainee', '$e_cola', '$e_gl_code_cola', '$e_excess_pb', 
-                    '$e_gl_code_excess_pb', '$e_other_income', '$e_gl_code_other_income', '$e_salary_adjustment',
-                    '$e_gl_code_salary_adjustment', '$e_graveyard', '$e_gl_code_graveyard', '$e_late_regular',
-                    '$e_gl_code_late_regular', '$e_late_trainee', '$e_gl_code_late_trainee', '$e_leave_regular',
-                    '$e_gl_code_leave_regular', '$e_leave_trainee', '$e_gl_code_leave_trainee', '$e_all_other_deductions',
-                    '$e_gl_code_all_other_deductions', '$e_total', '$e_gl_code_total', '$e_cost_center',
-                    '$e_no_of_branch_employee', '$e_no_of_employees_allocated', '$e_sheet_name', '$posted_by',
-                    '$posted_date', 'midYearBonus'
-                )";
-
+                $insertQuery = "INSERT INTO " . $database[0] . ".payroll_edi_report (payroll_date, mainzone, `zone`, region, ml_matic_region, region_code, kp_code, ml_matic_status, 
+                                branch_code, branch_name, basic_pay_regular, gl_code_basic_pay_regular, basic_pay_trainee, gl_code_basic_pay_trainee, allowances, 
+                                gl_code_allowances, bm_allowance, gl_code_bm_allowance, overtime_regular, gl_code_overtime_regular, overtime_trainee, 
+                                gl_code_overtime_trainee, cola, gl_code_cola, excess_pb, gl_code_excess_pb, other_income, gl_code_other_income, salary_adjustment, 
+                                gl_code_salary_adjustment, graveyard, gl_code_graveyard, late_regular, gl_code_late_regular, late_trainee, gl_code_late_trainee, 
+                                leave_regular, gl_code_leave_regular, leave_trainee, gl_code_leave_trainee, all_other_deductions, gl_code_all_other_deductions, 
+                                total, gl_code_total, cost_center, no_of_branch_employee, no_of_employees_allocated, sheetname, posted_by, posted_date, `description`) 
+                                VALUES ('" . $e_payroll_date . "', '" . $mainzone . "', '" . $e_zone . "', '" . $e_region . "', '" . $e_ml_matic_region . "', 
+                                '" . $e_region_code . "', '" . $e_kp_code . "', '" . $e_ml_matic_status . "', " . $e_code . ", 
+                                '" . $e_branch_name . "', " . $e_basic_pay_regular . ", " . $e_gl_code_basic_pay_regular . ", " . $e_basic_pay_trainee . ",
+                                " . $e_gl_code_basic_pay_trainee . ", " . $e_allowances . ", " . $e_gl_code_allowances . ", " . $e_bm_allowance . ",
+                                " . $e_gl_code_bm_allowance . ", " . $e_overtime_regular . ", " . $e_gl_code_overtime_regular . ", " . $e_overtime_trainee . ",
+                                " . $e_gl_code_overtime_trainee . ", " . $e_cola . ", " . $e_gl_code_cola . ", " . $e_excess_pb . ", 
+                                " . $e_gl_code_excess_pb . ", " . $e_other_income . ", " . $e_gl_code_other_income . ", " . $e_salary_adjustment . ",
+                                " . $e_gl_code_salary_adjustment . ", " . $e_graveyard . ", " . $e_gl_code_graveyard . ", " . $e_late_regular . ",
+                                " . $e_gl_code_late_regular . ", " . $e_late_trainee . ", " . $e_gl_code_late_trainee . ", " . $e_leave_regular . ",
+                                " . $e_gl_code_leave_regular . ", " . $e_leave_trainee . ", " . $e_gl_code_leave_trainee . ", " . $e_all_other_deductions . ",
+                                " . $e_gl_code_all_other_deductions . ", " . $e_total . ", " . $e_gl_code_total . ", '" . $e_cost_center . "',
+                                " . $e_no_of_branch_employee . ", " . $e_no_of_employees_allocated . ", '" . $e_sheet_name . "', '" . $posted_by . "',
+                                '" . $posted_date . "', 'midYearBonus')";
+                
                 // Execute insert query and collect status
                 if ($conn->query($insertQuery) !== TRUE) {
-                    $errors[] = $conn->error . " | Query: " . $insertQuery;
+                    $errors[] = $conn->error;
                 }
             }
 
@@ -422,161 +483,87 @@
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted'
                                     WHERE 
                                         bp.mainzone = '$mainzone'
                                     AND p.payroll_date = '$restrictedDate'
                                     AND bp.ml_matic_region = '$zone'
-                                    AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
+                                    AND NOT (bp.code = 18 AND p.zone = 'VIS')  
                                     AND bp.zone like '%$region%'
-                                    and p.description = 'midYearBonus'";
+                                    and p.description = 'midYearBonus'
+                                    AND p.remarks is null
+                                    AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')";
                                     
                 }else{
                     $updatePost = "UPDATE " . $database[0] . ".payroll p
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted' 
                                     WHERE
                                         bp.mainzone = '$mainzone'
                                     AND bp.zone = '$zone'
-                                    AND p.zone != 'JVIS' -- to exclude sm seaside showroom
+                                    AND p.zone != 'JVIS' 
                                     AND bp.region_code LIKE '%$region%'
                                     AND p.payroll_date = '$restrictedDate'
                                     AND bp.ml_matic_region != 'LNCR Showroom'
                                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                                    and p.description = 'midYearBonus'";
+                                    and p.description = 'midYearBonus'
+                                    AND p.remarks is null
+                                    AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')";
                 }
 
                 if ($conn->query($updatePost) === TRUE) {
                     return true;  // Success
                 } else {
-                    $errors[] = $conn->error . " | Query: " . $updatePost;
+                    $errors[] = $conn->error;
                 }
 
             } else {
                 echo "Error inserting records: " . implode(', ', $errors);
+                echo $fetchQuery;
+                echo $insertQuery;
             }
 
         } else {
-            echo "No records found to insert. Query: " . $fetchQuery;
-            return false;
+            return false;  // No records found to insert
+            //echo $fetchQuery;
         }
 
         // If there were any errors, return false
         return empty($errors);
     }
-
-    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
-        $mainzone = $_POST['mainzone'];
-        $region = $_POST['region'];
-        $zone = $_POST['zone'];
-
-        $restrictedDate = $_POST['restricted-date'];
-
-        $payroll_date_format = date('F j, Y', strtotime($restrictedDate));
-
-        $sql = "SELECT
-                    bp.code,
-                    p.cost_center, 
-                    bp.region, 
-                    bp.zone,
-                    p.payroll_date,
-                    MAX(bp.cost_center) as cost_center1,
-                    MAX(p.gl_code_basic_pay_regular) as gl_code_basic_pay_regular,
-                    MAX(p.gl_code_basic_pay_trainee) as gl_code_basic_pay_trainee,
-                    MAX(p.gl_code_allowances) as gl_code_allowances,
-                    MAX(p.gl_code_bm_allowance) as gl_code_bm_allowance,
-                    MAX(p.gl_code_overtime_regular) as gl_code_overtime_regular,
-                    MAX(p.gl_code_overtime_trainee) as gl_code_overtime_trainee,
-                    MAX(p.gl_code_cola) as gl_code_cola,
-                    MAX(p.gl_code_excess_pb) as gl_code_excess_pb,
-                    MAX(p.gl_code_other_income) as gl_code_other_income,
-                    MAX(p.gl_code_salary_adjustment) as gl_code_salary_adjustment,
-                    MAX(p.gl_code_graveyard) as gl_code_graveyard,
-                    MAX(p.gl_code_late_regular) as gl_code_late_regular,
-                    MAX(p.gl_code_late_trainee) as gl_code_late_trainee,
-                    MAX(p.gl_code_leave_regular) as gl_code_leave_regular,
-                    MAX(p.gl_code_leave_trainee) as gl_code_leave_trainee,
-                    MAX(p.gl_code_all_other_deductions) as gl_code_all_other_deductions,
-                    MAX(p.gl_code_total) as gl_code_total,
-                    p.bos_code,
-                    MAX(p.branch_name) as branch_name,
-                    p.region,
-                    MAX(p.basic_pay_regular) as basic_pay_regular,
-                    MAX(p.basic_pay_trainee) as basic_pay_trainee,
-                    MAX(p.allowances) as allowances,
-                    MAX(p.bm_allowance) as bm_allowance,
-                    MAX(p.overtime_regular) as overtime_regular,
-                    MAX(p.overtime_trainee) as overtime_trainee,
-                    MAX(p.cola) as cola,
-                    MAX(p.excess_pb) as excess_pb,
-                    MAX(p.other_income) as other_income,
-                    MAX(p.salary_adjustment) as salary_adjustment,
-                    MAX(p.graveyard) as graveyard,
-                    MAX(p.late_regular) as late_regular,
-                    MAX(p.late_trainee) as late_trainee,
-                    MAX(p.leave_regular) as leave_regular,
-                    MAX(p.leave_trainee) as leave_trainee,
-                    MAX(p.all_other_deductions) as all_other_deductions,
-                    MAX(p.total) as total,
-                    MAX(p.no_of_branch_employee) as no_of_branch_employee,
-                    MAX(p.no_of_employees_allocated) as no_of_employees_allocated,
-                    COUNT(DISTINCT bp.code) as branch_count
-                FROM
-                    " . $database[0] . ".payroll p
-                INNER JOIN 
-                    " . $database[1] . ".branch_profile bp
-                ON 
-                    p.bos_code = bp.code AND p.region_code = bp.region_code
-                WHERE
-                    bp.mainzone = '$mainzone'
-                    AND p.payroll_date = '$restrictedDate'
-                    and p.description = 'midYearBonus'";
-                    
-                    if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
-                        $sql .= " AND bp.ml_matic_region = '$zone'
-                                AND bp.zone LIKE '%$region%'
-                                AND NOT (bp.code = 18 AND p.zone = 'VIS')";
-                    } else {
-                        $sql .= " AND bp.zone = '$zone'
-                                AND p.zone != 'JVIS'
-                                AND bp.region_code LIKE '%$region%'
-                                AND NOT bp.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom')";
-                    }
-                    
-                $sql .= " GROUP BY 
-                    bp.code,
-                    p.cost_center,
-                    bp.region,
-                    bp.zone,
-                    p.payroll_date,
-                    p.bos_code,
-                    p.region
-                ORDER BY 
-                    bp.region";
-        
-        // Store the SQL query in session
-        $_SESSION['sql_query'] = $sql;
-        $_SESSION['payroll_date'] = $payroll_date_format;
-
-        // Save to session for GET requests (Post EDI)
-        $_SESSION['mainzone'] = $mainzone;
-        $_SESSION['region'] = $region;
-        $_SESSION['zone'] = $zone;
-        $_SESSION['restrictedDate'] = $restrictedDate;
-
-        // Add error checking for the query
-        $result = $conn->query($sql);
-        if (!$result) {
-            echo "Error in SQL query: " . $conn->error;
-            echo "<br>Query: " . $sql;
-            exit;
-        }
-    }
-
+ 
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -589,7 +576,7 @@
     <link rel="stylesheet" href="<?php echo $relative_path; ?>assets/css/admin/default/default.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-
+    
     <style>
         #user:hover{
             background-color: #db120b;
@@ -741,12 +728,12 @@
 </head>
 
 <body>
- 
+
     <div class="top-content">
         <?php include $relative_path . 'templates/sidebar.php' ?>
     </div>
-
-    <center><h2>POST EDI <span>[Mid Year Bonus]</span></center>
+    
+    <center><h2>Mid Year Bonus <span>[POST EDI]</span></center>
 
     <div class="import-file">
         
@@ -790,7 +777,7 @@
                 <div class="custom-arrow"></div>
             </div>
             <div class="custom-select-wrapper">
-                <label for="restricted-date">Mid Year date </label>
+                <label for="restricted-date">Payroll date </label>
                 <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : '';?>" required>
             </div>
             
@@ -802,181 +789,6 @@
             <button class="post-btn" onclick="postEdi()">Post EDI</button>
         </div>
     </div>
-
-    <?php
-    
-        if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) :
-            $sql_query = $_SESSION['sql_query']; // Retrieve the SQL query from session
-            $result = $conn->query($sql_query);
-            $first_row = mysqli_fetch_assoc($result);
-            
-            $payroll_date = isset($_SESSION['payroll_date']) ? $_SESSION['payroll_date'] : '';
-            $gl_code_basic_pay_regular = htmlspecialchars($first_row['gl_code_basic_pay_regular']);
-            $gl_code_basic_pay_trainee = htmlspecialchars($first_row['gl_code_basic_pay_trainee']);
-            $gl_code_allowances = htmlspecialchars($first_row['gl_code_allowances']);
-            $gl_code_bm_allowance = htmlspecialchars($first_row['gl_code_bm_allowance']);
-            $gl_code_overtime_regular = htmlspecialchars($first_row['gl_code_overtime_regular']);
-            $gl_code_overtime_trainee = htmlspecialchars($first_row['gl_code_overtime_trainee']);
-            $gl_code_cola = htmlspecialchars($first_row['gl_code_cola']);
-            $gl_code_excess_pb = htmlspecialchars($first_row['gl_code_excess_pb']);
-            $gl_code_other_income = htmlspecialchars($first_row['gl_code_other_income']);
-            $gl_code_salary_adjustment = htmlspecialchars($first_row['gl_code_salary_adjustment']);
-            $gl_code_graveyard = htmlspecialchars($first_row['gl_code_graveyard']);
-            $gl_code_late_regular = htmlspecialchars($first_row['gl_code_late_regular']);
-            $gl_code_late_trainee = htmlspecialchars($first_row['gl_code_late_trainee']);
-            $gl_code_leave_regular = htmlspecialchars($first_row['gl_code_leave_regular']);
-            $gl_code_leave_trainee = htmlspecialchars($first_row['gl_code_leave_trainee']);
-            $gl_code_all_other_deductions = htmlspecialchars($first_row['gl_code_all_other_deductions']);
-            $gl_code_total = htmlspecialchars($first_row['gl_code_total']);
-
-            $totalNumberOfBranches = 0;
-            $total = 0;
-            $totalDebit = 0;
-            $totalCredit = 0;
-
-    ?>
-
-    <div class="table-container">
-        <table>
-            <thead>
-                <!-- first row -->
-                <tr>
-                    <th colspan='2'>Mid Year Date - <?php echo $payroll_date; ?></th>
-                    <th>Basic Pay Regular</th>
-                    <th>Basic Pay Trainee</th>
-                    <th>Allowances</th>
-                    <th>BM Allowance</th>
-                    <th>Overtime Regular</th>
-                    <th>Overtime Trainee</th>
-                    <th>COLA</th>
-                    <th>Excess PB</th>
-                    <th>Other Income</th>
-                    <th>Salary Adjustment</th>
-                    <th>Graveyard</th>
-                    <th>Late Regular</th>
-                    <th>Late Trainee</th>
-                    <th>Leave Regular</th>
-                    <th>Leave Trainee</th>
-                    <th>Total</th>
-                    <th>Cost Center</th>
-                    <th style='width: 10px;'></th>
-                    <th>Region</th>
-                    <th>All Other Deductions</th>
-                    <th>No. of Branch Employees</th>
-                    <th>No. of Employees Allocated</th>
-                </tr>
-                <!-- second row -->
-                <tr>
-                    <th></th>
-                    <th></th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Debit</th>
-                    <th>Credit</th>
-                    <th>Credit</th>
-                    <th>Credit</th>
-                    <th>Credit</th>
-                    <th>Credit</th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                </tr>
-                <!-- third row -->
-                <tr>
-                    <th style='white-space: nowrap'>BOS Code</th>
-                    <th>Branch Name</th>
-                    <th><?php echo "$gl_code_basic_pay_regular";?></th>
-                    <th><?php echo "$gl_code_basic_pay_trainee";?></th>
-                    <th><?php echo "$gl_code_allowances";?></th>
-                    <th><?php echo "$gl_code_bm_allowance";?></th>
-                    <th><?php echo "$gl_code_overtime_regular";?></th>
-                    <th><?php echo "$gl_code_overtime_trainee";?></th>
-                    <th><?php echo "$gl_code_cola";?></th>
-                    <th><?php echo "$gl_code_excess_pb";?></th>
-                    <th><?php echo "$gl_code_other_income";?></th>
-                    <th><?php echo "$gl_code_salary_adjustment";?></th>
-                    <th><?php echo "$gl_code_graveyard";?></th>
-                    <th><?php echo "$gl_code_late_regular";?></th>
-                    <th><?php echo "$gl_code_late_trainee";?></th>
-                    <th><?php echo "$gl_code_leave_regular";?></th>
-                    <th><?php echo "$gl_code_leave_trainee";?></th>
-                    <th><?php echo "$gl_code_total";?></th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th><?php echo "$gl_code_all_other_deductions";?></th>
-                    <th></th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody><?php
-
-            // Output the data rows
-            mysqli_data_seek($result, 0); // Reset result pointer to the beginning
-            while ($row = mysqli_fetch_assoc($result)) {
-
-                if (strpos($row['cost_center1'], '0001') === 0 && $zone !== 'LNCR Showroom' && $zone !== 'VISMIN Showroom') {
-                    $color = '#4fc917';
-                    $bold = 'bold';
-                } else {
-                    $color = 'none';
-                    $bold = 'normal';
-                }
-
-                $totalNumberOfBranches++;
-                $totalDebit = $row['basic_pay_regular'] + $row['basic_pay_trainee'] + $row['allowances'] + $row['bm_allowance'] + $row['overtime_regular'] 
-                            + $row['overtime_trainee'] + $row['cola'] + $row['excess_pb'] + $row['other_income'] + $row['salary_adjustment'] + $row['graveyard'];
-                $totalCredit = $row['late_regular'] + $row['late_trainee'] + $row['leave_regular'] + $row['leave_trainee'];
-                $total = $totalDebit - $totalCredit;
-
-                echo "<tr> <td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['bos_code']) . "</td> 
-                <td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['basic_pay_regular']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['basic_pay_trainee']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['allowances']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['bm_allowance']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['overtime_regular']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['overtime_trainee']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['cola']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['excess_pb']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['other_income']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['salary_adjustment']) . "</td> 
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['graveyard']) . "</td>
-                <!--convert to negative if positive value -->
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular']) . "</td>
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee']) . "</td>
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular']) . "</td>
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee']) . "</td>
-
-                <td style='background-color: $color; font-weight: $bold; text-align: right'> $total </td> 
-                <td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center1']) . "</td>
-                <td style='white-space: nowrap; background-color: #f2f2f2; font-weight: $bold'></td>
-                <td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>
-                <td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars($row['all_other_deductions']) . "</td>
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_branch_employee']) . "</td>
-                <td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_employees_allocated']) . "</td>
-                </tr>";
-            }
-            ?>
-            </tbody>
-        </table>
-    </div>
-    <script>
-        var dlbutton = document.getElementById('showdl');
-        dlbutton.style.display = 'block';
-    </script>
-    <?php endif; ?>
     <script>
         //for fetching zone
         function updateZone() {
@@ -1030,28 +842,411 @@
             }
         };
     </script>
-
-    <script>
-        function postEdi() {
-            Swal.fire({
-                title: 'Are you sure?',
-                text: 'Do you want to post this data?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, post it!',
-                cancelButtonText: 'No'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // If confirmed, redirect to process
-                    window.location.href = 'post-edi_mid-year-bonus.php?proceed=true';
-                } else {
-                    window.location.href = 'post-edi_mid-year-bonus.php';
-                }
-            });
-        }
-    </script>
-
 </body>
 </html>
+
+<script>
+    function postEdi() {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'Do you want to post this data?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, post it!',
+            cancelButtonText: 'No'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // If confirmed, redirect to process
+                window.location.href = 'post-edi_mid-year-bonus.php?proceed=true';
+            } else {
+                window.location.href = 'post-edi_mid-year-bonus.php';
+            }
+        });
+    }
+</script>
+
+<?php
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
+
+    $mainzone = $_POST['mainzone'];
+    $region = $_POST['region'];
+    $zone = $_POST['zone'];
+    $restrictedDate = $_POST['restricted-date'];
+
+    $_SESSION['mainzone'] = $mainzone;
+    $_SESSION['zone'] = $zone;
+    $_SESSION['region'] = $region;
+    $_SESSION['restrictedDate'] = $restrictedDate;
+
+    if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
+        $sql = "SELECT
+                    bp.code,
+                    p.cost_center, 
+                    bp.region, 
+                    bp.zone,
+                    p.payroll_date,
+                    MAX(bp.cost_center) as cost_center1,
+                    MAX(p.gl_code_basic_pay_regular) as gl_code_basic_pay_regular,
+                    MAX(p.gl_code_basic_pay_trainee) as gl_code_basic_pay_trainee,
+                    MAX(p.gl_code_allowances) as gl_code_allowances,
+                    MAX(p.gl_code_bm_allowance) as gl_code_bm_allowance,
+                    MAX(p.gl_code_overtime_regular) as gl_code_overtime_regular,
+                    MAX(p.gl_code_overtime_trainee) as gl_code_overtime_trainee,
+                    MAX(p.gl_code_cola) as gl_code_cola,
+                    MAX(p.gl_code_excess_pb) as gl_code_excess_pb,
+                    MAX(p.gl_code_other_income) as gl_code_other_income,
+                    MAX(p.gl_code_salary_adjustment) as gl_code_salary_adjustment,
+                    MAX(p.gl_code_graveyard) as gl_code_graveyard,
+                    MAX(p.gl_code_late_regular) as gl_code_late_regular,
+                    MAX(p.gl_code_late_trainee) as gl_code_late_trainee,
+                    MAX(p.gl_code_leave_regular) as gl_code_leave_regular,
+                    MAX(p.gl_code_leave_trainee) as gl_code_leave_trainee,
+                    MAX(p.gl_code_all_other_deductions) as gl_code_all_other_deductions,
+                    MAX(p.gl_code_total) as gl_code_total,
+                    p.bos_code,
+                    MAX(p.branch_name) as branch_name,
+                    p.region,
+                    MAX(p.basic_pay_regular) as basic_pay_regular,
+                    MAX(p.basic_pay_trainee) as basic_pay_trainee,
+                    MAX(p.allowances) as allowances,
+                    MAX(p.bm_allowance) as bm_allowance,
+                    MAX(p.overtime_regular) as overtime_regular,
+                    MAX(p.overtime_trainee) as overtime_trainee,
+                    MAX(p.cola) as cola,
+                    MAX(p.excess_pb) as excess_pb,
+                    MAX(p.other_income) as other_income,
+                    MAX(p.salary_adjustment) as salary_adjustment,
+                    MAX(p.graveyard) as graveyard,
+                    MAX(p.late_regular) as late_regular,
+                    MAX(p.late_trainee) as late_trainee,
+                    MAX(p.leave_regular) as leave_regular,
+                    MAX(p.leave_trainee) as leave_trainee,
+                    MAX(p.all_other_deductions) as all_other_deductions,
+                    MAX(p.total) as total,
+                    MAX(p.no_of_branch_employee) as no_of_branch_employee,
+                    MAX(p.no_of_employees_allocated) as no_of_employees_allocated,
+                    COUNT(DISTINCT bp.code) as branch_count
+                FROM
+                    " . $database[0] . ".payroll p
+                INNER JOIN 
+                    " . $database[1] . ".branch_profile bp
+                ON 
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
+                WHERE
+                    bp.mainzone = '$mainzone'
+                    AND p.payroll_date = '$restrictedDate'
+                    AND bp.ml_matic_region = '$zone'
+                    AND bp.zone like '%$region%'
+                    AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
+                    AND p.description = 'midYearBonus'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')
+                GROUP BY 
+                    bp.code,
+                    p.cost_center,
+                    bp.region,
+                    bp.zone,
+                    P.payroll_date,
+                    P.bos_code,
+                    P.region
+                ORDER BY 
+                    bp.region;";
+    }else{
+                $sql = "SELECT
+                    bp.code,
+                    p.cost_center, 
+                    bp.region, 
+                    bp.zone,
+                    p.payroll_date,
+                    MAX(bp.cost_center) as cost_center1,
+                    MAX(p.gl_code_basic_pay_regular) as gl_code_basic_pay_regular,
+                    MAX(p.gl_code_basic_pay_trainee) as gl_code_basic_pay_trainee,
+                    MAX(p.gl_code_allowances) as gl_code_allowances,
+                    MAX(p.gl_code_bm_allowance) as gl_code_bm_allowance,
+                    MAX(p.gl_code_overtime_regular) as gl_code_overtime_regular,
+                    MAX(p.gl_code_overtime_trainee) as gl_code_overtime_trainee,
+                    MAX(p.gl_code_cola) as gl_code_cola,
+                    MAX(p.gl_code_excess_pb) as gl_code_excess_pb,
+                    MAX(p.gl_code_other_income) as gl_code_other_income,
+                    MAX(p.gl_code_salary_adjustment) as gl_code_salary_adjustment,
+                    MAX(p.gl_code_graveyard) as gl_code_graveyard,
+                    MAX(p.gl_code_late_regular) as gl_code_late_regular,
+                    MAX(p.gl_code_late_trainee) as gl_code_late_trainee,
+                    MAX(p.gl_code_leave_regular) as gl_code_leave_regular,
+                    MAX(p.gl_code_leave_trainee) as gl_code_leave_trainee,
+                    MAX(p.gl_code_all_other_deductions) as gl_code_all_other_deductions,
+                    MAX(p.gl_code_total) as gl_code_total,
+                    p.bos_code,
+                    MAX(p.branch_name) as branch_name,
+                    p.region,
+                    MAX(p.basic_pay_regular) as basic_pay_regular,
+                    MAX(p.basic_pay_trainee) as basic_pay_trainee,
+                    MAX(p.allowances) as allowances,
+                    MAX(p.bm_allowance) as bm_allowance,
+                    MAX(p.overtime_regular) as overtime_regular,
+                    MAX(p.overtime_trainee) as overtime_trainee,
+                    MAX(p.cola) as cola,
+                    MAX(p.excess_pb) as excess_pb,
+                    MAX(p.other_income) as other_income,
+                    MAX(p.salary_adjustment) as salary_adjustment,
+                    MAX(p.graveyard) as graveyard,
+                    MAX(p.late_regular) as late_regular,
+                    MAX(p.late_trainee) as late_trainee,
+                    MAX(p.leave_regular) as leave_regular,
+                    MAX(p.leave_trainee) as leave_trainee,
+                    MAX(p.all_other_deductions) as all_other_deductions,
+                    MAX(p.total) as total,
+                    MAX(p.no_of_branch_employee) as no_of_branch_employee,
+                    MAX(p.no_of_employees_allocated) as no_of_employees_allocated,
+                    COUNT(DISTINCT bp.code) as branch_count
+                FROM
+                    " . $database[0] . ".payroll p
+                INNER JOIN 
+                    " . $database[1] . ".branch_profile bp
+                ON 
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
+                WHERE
+                    bp.mainzone = '$mainzone'
+                    AND bp.zone = '$zone'
+                    AND p.zone != 'JVIS' -- to exclude sm seaside showroom
+                    AND bp.region_code LIKE '%$region%'
+                    AND p.payroll_date = '$restrictedDate'
+                    AND bp.ml_matic_region != 'LNCR Showroom'
+                    AND bp.ml_matic_region != 'VISMIN Showroom'
+                    AND p.description = 'midYearBonus'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('payroll', '13thMonth', 'Sick-Leave')
+                GROUP BY 
+                    bp.code,
+                    p.cost_center,
+                    bp.region,
+                    bp.zone,
+                    P.payroll_date,
+                    P.bos_code,
+                    P.region
+                ORDER BY 
+                    bp.region;"; 
+    }  
+        
+        //echo $sql;
+        $result = mysqli_query($conn, $sql);
+
+         // Check if there are results
+         if (mysqli_num_rows($result) > 0) {
+
+            // Output the table header
+            echo "<div class='table-container'>";
+            echo "<table>";
+            echo "<thead>";
+
+            $first_row = mysqli_fetch_assoc($result);
+
+            $payroll_date = htmlspecialchars($first_row['payroll_date']);
+            $gl_code_basic_pay_regular = htmlspecialchars($first_row['gl_code_basic_pay_regular']);
+            $gl_code_basic_pay_trainee = htmlspecialchars($first_row['gl_code_basic_pay_trainee']);
+            $gl_code_allowances = htmlspecialchars($first_row['gl_code_allowances']);
+            $gl_code_bm_allowance = htmlspecialchars($first_row['gl_code_bm_allowance']);
+            $gl_code_overtime_regular = htmlspecialchars($first_row['gl_code_overtime_regular']);
+            $gl_code_overtime_trainee = htmlspecialchars($first_row['gl_code_overtime_trainee']);
+            $gl_code_cola = htmlspecialchars($first_row['gl_code_cola']);
+            $gl_code_excess_pb = htmlspecialchars($first_row['gl_code_excess_pb']);
+            $gl_code_other_income = htmlspecialchars($first_row['gl_code_other_income']);
+            $gl_code_salary_adjustment = htmlspecialchars($first_row['gl_code_salary_adjustment']);
+            $gl_code_graveyard = htmlspecialchars($first_row['gl_code_graveyard']);
+            $gl_code_late_regular = htmlspecialchars($first_row['gl_code_late_regular']);
+            $gl_code_late_trainee = htmlspecialchars($first_row['gl_code_late_trainee']);
+            $gl_code_leave_regular = htmlspecialchars($first_row['gl_code_leave_regular']);
+            $gl_code_leave_trainee = htmlspecialchars($first_row['gl_code_leave_trainee']);
+            $gl_code_all_other_deductions = htmlspecialchars($first_row['gl_code_all_other_deductions']);
+            $gl_code_total = htmlspecialchars($first_row['gl_code_total']);
+
+
+            //  first row
+            echo "<tr>";
+            echo "<th colspan='2'>Payroll Date - " . $payroll_date . "</th>";
+            echo "<th>Basic Pay Regular</th>";
+            echo "<th>Basic Pay Trainee</th>";
+            echo "<th>Allowances</th>";
+            echo "<th>BM Allowance</th>";
+            echo "<th>Overtime Regular</th>";
+            echo "<th>Overtime Trainee</th>";
+            echo "<th>COLA</th>";
+            echo "<th>Excess PB</th>";
+            echo "<th>Other Income</th>";
+            echo "<th>Salary Adjustment</th>";
+            echo "<th>Graveyard</th>";
+            echo "<th>Late Regular</th>";
+            echo "<th>Late Trainee</th>";
+            echo "<th>Leave Regular</th>";
+            echo "<th>Leave Trainee</th>";
+            echo "<th>Total</th>";
+            echo "<th>Cost Center</th>";
+            echo "<th style='width: 10px;'></th>";
+            echo "<th>Region</th>";
+            echo "<th>All Other Deductions</th>";
+            echo "<th>No. of Branch Employees</th>";
+            echo "<th>No. of Employees Allocated</th>";
+            echo "</tr>";
+            // second row
+            echo "<tr>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Debit</th>";
+            echo "<th>Credit</th>";
+            echo "<th>Credit</th>";
+            echo "<th>Credit</th>";
+            echo "<th>Credit</th>";
+            echo "<th>Credit</th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "</tr>";
+            //third row
+            echo "<tr>";
+            echo "<th style='white-space: nowrap'>BOS Code</th>";
+            echo "<th>Branch Name</th>";
+            echo "<th>". $gl_code_basic_pay_regular ."</th>";
+            echo "<th>". $gl_code_basic_pay_trainee ."</th>";
+            echo "<th>". $gl_code_allowances ."</th>";
+            echo "<th>". $gl_code_bm_allowance ."</th>";
+            echo "<th>". $gl_code_overtime_regular ."</th>";
+            echo "<th>". $gl_code_overtime_trainee ."</th>";
+            echo "<th>". $gl_code_cola ."</th>";
+            echo "<th>". $gl_code_excess_pb ."</th>";
+            echo "<th>". $gl_code_other_income ."</th>";
+            echo "<th>". $gl_code_salary_adjustment ."</th>";
+            echo "<th>". $gl_code_graveyard ."</th>";
+            echo "<th>". $gl_code_late_regular ."</th>";
+            echo "<th>". $gl_code_late_trainee ."</th>";
+            echo "<th>". $gl_code_leave_regular ."</th>";
+            echo "<th>". $gl_code_leave_trainee ."</th>";
+            echo "<th>". $gl_code_total ."</th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th>". $gl_code_all_other_deductions ."</th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "</tr>";
+            echo "</thead>";
+            echo "<tbody>";
+
+            $totalNumberOfBranches = 0;
+            $total = 0;
+            $totalDebit = 0;
+            $totalCredit = 0;
+
+            // Output the data rows
+            mysqli_data_seek($result, 0); // Reset result pointer to the beginning
+            while ($row = mysqli_fetch_assoc($result)) {
+
+                if (strpos($row['cost_center1'], '0001') === 0 && $zone !== 'LNCR Showroom' && $zone !== 'VISMIN Showroom') {
+                    $color = '#4fc917';
+                    $bold = 'bold';
+                } else {
+                    $color = 'none';
+                    $bold = 'normal';
+                }
+
+                $totalNumberOfBranches++;
+                $totalDebit = $row['basic_pay_regular'] + $row['basic_pay_trainee'] + $row['allowances'] + $row['bm_allowance'] + $row['overtime_regular'] 
+                            + $row['overtime_trainee'] + $row['cola'] + $row['excess_pb'] + $row['other_income'] + $row['salary_adjustment'] + $row['graveyard'];
+                $totalCredit = $row['late_regular'] + $row['late_trainee'] + $row['leave_regular'] + $row['leave_trainee'];
+                $total = $totalDebit - $totalCredit;
+
+                echo "<tr>";
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['bos_code']) . "</td>";
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['allowances'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['bm_allowance'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['cola'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['other_income'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['salary_adjustment'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['graveyard'], 2)) . "</td>";
+                // convert to negative if positive value 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee'], 2)) . "</td>";
+
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'> ".htmlspecialchars(number_format($total, 2))." </td>"; 
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center1']) . "</td>";
+                echo "<td style='white-space: nowrap; background-color: #f2f2f2; font-weight: $bold'></td>";
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['all_other_deductions'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_branch_employee']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_employees_allocated']) . "</td>";
+                echo "</tr>";
+            }
+ 
+            echo "</tbody>";
+            echo "</table>";
+            echo "</div>";
+
+            echo "<script>
+            
+            var dlbutton = document.getElementById('showdl');
+            dlbutton.style.display = 'block';
+            
+            </script>";
+
+            echo "<div id='showBranches' style='display: block; position: absolute; top: 190px; color: red; left: 20px;'>";
+            echo "Total Number of Branches : $totalNumberOfBranches";
+            echo "</div>";
+        } else {
+            echo "No results found.";
+        }
+
+    // Close the connection
+    mysqli_close($conn);
+}
+?>

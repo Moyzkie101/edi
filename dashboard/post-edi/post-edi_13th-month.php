@@ -1,4 +1,5 @@
 <?php
+    
     include '../../config/connection.php';
     session_start();
 
@@ -6,7 +7,7 @@
         header('location: ' . $auth_url . 'logout.php');
         session_destroy();
         exit();
-    } else {
+    }else{
         // Check if user_roles session exists and user has HRMD role
         if (!isset($_SESSION['user_roles']) || empty($_SESSION['user_roles'])) {
             header('location: ' . $auth_url . 'logout.php');
@@ -67,7 +68,7 @@
         $mainzone = $_SESSION['mainzone'] ?? '';
         $zone = $_SESSION['zone'] ?? '';
         $region = $_SESSION['region'] ?? '';
-        // $restrictedDate = $_SESSION['restrictedDate'] ?? '';
+        $restrictedDate = $_SESSION['restrictedDate'] ?? '';
     
         if (checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate)) {
             // Set a flag for already posted data
@@ -123,27 +124,61 @@
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
+                        AND p.payroll_date = '$restrictedDate'
                         AND bp.ml_matic_region = '$zone'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.zone like '%$region%'
-                        AND p.description = '13thMonth'";
+                        AND p.description = '13thMonth'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')";
         }else{
             $sql = "SELECT post_edi 
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code 
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    ) 
                     WHERE 
                         bp.mainzone = '$mainzone'
                     AND p.zone = '$zone'
                     AND p.zone != 'JVIS' -- to exclude sm seaside showroom
                     AND bp.region_code LIKE '%$region%'
+                    AND p.payroll_date = '$restrictedDate'
                     AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                    AND p.description = '13thMonth'";
+                    AND p.description = '13thMonth'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')";
         }
         //echo $sql;
         $result = $conn->query($sql);
@@ -220,14 +255,31 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'
+                        AND p.payroll_date = '$restrictedDate'
                         AND bp.ml_matic_region = '$zone'
                         AND p.zone like '%$region%'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.post_edi = 'pending'
                         AND p.description = '13thMonth'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -296,16 +348,33 @@
                     INNER JOIN 
                         " . $database[1] . ".branch_profile bp
                     ON 
-                        p.bos_code = bp.code AND p.region_code = bp.region_code
+                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                     WHERE
                         bp.mainzone = '$mainzone'
                         AND p.zone = '$zone'
                         AND p.zone != 'JVIS' -- to exclude sm seaside showroom
                         AND bp.region_code LIKE '%$region%'
+                        AND p.payroll_date = '$restrictedDate'
                         AND bp.ml_matic_region != 'LNCR Showroom'
                         AND bp.ml_matic_region != 'VISMIN Showroom'
                         AND p.post_edi = 'pending'
                         AND p.description = '13thMonth'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -332,7 +401,7 @@
                 $e_region_code = $conn->real_escape_string($row['region_code']);
                 $e_kp_code = $conn->real_escape_string($row['kp_code']);
                 $e_ml_matic_status = $conn->real_escape_string($row['ml_matic_status']);
-                $e_code = $conn->real_escape_string($row['code']);
+                $e_code = ($row['code'] === null || $row['code'] === '') ? "NULL" : (int) $row['code'];
                 $e_branch_name = $conn->real_escape_string($row['branch_name']);
                 $e_basic_pay_regular = $conn->real_escape_string($row['basic_pay_regular']);
                 $e_gl_code_basic_pay_regular = $conn->real_escape_string($row['gl_code_basic_pay_regular']);
@@ -414,30 +483,64 @@
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted'
                                     WHERE 
                                         bp.mainzone = '$mainzone'
+                                    AND p.payroll_date = '$restrictedDate'
                                     AND bp.ml_matic_region = '$zone'
                                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  
                                     AND bp.zone like '%$region%'
-                                    and p.description = '13thMonth'";
+                                    and p.description = '13thMonth'
+                                    AND p.remarks is null
+                                    AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')";
                                     
                 }else{
                     $updatePost = "UPDATE " . $database[0] . ".payroll p
                                     INNER JOIN 
                                         " . $database[1] . ".branch_profile bp
                                     ON 
-                                        p.bos_code = bp.code AND p.region_code = bp.region_code  
+                                        (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )  
                                     SET post_edi = 'posted' 
-                                     WHERE
+                                    WHERE
                                         bp.mainzone = '$mainzone'
                                     AND bp.zone = '$zone'
                                     AND p.zone != 'JVIS' 
                                     AND bp.region_code LIKE '%$region%'
+                                    AND p.payroll_date = '$restrictedDate'
                                     AND bp.ml_matic_region != 'LNCR Showroom'
                                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                                    and p.description = '13thMonth'";
+                                    and p.description = '13thMonth'
+                                    AND p.remarks is null
+                                    AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')";
                 }
 
                 if ($conn->query($updatePost) === TRUE) {
@@ -460,168 +563,177 @@
         // If there were any errors, return false
         return empty($errors);
     }
+ 
 ?>
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <?php include $base_path . 'templates/header.php' ?>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-        <style>
-            #user:hover{
-                background-color: #db120b;
-                color: #fff;
-                padding: 10px;
-            }
-            .opt-group {
-                display: flex;
-                background-color: #3262e6;
-                color: white;
-                width: 100%;
-                align-items: center;
-                height: 35px;
-            }
+<head>
 
-            .import-file {
-                height: 100px;
-                width: auto;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            select {
-                width: 200px;
-                padding: 10px;
-                font-size: 16px;
-                border: 2px solid #ccc;
-                border-radius: 15px;
-                background-color: #f9f9f9;
-                -webkit-appearance: none; /* Remove default arrow in WebKit browsers */
-                -moz-appearance: none; /* Remove default arrow in Firefox */
-                appearance: none; /* Remove default arrow in most modern browsers */
-                color: #F14A51;
-            }
-            .custom-select-wrapper {
-                position: relative;
-                display: inline-block;
-                margin-left: 20px;
-                color: #F14A51;
-            }
-            .custom-arrow {
-                position: absolute;
-                top: 50%;
-                right: 10px;
-                width: 0;
-                height: 0;
-                padding: 0;
-                margin-top: -2px;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 5px solid #333;
-                pointer-events: none;
-            }
-            input[type="date"] {
-                width: 200px;
-                padding: 10px;
-                font-size: 14px;
-                border: 2px solid #ccc;
-                border-radius: 15px;
-                background-color: #f9f9f9;
-                margin-right: 20px;
-            }
-            input[type="month"] {
-                width: 200px;
-                padding: 10px;
-                font-size: 14px;
-                border: 2px solid #ccc;
-                border-radius: 15px;
-                background-color: #f9f9f9;
-                margin-right: 20px;
-            }
-            .generate-btn {
-                background-color: #db120b; 
-                border: none;
-                color: white;
-                padding: 13px 20px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                border-radius: 20px;
-                margin-left: 30px;
-            }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E D I</title>
+    <link rel="icon" href="<?php echo $relative_path; ?>assets/picture/MLW Logo.png" type="image/x-icon"/>
+    <link rel="stylesheet" href="<?php echo $relative_path; ?>assets/css/admin/default/default.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    
+    <style>
+        #user:hover{
+            background-color: #db120b;
+            color: #fff;
+            padding: 10px;
+        }
+        .opt-group {
+            display: flex;
+            background-color: #3262e6;
+            color: white;
+            width: 100%;
+            align-items: center;
+            height: 35px;
+        }
 
-            .download-btn {
-                background-color: #4fc917; 
-                border: none;
-                color: white;
-                padding: 9px 15px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                border-radius: 20px;
-                margin: 5px;
-            }
-            .post-btn {
-                background-color: #4fc917; 
-                border: none;
-                color: white;
-                padding: 9px 15px;
-                text-align: center;
-                text-decoration: none;
-                display: inline-block;
-                font-size: 16px;
-                border-radius: 20px;
-                margin: 5px;
-            }
+        .import-file {
+            height: 100px;
+            width: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        select {
+            width: 200px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 15px;
+            background-color: #f9f9f9;
+            -webkit-appearance: none; /* Remove default arrow in WebKit browsers */
+            -moz-appearance: none; /* Remove default arrow in Firefox */
+            appearance: none; /* Remove default arrow in most modern browsers */
+            color: #F14A51;
+        }
+        .custom-select-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-left: 20px;
+            color: #F14A51;
+        }
+        .custom-arrow {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            width: 0;
+            height: 0;
+            padding: 0;
+            margin-top: -2px;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #333;
+            pointer-events: none;
+        }
+        input[type="date"] {
+            width: 200px;
+            padding: 10px;
+            font-size: 14px;
+            border: 2px solid #ccc;
+            border-radius: 15px;
+            background-color: #f9f9f9;
+            margin-right: 20px;
+        }
+        input[type="month"] {
+            width: 200px;
+            padding: 10px;
+            font-size: 14px;
+            border: 2px solid #ccc;
+            border-radius: 15px;
+            background-color: #f9f9f9;
+            margin-right: 20px;
+        }
+        .generate-btn {
+            background-color: #db120b; 
+            border: none;
+            color: white;
+            padding: 13px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 20px;
+            margin-left: 30px;
+        }
 
-            /* for table */
-            .table-container {
-                top: 35px;
-                position: relative;
-                max-width: 100%;
-                overflow-x: auto; /* Enable horizontal scrolling */
-                overflow-y: auto; /* Enable vertical scrolling */
-                max-height: calc(100vh - 200px); /* Adjust max-height as needed based on your layout */
-                margin: 20px; /* Adjust margin as needed */
-                border: 1px solid #ccc; /* Optional: Add border around the table container */
-            }
+        .download-btn {
+            background-color: #4fc917; 
+            border: none;
+            color: white;
+            padding: 9px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 20px;
+            margin: 5px;
+        }
+        .post-btn {
+            background-color: #4fc917; 
+            border: none;
+            color: white;
+            padding: 9px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 20px;
+            margin: 5px;
+        }
 
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                border: 1px solid #ccc; /* Border around the table */
-                /* white-space: nowrap; */
-                font-size: 12px;
-            }
+        /* for table */
+        .table-container {
+            top: 35px;
+            position: relative;
+            max-width: 100%;
+            overflow-x: auto; /* Enable horizontal scrolling */
+            overflow-y: auto; /* Enable vertical scrolling */
+            max-height: calc(100vh - 200px); /* Adjust max-height as needed based on your layout */
+            margin: 20px; /* Adjust margin as needed */
+            border: 1px solid #ccc; /* Optional: Add border around the table container */
+        }
 
-            th, td {
-                border: 1px solid #ccc; /* Borders for table cells */
-                padding: 5px; /* Padding inside cells */
-                text-align: center; /* Center-align text in cells */
-            }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #ccc; /* Border around the table */
+            /* white-space: nowrap; */
+            font-size: 12px;
+        }
 
-            th {
-                background-color: #f2f2f2; /* Light gray background for headers */
-                font-weight: bold; /* Bold font for headers */
-            }
+        th, td {
+            border: 1px solid #ccc; /* Borders for table cells */
+            padding: 5px; /* Padding inside cells */
+            text-align: center; /* Center-align text in cells */
+        }
 
-            tr:nth-child(even) {
-                background-color: #f9f9f9; /* Alternating row colors */
-            }
+        th {
+            background-color: #f2f2f2; /* Light gray background for headers */
+            font-weight: bold; /* Bold font for headers */
+        }
 
-            tr:hover {
-                background-color: #e0e0e0;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="top-content">
-            <?php include $base_path . 'templates/sidebar.php' ?>
-        </div>
-        <center><h2>13TH MONTH <span>[POST EDI]</span></h2></center>
-    </body>
+        tr:nth-child(even) {
+            background-color: #f9f9f9; /* Alternating row colors */
+        }
+
+        tr:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-content">
+        <?php include $relative_path . 'templates/sidebar.php' ?>
+    </div>
+    
+    <center><h2>13TH MONTH <span>[POST EDI]</span></center>
 
     <div class="import-file">
         
@@ -664,10 +776,10 @@
                 </select>
                 <div class="custom-arrow"></div>
             </div>
-            <!-- <div class="custom-select-wrapper">
+            <div class="custom-select-wrapper">
                 <label for="restricted-date">Payroll date </label>
-                <input type="date" id="restricted-date" name="restricted-date" value="<?php //echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : '';?>" required>
-            </div> -->
+                <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : '';?>" required>
+            </div>
             
             <input type="submit" class="generate-btn" name="generate" value="Proceed">
 
@@ -677,8 +789,60 @@
             <button class="post-btn" onclick="postEdi()">Post EDI</button>
         </div>
     </div>
-    
-    <script src="<?php echo $relative_path; ?>assets/js/admin/report-file/script1.js"></script>
+    <script>
+        //for fetching zone
+        function updateZone() {
+            var mainzone = document.getElementById("mainzone").value;
+            var selectedZone = document.getElementById("zone").value; // Get the currently selected zone, if any
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../../fetch/get_zone.php", true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    document.getElementById("zone").innerHTML = xhr.responseText;
+                }
+            };
+            // Pass the current zone as well to preserve the selection
+            xhr.send("mainzone=" + mainzone + "&selected_zone=" + selectedZone);
+        }
+
+        // Ensure the zones are updated automatically on page load based on the current mainzone
+        window.onload = function() {
+            var mainzone = document.getElementById("mainzone").value;
+            if (mainzone !== "") {
+                updateZone(); // Fetch and set the zones automatically if a mainzone is already selected
+            }
+        };
+        
+        // Function to fetch regions based on the selected zone
+        function updateRegions() {
+            var zone = document.getElementById("zone").value;
+            var selectedRegion = document.getElementById("region").value; // Get the currently selected region, if any
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../../fetch/get_regions.php", true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    document.getElementById("region").innerHTML = xhr.responseText;
+                }
+            };
+            // Pass the current region as well to preserve the selection
+            xhr.send("zone=" + zone + "&selected_region=" + selectedRegion);
+        }
+
+        // Ensure the regions are updated automatically when a zone is selected or when the page reloads
+        document.getElementById("zone").addEventListener('change', updateRegions);
+
+        window.onload = function() {
+            var zone = document.getElementById("zone").value;
+            if (zone !== "") {
+                updateRegions(); // Fetch and set the regions automatically if a zone is already selected
+            }
+        };
+    </script>
+</body>
 </html>
 
 <script>
@@ -710,12 +874,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     $mainzone = $_POST['mainzone'];
     $region = $_POST['region'];
     $zone = $_POST['zone'];
-    // $restrictedDate = $_POST['restricted-date'];
+    $restrictedDate = $_POST['restricted-date'];
 
     $_SESSION['mainzone'] = $mainzone;
     $_SESSION['zone'] = $zone;
     $_SESSION['region'] = $region;
-    // $_SESSION['restrictedDate'] = $restrictedDate;
+    $_SESSION['restrictedDate'] = $restrictedDate;
 
     if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
         $sql = "SELECT
@@ -724,7 +888,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     bp.region, 
                     bp.zone,
                     p.payroll_date,
-                    p.post_edi,
                     MAX(bp.cost_center) as cost_center1,
                     MAX(p.gl_code_basic_pay_regular) as gl_code_basic_pay_regular,
                     MAX(p.gl_code_basic_pay_trainee) as gl_code_basic_pay_trainee,
@@ -771,23 +934,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 INNER JOIN 
                     " . $database[1] . ".branch_profile bp
                 ON 
-                    p.bos_code = bp.code AND p.region_code = bp.region_code
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                 WHERE
                     bp.mainzone = '$mainzone'
+                    AND p.payroll_date = '$restrictedDate'
                     AND bp.ml_matic_region = '$zone'
                     AND bp.zone like '%$region%'
                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                     AND p.description = '13thMonth'
-                    AND p.post_edi = 'pending'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')
                 GROUP BY 
                     bp.code,
                     p.cost_center,
                     bp.region,
                     bp.zone,
-                    p.payroll_date,
-                    p.post_edi,
-                    p.bos_code,
-                    p.region
+                    P.payroll_date,
+                    P.bos_code,
+                    P.region
                 ORDER BY 
                     bp.region;";
     }else{
@@ -797,7 +975,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     bp.region, 
                     bp.zone,
                     p.payroll_date,
-                    p.post_edi,
                     MAX(bp.cost_center) as cost_center1,
                     MAX(p.gl_code_basic_pay_regular) as gl_code_basic_pay_regular,
                     MAX(p.gl_code_basic_pay_trainee) as gl_code_basic_pay_trainee,
@@ -844,25 +1021,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 INNER JOIN 
                     " . $database[1] . ".branch_profile bp
                 ON 
-                    p.bos_code = bp.code AND p.region_code = bp.region_code
+                    (
+                        (
+                            p.bos_code IS NOT NULL
+                            AND p.bos_code = bp.code
+                            AND p.region_code = bp.region_code
+                        )
+                        OR
+                        (
+                            p.bos_code IS NULL
+                            AND p.region_code = bp.region_code
+                            AND p.zone = bp.zone
+                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO'
+                        )
+                    )
                 WHERE
                     bp.mainzone = '$mainzone'
                     AND bp.zone = '$zone'
                     AND p.zone != 'JVIS' -- to exclude sm seaside showroom
                     AND bp.region_code LIKE '%$region%'
+                    AND p.payroll_date = '$restrictedDate'
                     AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
                     AND p.description = '13thMonth'
-                    AND p.post_edi = 'pending'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('payroll', 'midYearBonus', 'Sick-Leave')
                 GROUP BY 
                     bp.code,
                     p.cost_center,
                     bp.region,
                     bp.zone,
-                    p.payroll_date,
-                    p.post_edi,
-                    p.bos_code,
-                    p.region
+                    P.payroll_date,
+                    P.bos_code,
+                    P.region
                 ORDER BY 
                     bp.region;"; 
     }  
@@ -880,7 +1072,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 
             $first_row = mysqli_fetch_assoc($result);
 
-            $payroll_date = date('F d, Y', strtotime(htmlspecialchars($first_row['payroll_date'])));
+            $payroll_date = htmlspecialchars($first_row['payroll_date']);
             $gl_code_basic_pay_regular = htmlspecialchars($first_row['gl_code_basic_pay_regular']);
             $gl_code_basic_pay_trainee = htmlspecialchars($first_row['gl_code_basic_pay_trainee']);
             $gl_code_allowances = htmlspecialchars($first_row['gl_code_allowances']);
@@ -902,10 +1094,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 
             //  first row
             echo "<tr>";
-            // echo "<th colspan='2' rowspan='2'>Payroll Date - " . $payroll_date . "</th>";
-            echo "<th rowspan='3'>Payroll Date</th>";
-            echo "<th rowspan='3' >Branch Name</th>";
-            echo "<th rowspan='3' style='white-space: nowrap'>BOS Code</th>";
+            echo "<th colspan='2'>Payroll Date - " . $payroll_date . "</th>";
             echo "<th>Basic Pay Regular</th>";
             echo "<th>Basic Pay Trainee</th>";
             echo "<th>Allowances</th>";
@@ -922,16 +1111,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th>Leave Regular</th>";
             echo "<th>Leave Trainee</th>";
             echo "<th>Total</th>";
-            echo "<th rowspan='3'>Cost Center</th>";
+            echo "<th>Cost Center</th>";
             echo "<th style='width: 10px;'></th>";
-            echo "<th rowspan='3'>Region</th>";
-            echo "<th rowspan='3'>Status</th>";
-            echo "<th rowspan='2'>All Other Deductions</th>";
-            echo "<th rowspan='3'>No. of Branch Employees</th>";
-            echo "<th rowspan='3'>No. of Employees Allocated</th>";
+            echo "<th>Region</th>";
+            echo "<th>All Other Deductions</th>";
+            echo "<th>No. of Branch Employees</th>";
+            echo "<th>No. of Employees Allocated</th>";
             echo "</tr>";
             // second row
             echo "<tr>";
+            echo "<th></th>";
+            echo "<th></th>";
             echo "<th>Debit</th>";
             echo "<th>Debit</th>";
             echo "<th>Debit</th>";
@@ -949,9 +1139,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th>Credit</th>";
             echo "<th>Credit</th>";
             echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
             echo "</tr>";
             //third row
             echo "<tr>";
+            echo "<th style='white-space: nowrap'>BOS Code</th>";
+            echo "<th>Branch Name</th>";
             echo "<th>". $gl_code_basic_pay_regular ."</th>";
             echo "<th>". $gl_code_basic_pay_trainee ."</th>";
             echo "<th>". $gl_code_allowances ."</th>";
@@ -969,7 +1166,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
             echo "<th>". $gl_code_leave_trainee ."</th>";
             echo "<th>". $gl_code_total ."</th>";
             echo "<th></th>";
+            echo "<th></th>";
+            echo "<th></th>";
             echo "<th>". $gl_code_all_other_deductions ."</th>";
+            echo "<th></th>";
+            echo "<th></th>";
             echo "</tr>";
             echo "</thead>";
             echo "<tbody>";
@@ -996,43 +1197,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             + $row['overtime_trainee'] + $row['cola'] + $row['excess_pb'] + $row['other_income'] + $row['salary_adjustment'] + $row['graveyard'];
                 $totalCredit = $row['late_regular'] + $row['late_trainee'] + $row['leave_regular'] + $row['leave_trainee'];
                 $total = $totalDebit - $totalCredit;
-                
-                echo "
-                <style>
-                    .branch-name {
-                        text-align: left !important;
-                    }
-                    .amount-cell {
-                        text-align: right !important;
-                    }
-                </style>
-                <tr>";
-                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>$payroll_date</td>";
-                echo "<td class='branch-name' style='white-space: nowrap; background-color: $color; font-weight: $bold';>" . htmlspecialchars($row['branch_name']) . "</td>";
-                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['bos_code']) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_regular'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_trainee'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['allowances'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['bm_allowance'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_regular'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_trainee'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['cola'], 2)) . "</td>"; 
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['other_income'], 2)) . "</td>"; 
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['salary_adjustment'], 2)) . "</td>"; 
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['graveyard'], 2)) . "</td>";
-                // convert to negative if positive value 
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular'], 2)) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee'], 2)) . "</td>";
 
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'> ".htmlspecialchars(number_format($total, 2))." </td>"; 
+                echo "<tr>";
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['bos_code']) . "</td>";
+                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['branch_name']) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['basic_pay_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['allowances'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['bm_allowance'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['overtime_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['cola'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['excess_pb'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['other_income'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['salary_adjustment'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['graveyard'], 2)) . "</td>";
+                // convert to negative if positive value 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_regular'] > 0 ? -$row['late_regular'] : $row['late_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['late_trainee'] > 0 ? -$row['late_trainee'] : $row['late_trainee'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_regular'] > 0 ? -$row['leave_regular'] : $row['leave_regular'], 2)) . "</td>";
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['leave_trainee'] > 0 ? -$row['leave_trainee'] : $row['leave_trainee'], 2)) . "</td>";
+
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'> ".htmlspecialchars(number_format($total, 2))." </td>"; 
                 echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['cost_center1']) . "</td>";
                 echo "<td style='white-space: nowrap; background-color: #f2f2f2; font-weight: $bold'></td>";
                 echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['region']) . "</td>";
-                echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['post_edi']) . "</td>";
-                echo "<td class='amount-cell' style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['all_other_deductions'], 2)) . "</td>"; 
+                echo "<td style='background-color: $color; font-weight: $bold; text-align: right'>" . htmlspecialchars(number_format($row['all_other_deductions'], 2)) . "</td>"; 
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_branch_employee']) . "</td>";
                 echo "<td style='background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['no_of_employees_allocated']) . "</td>";
                 echo "</tr>";

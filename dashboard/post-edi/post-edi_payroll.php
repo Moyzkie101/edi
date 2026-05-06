@@ -145,7 +145,9 @@
                         AND bp.ml_matic_region = '$zone'
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.zone like '%$region%'
-                        AND p.description = 'payroll'";
+                        AND p.description = 'payroll'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
         }else{
             $sql = "SELECT post_edi 
                     FROM " . $database[0] . ".payroll p
@@ -174,7 +176,9 @@
                     AND p.payroll_date = '$restrictedDate'
                     AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                    AND p.description = 'payroll'";
+                    AND p.description = 'payroll'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
         }
         //echo $sql;
         $result = $conn->query($sql);
@@ -274,6 +278,8 @@
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.post_edi = 'pending'
                         AND p.description = 'payroll'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -367,6 +373,8 @@
                         AND bp.ml_matic_region != 'VISMIN Showroom'
                         AND p.post_edi = 'pending'
                         AND p.description = 'payroll'
+                        AND p.remarks is null
+                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')
                     GROUP BY 
                         bp.code,
                         p.cost_center,
@@ -497,7 +505,9 @@
                                     AND bp.ml_matic_region = '$zone'
                                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  
                                     AND bp.zone like '%$region%'
-                                    and p.description = 'payroll'";
+                                    and p.description = 'payroll'
+                                    AND p.remarks is null
+                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
                                     
                 }else{
                     $updatePost = "UPDATE " . $database[0] . ".payroll p
@@ -528,7 +538,9 @@
                                     AND p.payroll_date = '$restrictedDate'
                                     AND bp.ml_matic_region != 'LNCR Showroom'
                                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                                    and p.description = 'payroll'";
+                                    and p.description = 'payroll'
+                                    AND p.remarks is null
+                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
                 }
 
                 if ($conn->query($updatePost) === TRUE) {
@@ -894,6 +906,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     AND bp.zone like '%$region%'
                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                     AND p.description = 'payroll'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')
                 GROUP BY 
                     bp.code,
                     p.cost_center,
@@ -981,6 +995,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
                     AND p.description = 'payroll'
+                    AND p.remarks is null
+                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')
                 GROUP BY 
                     bp.code,
                     p.cost_center,
