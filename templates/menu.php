@@ -35,11 +35,11 @@
                             <button class="group-btn" type="button">Remittance Format</button>
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('CAD', $roles)): ?>
-                                    <a class="user-link" href="<?php echo $base_url; ?>import/import-remittance-old.php" role="menuitem">Remitance OLD</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>import/import-remittance-new.php" role="menuitem">Remitance NEW</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>import/import-remittance-old.php" role="menuitem">Remittance OLD</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>import/import-remittance-new.php" role="menuitem">Remittance NEW</a>
                                 <?php else: ?>
-                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remitance OLD</a>
-                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remitance NEW</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remittance OLD</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remittance NEW</a>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -66,6 +66,7 @@
                         <?php if (in_array('HO RFP', $roles)): ?>
                             <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry_rfp-payroll.php" role="menuitem">RFP Payroll</a>
                             <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry-remittance.php" role="menuitem">Remittance</a>
+                            <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry_rfp-sick_leave.php" role="menuitem">Sick Leave</a>
                         <?php else: ?>
                             <a class="user-link" href="#" role="menuitem" aria-disabled="true">RFP Payroll</a>
                         <?php endif; ?>
@@ -120,14 +121,14 @@
                                 <?php if (in_array('HRMD', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/hr-format/hr-format_payroll.php" role="menuitem">Payroll</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/hr-format/hr-format_13th-month_payroll.php" role="menuitem">13th Month (Payroll Format)</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/hr-format/hr-format_remittance-old.php" role="menuitem">Remitance OLD</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/hr-format/hr-format_remittance-new.php" role="menuitem">Remitance NEW</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/hr-format/hr-format_remittance-old.php" role="menuitem">Remittance OLD</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/hr-format/hr-format_remittance-new.php" role="menuitem">Remittance NEW</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/hr-format/hr-format_sick-leave.php" role="menuitem">Sick Leave</a>
                                 <?php else: ?>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Payroll</a>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">13th Month (Payroll Format)</a>
-                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remitance OLD</a>
-                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remitance NEW</a>
+                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remittance OLD</a>
+                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remittance NEW</a>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Sick Leave</a>
                                 <?php endif; ?>
                             </div>
@@ -136,17 +137,15 @@
                             <button class="group-btn" type="button">RECON & VARIANCE Format</button>
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('CAD', $roles)): ?>
-                                    <!-- <a id="user" href="recon-report-mcash.php">MCash Wallet</a> -->
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_payroll.php" role="menuitem">Payroll</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_remittance-new.php" role="menuitem">Remitance NEW</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_ml-wallet.php" role="menuitem">ML Wallet</a>
-                                    <!--<a id="user" href="#">Sick Leave</a>-->
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_sick-leave.php" role="menuitem">Sick Leave</a>
                                 <?php else: ?>
                                     <!-- <a id="user" href="recon-report-mcash.php">MCash Wallet</a> -->
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Payroll</a>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remitance NEW</a>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">ML Wallet</a>
-                                    <!--<a id="user" href="#">Sick Leave</a>-->
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -155,14 +154,26 @@
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('KP DOMESTIC', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_payroll.php" role="menuitem">Payroll</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_payroll-new.php" role="menuitem">Payroll (NEW)</a>
                                     <div class="dropdown-group">
                                         <button class="group-btn" type="button">Provision</button>
                                         <div class="group-content" role="submenu">
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_provision.php" role="menuitem">Provision - Old Format</a>
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_provision-new.php" role="menuitem">Provision - New Format</a>
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-mid-year-bonus_provision-new.php" role="menuitem">Mid Year Bonus - New Format</a>
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-13th-month_provision-new.php" role="menuitem">13th Month - New Format</a>
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_sick-leave-new.php" role="menuitem">Sick Leave - New Format</a>
+                                            <?php if (in_array('KP DOMESTIC', $roles)): ?>
+                                                <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_provision.php" role="menuitem">Provision - Old Format</a>
+                                                <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_provision-new.php" role="menuitem">Provision - New Format</a>
+                                                <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-mid-year-bonus_provision-new.php" role="menuitem">Mid Year Bonus - New Format</a>
+                                                <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format-13th-month_provision-new.php" role="menuitem">13th Month - New Format</a>
+                                                <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_sick-leave-new.php" role="menuitem">Sick Leave - New Format</a>
+                                                <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_sick-leave-new-2.php" role="menuitem">Sick Leave - New Format ver2</a>
+
+                                            <?php else: ?>
+                                                <a class="user-link" href="#" aria-disabled="true" role="menuitem">Provision - Old Format</a>
+                                                <a class="user-link" href="#" aria-disabled="true" role="menuitem">Provision - New Format</a>
+                                                <a class="user-link" href="#" aria-disabled="true" role="menuitem">Mid Year Bonus - New Format</a>
+                                                <a class="user-link" href="#" aria-disabled="true" role="menuitem">13th Month - New Format</a>
+                                                <a class="user-link" href="#" aria-disabled="true" role="menuitem">Sick Leave - New Format</a>
+                                                <a class="user-link" href="#" aria-disabled="true" role="menuitem">Sick Leave - New Format ver2</a>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
 
@@ -180,9 +191,9 @@
                                     <div class="dropdown-group">
                                         <button class="group-btn" type="button">Remittance</button>
                                         <div class="group-content" role="submenu">
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-old.php" role="menuitem">Remitance OLD</a>
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-new.php" role="menuitem">Remitance NEW</a>
-                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-new-2.php" role="menuitem">Remitance NEW ver2</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-old.php" role="menuitem">Remittance OLD</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-new.php" role="menuitem">Remittance NEW</a>
+                                            <a class="user-link" href="<?php echo $base_url; ?>reports/edi-format/edi-format_remittance-new-2.php" role="menuitem">Remittance NEW ver2</a>
                                         </div>
                                     </div>
                                     <!-- <a id="user" href="#">Mid Year Bonus</a> -->
@@ -203,8 +214,8 @@
                                     <?php //if ($currYM >= $thisYear . '-10' && $currYM <= $nextYear . '-02'): ?>
                                         <?php //endif; ?>
 
-                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remitance OLD</a>
-                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remitance NEW</a>
+                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remittance OLD</a>
+                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remittance NEW</a>
                                     <!-- <a id="user" href="#">Mid Year Bonus</a> -->
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Sick Leave</a>
                                     <!--<a id="user" href="#">GL Code Reports</a>-->
@@ -216,14 +227,11 @@
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('KP DOMESTIC', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_payroll.php" role="menuitem">Payroll</a>
-
-                                    <?php //if ($currYM >= $thisYear . '-10' && $currYM <= $nextYear . '-02'): ?>
-                                        <?php //endif; ?>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format-payroll-new-2.php" role="menuitem">Payroll (NEW)</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format-mid-year-bonus_payroll.php" role="menuitem">Mid Year Bonus - (Payroll Format)</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format-mid-year-bonus_provision.php" role="menuitem">Mid Year Bonus - (Provision Format)</a>
-
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_remittance-old.php" role="menuitem">Remitance OLD</a>
-                                    <!--<a id="user" href="#">Remitance NEW</a>-->
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_remittance-old.php" role="menuitem">Remittance OLD</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_remittance-new.php" role="menuitem">Remittance NEW</a>
                                 <?php else: ?>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Payroll</a>
 
@@ -232,7 +240,7 @@
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Mid Year Bonus - (Payroll Format)</a>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Mid Year Bonus - (Provision Format)</a>
 
-                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remitance OLD</a>
+                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">Remittance OLD</a>
                                     <!--<a id="user" href="#">Remitance NEW</a>-->
                                 <?php endif; ?>
                             </div>
