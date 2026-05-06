@@ -227,11 +227,11 @@
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('KP DOMESTIC', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_payroll.php" role="menuitem">Payroll</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_payroll-new-2.php" role="menuitem">Payroll (NEW)</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_payroll-new.php" role="menuitem">Payroll (NEW)</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format-mid-year-bonus_payroll.php" role="menuitem">Mid Year Bonus - (Payroll Format)</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format-mid-year-bonus_provision.php" role="menuitem">Mid Year Bonus - (Provision Format)</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_remittance-old.php" role="menuitem">Remittance OLD</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_remittance-new.php" role="menuitem">Remittance NEW</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/edi-allocation-format/edi-allocation-format_remittance-new-2.php" role="menuitem">Remittance NEW ver2</a>
                                 <?php else: ?>
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Payroll</a>
 

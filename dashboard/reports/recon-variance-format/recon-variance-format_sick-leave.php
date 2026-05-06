@@ -483,15 +483,39 @@
             $sheet->setCellValue('A1', 'RECONCILIATION & VARIANCE REPORT'); 
 
             // Second row
-            $sheet->setCellValue('A2', 'PAYROLL REPORT'); 
+            $sheet->setCellValue('A2', 'SICK LEAVE CONVERSION REPORT'); 
 
             // Third row
 
-            // Fourth row
-            if($payrollDay === '15') {
-                $sheet->setCellValue('A4', 'Payroll Date: ' . $payrollMonth . ' 1 - ' . $payrollDay . ', ' . $payrollYear)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-            } else {
-                $sheet->setCellValue('A4', 'Payroll Date: ' . $payrollMonth . ' 16 - ' . $payrollDay . ', ' . $payrollYear)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+            // Fourth row 
+            if($payrollYear === $payrollYear2){ // 2024 === 2024
+                if($payrollMonth === $payrollMonth2) { // 01 === 01
+                    if($payrollDay === $payrollDay2){ //1===1
+                        $sheet->setCellValue('A4', 'Payroll Date: ' . $payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }else { // 1===2
+                        $sheet->setCellValue('A4', 'Payroll Date: ' . $payrollMonth . ' ' . $payrollDay . '-' . $payrollDay2 . ', ' . $payrollYear)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }
+                }else { // 01 === 02
+                    if($payrollDay === $payrollDay2){ //1===1
+                        $sheet->setCellValue('A4', 'Payroll Date: from ' . $payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear . ' to ' .$payrollMonth2 . ' ' . $payrollDay . ', ' . $payrollYear)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }else { // 1===2
+                        $sheet->setCellValue('A4', 'Payroll Date: from ' . $payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear . ' to ' .$payrollMonth2 . ' ' . $payrollDay2 . ', ' . $payrollYear)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }
+                }
+            }else { // 2024 === 2025
+                if($payrollMonth === $payrollMonth2) { // 01 === 01
+                    if($payrollDay === $payrollDay2){ //1===1
+                        $sheet->setCellValue('A4', 'Payroll Date: from ' . $payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear . ' to ' .$payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear2)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }else{ // 1===2
+                        $sheet->setCellValue('A4', 'Payroll Date: from ' . $payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear . ' to ' .$payrollMonth . ' ' . $payrollDay2 . ', ' . $payrollYear2)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }
+                }else { // 01 === 02
+                    if($payrollDay === $payrollDay2){ //1===1
+                        $sheet->setCellValue('A4', 'Payroll Date: from ' . $payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear . ' to ' .$payrollMonth2 . ' ' . $payrollDay . ', ' . $payrollYear2)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }else{ // 1===2
+                        $sheet->setCellValue('A4', 'Payroll Date: from ' . $payrollMonth . ' ' . $payrollDay . ', ' . $payrollYear . ' to ' .$payrollMonth2 . ' ' . $payrollDay2 . ', ' . $payrollYear2)->mergeCells('A4:T4')->getStyle('A4:T4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    }
+                }
             }
 
             // Fifth row
@@ -629,20 +653,30 @@
                 $special_mancomm_sql = "SELECT 
                     SUM(COALESCE(mlwallet_amount,0)) AS mlwallet,
                     SUM(COALESCE(mlkp_amount,0)) AS mlkp
-                    FROM " . $database[0] . ".rfp_payroll
+                    FROM " . $database[0] . ".rfp_sick_leave
                     WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "'
-                    AND region_code = '" . mysqli_real_escape_string($conn, $special_mancomm_code) . "'
-                    AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                    AND region_code = '" . mysqli_real_escape_string($conn, $special_mancomm_code) . "'";
+                    if ($restrictedDate === $endDate) {
+                        $special_mancomm_sql .= "AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                    } else {
+                        $special_mancomm_sql .= "AND payroll_date BETWEEN '" . mysqli_real_escape_string($conn, $restrictedDate) . "' AND '" . mysqli_real_escape_string($conn, $endDate) . "'";
+
+                    }
                 $special_mancomm_res = mysqli_query($conn, $special_mancomm_sql);
                 $special_mancomm_row = mysqli_fetch_assoc($special_mancomm_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
 
                 $special_support_sql = "SELECT 
                     SUM(COALESCE(mlwallet_amount,0)) AS mlwallet,
                     SUM(COALESCE(mlkp_amount,0)) AS mlkp
-                    FROM " . $database[0] . ".rfp_payroll
+                    FROM " . $database[0] . ".rfp_sick_leave
                     WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "'
-                    AND region_code = '" . mysqli_real_escape_string($conn, $special_support_code) . "'
-                    AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                    AND region_code = '" . mysqli_real_escape_string($conn, $special_support_code) . "'";
+                    if ($restrictedDate === $endDate) {
+                        $special_support_sql .= "AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                    } else {
+                        $special_support_sql .= "AND payroll_date BETWEEN '" . mysqli_real_escape_string($conn, $restrictedDate) . "' AND '" . mysqli_real_escape_string($conn, $endDate) . "'";
+
+                    }
                 $special_support_res = mysqli_query($conn, $special_support_sql);
                 $special_support_row = mysqli_fetch_assoc($special_support_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
 
@@ -943,29 +977,29 @@
                 if($payrollYear === $payrollYear2){ // 2024 === 2024
                     if($payrollMonth === $payrollMonth2) { // 01 === 01
                         if($payrollDay === $payrollDay2){ //1===1
-                            $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_(" . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . ").xls";
+                            $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_(" . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . ").xls";
                         } else { // 1===2
-                            $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_( " . $payrollMonth . " " . $payrollDay . "-" . $payrollDay2 . ", " . $payrollYear .").xls";
+                            $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_( " . $payrollMonth . " " . $payrollDay . "-" . $payrollDay2 . ", " . $payrollYear .").xls";
                         }
                     } else { // 01 === 02
-                        $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear . ").xls";
+                        $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear . ").xls";
                     }
                 } else {
-                    $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear2 . ").xls";
+                    $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_" . $region_name . "-[".$region."]_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear2 . ").xls";
                 }
             }else{ // no region
                  if($payrollYear === $payrollYear2){ // 2024 === 2024
                     if($payrollMonth === $payrollMonth2) { // 01 === 01
                         if($payrollDay === $payrollDay2){ //1===1
-                            $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_(" . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . ").xls";
+                            $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_(" . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . ").xls";
                         } else { // 1===2
-                            $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_( " . $payrollMonth . " " . $payrollDay . "-" . $payrollDay2 . ", " . $payrollYear .").xls";
+                            $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_( " . $payrollMonth . " " . $payrollDay . "-" . $payrollDay2 . ", " . $payrollYear .").xls";
                         }
                     } else { // 01 === 02
-                        $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear . ").xls";
+                        $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear . ").xls";
                     }
                 } else {
-                    $filename = "RECON_&_VARIANCE_Payroll_Report_" . $mainzone . "_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear2. ").xls";
+                    $filename = "RECON_&_VARIANCE_Sick_Leave_Conversion_Report_" . $mainzone . "_( from " . $payrollMonth . " " . $payrollDay . ", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 . ", " . $payrollYear2. ").xls";
                 }
             }
 
@@ -1754,7 +1788,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             }else {
                                 if($payrollDay === $payrollDay2){ //1===1
                                     echo "<tr>";
-                                        echo "<th colspan='20'> Payroll Date: from " . $payrollMonth . " " . $payrollDay .", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay2 .", " . $payrollYear . "</th>";
+                                        echo "<th colspan='20'> Payroll Date: from " . $payrollMonth . " " . $payrollDay .", " . $payrollYear . " to " . $payrollMonth2 . " " . $payrollDay .", " . $payrollYear . "</th>";
                                     echo "</tr>";
                                 }else { // 1===2
                                     echo "<tr>";
@@ -1838,10 +1872,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             $mancomm_sql = "SELECT 
                                 SUM(COALESCE(mlwallet_amount,0)) AS mlwallet, 
                                 SUM(COALESCE(mlkp_amount,0)) AS mlkp 
-                                FROM " . $database[0] . ".rfp_payroll 
+                                FROM " . $database[0] . ".rfp_sick_leave 
                                 WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "' 
-                                AND region_code = '" . mysqli_real_escape_string($conn, $mancomm_region_code) . "' 
-                                AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                                AND region_code = '" . mysqli_real_escape_string($conn, $mancomm_region_code) . "' ";
+                                if ($restrictedDate === $endDate) {
+                                    $mancomm_sql .= "AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                                } else {
+                                    $mancomm_sql .= "AND payroll_date BETWEEN '" . mysqli_real_escape_string($conn, $restrictedDate) . "' AND '" . mysqli_real_escape_string($conn, $endDate) . "'";
+
+                                }
                             $mancomm_res = mysqli_query($conn, $mancomm_sql);
                             $mancomm = mysqli_fetch_assoc($mancomm_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
                             $mancomm_total = $mancomm['mlwallet'] + $mancomm['mlkp'];
@@ -1879,10 +1918,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                             $support_sql = "SELECT 
                                 SUM(COALESCE(mlwallet_amount,0)) AS mlwallet, 
                                 SUM(COALESCE(mlkp_amount,0)) AS mlkp 
-                                FROM " . $database[0] . ".rfp_payroll 
+                                FROM " . $database[0] . ".rfp_sick_leave 
                                 WHERE mainzone = '" . mysqli_real_escape_string($conn, $mainzone) . "' 
-                                AND region_code = '" . mysqli_real_escape_string($conn, $support_region_code) . "' 
-                                AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                                AND region_code = '" . mysqli_real_escape_string($conn, $support_region_code) . "'";
+                                if ($restrictedDate === $endDate) {
+                                    $support_sql .= "AND payroll_date = '" . mysqli_real_escape_string($conn, $restrictedDate) . "'";
+                                } else {
+                                    $support_sql .= "AND payroll_date BETWEEN '" . mysqli_real_escape_string($conn, $restrictedDate) . "' AND '" . mysqli_real_escape_string($conn, $endDate) . "'";
+
+                                } 
                             $support_res = mysqli_query($conn, $support_sql);
                             $support = mysqli_fetch_assoc($support_res) ?: ['mlwallet' => 0, 'mlkp' => 0];
                             $support_total = $support['mlwallet'] + $support['mlkp'];
