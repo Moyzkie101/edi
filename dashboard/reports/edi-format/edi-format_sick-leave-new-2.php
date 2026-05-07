@@ -199,7 +199,7 @@ ORDER BY new_region ASC";
                 $row['branch_id'],
                 $row['new_branch_name'],
                 '522310',
-                'Aje Multi load',
+                'Sick Leave Conversion Year ' . date('Y', strtotime($restrictedDate)),
                 number_format($total, 2, '.', ''),
                 'Adjustment'
             ];
