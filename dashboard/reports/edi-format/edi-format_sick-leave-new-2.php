@@ -199,7 +199,7 @@ ORDER BY new_region ASC";
                 $row['branch_id'],
                 $row['new_branch_name'],
                 '522310',
-                'Sick Leave Conversion Year ' . date('Y', strtotime($restrictedDate)),
+                'Sick Leave Conversion Year ' . (date('Y', strtotime($restrictedDate)) - 1),
                 number_format($total, 2, '.', ''),
                 'Adjustment'
             ];
@@ -768,7 +768,7 @@ p.region;";
             $total = $row['excess_pb'] + $row['other_income'];
 
             $totalNumberOfBranches++;
-            $Month = date('Y', strtotime($row['payroll_date']));
+            $Month = (date('Y', strtotime($row['payroll_date'])) - 1);
             echo "<tr>";
             echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold;'>" . htmlspecialchars($row['payroll_date']) . "</td>";
             echo "<td style='white-space: nowrap; background-color: $color; font-weight: $bold'>" . htmlspecialchars($row['gl_code_excess_pb']) . "</td>";
