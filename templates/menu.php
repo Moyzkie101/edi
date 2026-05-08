@@ -145,7 +145,7 @@
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_remittance-new.php" role="menuitem">Remitance NEW</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_ml-wallet.php" role="menuitem">ML Wallet</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_sick-leave.php" role="menuitem">Sick Leave</a>
-                                    <a class="user-link" href="#" role="menuitem">ML Fund</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/recon-variance-format/recon-variance-format_mlfund.php" role="menuitem">ML Fund</a>
                                 <?php else: ?>
                                     <!-- <a id="user" href="recon-report-mcash.php">MCash Wallet</a> -->
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">Payroll</a>
