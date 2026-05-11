@@ -67,7 +67,7 @@
                             <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry_rfp-payroll.php" role="menuitem">RFP Payroll</a>
                             <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry-remittance.php" role="menuitem">Remittance</a>
                             <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry_rfp-sick_leave.php" role="menuitem">Sick Leave</a>
-                            <a class="user-link" href="#" role="menuitem">ML Fund</a>
+                            <a class="user-link" href="<?php echo $base_url; ?>data-entry/data-entry_rfp-mlfund.php" role="menuitem">ML Fund</a>
                         <?php else: ?>
                             <a class="user-link" href="#" role="menuitem" aria-disabled="true">RFP Payroll</a>
                             <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remittance</a>
