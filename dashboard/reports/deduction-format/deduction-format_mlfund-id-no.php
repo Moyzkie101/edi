@@ -311,7 +311,7 @@
         <?php include '../../../templates/sidebar.php' ?>
     </div>
     <center>
-        <h2>ML FUND ID NO. REPORT<span>[DEDUCTION]</span></h2>
+        <h2>ML FUND DEDUCTION REPORT <span>[ID NO.]</span></h2>
     </center>
     <div class="container-fluid">
         <div class="row">

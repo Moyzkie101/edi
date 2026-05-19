@@ -202,6 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
     $duplicateInFileRows = [];
     $seenDuplicateRows = [];
     $successRows = [];
+    $directMlfundRows = [];
     $unknownRegionRows = [];
     $invalidLoanTypeRows = [];
     $invalidIdRows = [];
@@ -212,6 +213,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
 
     if ($fileExtension === 'xlsx' || $fileExtension === 'xls') {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fileTmpPath);
+        $uploadedBy = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown user';
+        $uploadedDate = date('Y-m-d H:i:s');
+        $postEdi = 'pending';
+        $directMlfundInsertStmt = $conn->prepare(
+            "INSERT INTO edi.mlfund_payroll
+            (payroll_date, mainzone, zone, region_code, region, employee_id_no, employee_name, ml_fund_amount, extension_file_type, uploaded_by, uploaded_date, post_edi)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        if (!$directMlfundInsertStmt) {
+            die('Database prepare failed (direct MLFUND insert): ' . $conn->error);
+        }
 
         foreach ($spreadsheet->getAllSheets() as $worksheet) {
             $sheetName = $worksheet->getTitle();
@@ -234,6 +246,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                     $loanTypeRaw === '' &&
                     $fundRaw === ''
                 ) {
+                    continue;
+                }
+
+                if (strtoupper(trim($loanTypeRaw)) === 'MLFUND') {
+                    if ($idNo === '' || !preg_match('/^\d{8}$/', $idNo)) {
+                        continue;
+                    }
+
+                    $mappedRegionCodeForDirectInsert = excelRegionToCode($regionCodeInput, $_POST['mainzone'] ?? '');
+                    if (!$mappedRegionCodeForDirectInsert) {
+                        continue;
+                    }
+
+                    $regionDataForDirectInsert = mapRegionData($conn1, $database, $mappedRegionCodeForDirectInsert);
+                    if (!$regionDataForDirectInsert) {
+                        continue;
+                    }
+
+                    if (!is_numeric(str_replace(',', '', $fundRaw))) {
+                        continue;
+                    }
+
+                    $directFundAmount = (float)str_replace(',', '', $fundRaw);
+                    $employeeNameForDirectInsert = trim($lastName . ', ' . $firstName, ', ');
+
+                    $directMlfundInsertStmt->bind_param(
+                        "sssssssdssss",
+                        $_POST['restricted-date'],
+                        $_POST['mainzone'],
+                        $regionDataForDirectInsert['zone'],
+                        $regionDataForDirectInsert['region_code'],
+                        $regionDataForDirectInsert['region'],
+                        $idNo,
+                        $employeeNameForDirectInsert,
+                        $directFundAmount,
+                        $fileExtension,
+                        $uploadedBy,
+                        $uploadedDate,
+                        $postEdi
+                    );
+                    $directMlfundInsertStmt->execute();
+                    $directMlfundRows[] = [
+                        'idno' => $idNo,
+                        'name' => $employeeNameForDirectInsert,
+                        'region' => $regionDataForDirectInsert['region'],
+                        'mlregular_amount' => 0,
+                        'mlcomaker_amount' => 0,
+                        'mlpcl_amount' => 0,
+                        'mljewelry_amount' => 0,
+                        'mlopi_amount' => 0,
+                        'mlemergency_amount' => 0,
+                        'ml_fund_amount' => $directFundAmount,
+                        'remarks' => 'imported (MLFUND direct)'
+                    ];
                     continue;
                 }
 
@@ -397,6 +463,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                 $dataRows[$key][$loanColumn] += $fund;
             }
         }
+        $directMlfundInsertStmt->close();
 
         if (!empty($unknownRegionRows)) {
             echo "<script>alert('Import failed: Unknown/invalid region codes detected. Please fix the file and try again.');</script>";
@@ -413,13 +480,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
         } elseif (!empty($conflictingRegionRows)) {
             echo "<script>alert('Import failed: An employee was found in different regions within one payroll date. Please fix the file and try again.');</script>";
             $dataRows = [];    
-        } elseif (empty($dataRows)) {
+        } elseif (empty($dataRows) && empty($directMlfundRows)) {
             echo "<script>alert('No valid payroll data found in Excel file.');</script>";
         }else {
-            $uploadedBy = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown user';
-            $uploadedDate = date('Y-m-d H:i:s');
-            $postEdi = 'pending';
-
             foreach ($dataRows as $row) {
                 $checkStmt = $conn->prepare(
                     "SELECT 1
@@ -452,16 +515,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                         'remarks' => 'already exist'
                     ];
                 } else {
+                    $isSupportRegion = (
+                        strpos(strtoupper((string)$row['region']), 'SUPPORT') !== false
+                        || in_array((string)$row['region_code'], ['HEADOFFICE1', 'HEADOFFICE2'], true)
+                    );
+
+                    $mlcomakerOperationAmount = $isSupportRegion ? 0 : (float)$row['mlcomaker_amount'];
+                    $mlcomakerSupportAmount = $isSupportRegion ? (float)$row['mlcomaker_amount'] : 0;
+                    $mljewelryOperationAmount = $isSupportRegion ? 0 : (float)$row['mljewelry_amount'];
+                    $mljewelrySupportAmount = $isSupportRegion ? (float)$row['mljewelry_amount'] : 0;
+                    $mlopiOperationAmount = $isSupportRegion ? 0 : (float)$row['mlopi_amount'];
+                    $mlopiSupportAmount = $isSupportRegion ? (float)$row['mlopi_amount'] : 0;
+                    $mlpclOperationAmount = $isSupportRegion ? 0 : (float)$row['mlpcl_amount'];
+                    $mlpclSupportAmount = $isSupportRegion ? (float)$row['mlpcl_amount'] : 0;
+                    $mlregularOperationAmount = $isSupportRegion ? 0 : (float)$row['mlregular_amount'];
+                    $mlregularSupportAmount = $isSupportRegion ? (float)$row['mlregular_amount'] : 0;
+
                     $stmt = $conn->prepare(
                         "INSERT INTO " . $database[0] . ".mlfund_payroll_new
                         (payroll_date, mainzone, zone, region_code, region, employee_id_no, employee_name,
-                         mlcomaker_amount, mljewelry_amount, mlopi_amount, mlpcl_amount, mlemergency_amount, mlregular_amount, ml_fund_amount,
-                         uploaded_by, uploaded_date, post_edi)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                         mlcomaker_operation_amount, mlcomaker_support_amount,
+                         mljewelry_operation_amount, mljewelry_support_amount,
+                         mlopi_operation_amount, mlopi_support_amount,
+                         mlpcl_operation_amount, mlpcl_support_amount,
+                         mlregular_operation_amount, mlregular_support_amount,
+                         ml_fund_amount, extension_file_type, excel_format_type, uploaded_by, uploaded_date, post_edi)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     );
+                    if (!$stmt) {
+                        die('Database prepare failed (mlfund_payroll_new insert): ' . $conn->error);
+                    }
 
                     $stmt->bind_param(
-                        "sssssssdddddddsss",
+                        "sssssssdddddddddddsssss",
                         $_POST['restricted-date'],
                         $_POST['mainzone'],
                         $row['zone'],
@@ -469,13 +555,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                         $row['region'],
                         $row['idno'],
                         $row['name'],
-                        $row['mlcomaker_amount'],
-                        $row['mljewelry_amount'],
-                        $row['mlopi_amount'],
-                        $row['mlpcl_amount'],
-                        $row['mlemergency_amount'],
-                        $row['mlregular_amount'],
+                        $mlcomakerOperationAmount,
+                        $mlcomakerSupportAmount,
+                        $mljewelryOperationAmount,
+                        $mljewelrySupportAmount,
+                        $mlopiOperationAmount,
+                        $mlopiSupportAmount,
+                        $mlpclOperationAmount,
+                        $mlpclSupportAmount,
+                        $mlregularOperationAmount,
+                        $mlregularSupportAmount,
                         $totalFund,
+                        $fileExtension,
+                        $sheetName,
                         $uploadedBy,
                         $uploadedDate,
                         $postEdi
@@ -502,7 +594,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                 $checkStmt->close();
             }
 
-            if (count($successRows) > 0) {
+            if (count($successRows) > 0 || count($directMlfundRows) > 0) {
                 echo "<script>alert('Payroll data imported successfully! Duplicate entries were skipped.');</script>";
             } else {
                 echo "<script>alert('No new payroll data imported. All entries already exist.');</script>";
@@ -515,6 +607,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
 
 if (!isset($alreadyExistRows)) $alreadyExistRows = [];
 if (!isset($successRows)) $successRows = [];
+if (!isset($directMlfundRows)) $directMlfundRows = [];
 if (!isset($unknownRegionRows)) $unknownRegionRows = [];
 if (!isset($invalidLoanTypeRows)) $invalidLoanTypeRows = [];
 if (!isset($duplicateInFileRows)) $duplicateInFileRows = [];
@@ -659,7 +752,7 @@ $errorRowsForPdf = array_values(array_merge(
         }
     </script>
 
-    <?php if (!empty($alreadyExistRows) || !empty($successRows) || !empty($unknownRegionRows) || !empty($invalidLoanTypeRows) || !empty($duplicateInFileRows) || !empty($invalidIdRows) || !empty($conflictingRegionRows)){ ?>
+    <?php if (!empty($alreadyExistRows) || !empty($successRows) || !empty($directMlfundRows) || !empty($unknownRegionRows) || !empty($invalidLoanTypeRows) || !empty($duplicateInFileRows) || !empty($invalidIdRows) || !empty($conflictingRegionRows)){ ?>
     <h3 class="display_data">Import Results</h3>
         <?php if (!empty($errorRowsForPdf)) { ?>
         <div class="display_data" style="margin: 10px 20px 0;">
@@ -703,6 +796,22 @@ $errorRowsForPdf = array_values(array_merge(
                 <?php } ?>
 
                 <?php foreach ($successRows as $row) { ?>
+                <tr>
+                    <td><?php echo $row['idno']; ?></td>
+                    <td><?php echo $row['name']; ?></td>
+                    <td><?php echo $row['region']; ?></td>
+                    <td><?php echo number_format((float)$row['mlregular_amount'], 2); ?></td>
+                    <td><?php echo number_format((float)$row['mlcomaker_amount'], 2); ?></td>
+                    <td><?php echo number_format((float)$row['mlpcl_amount'], 2); ?></td>
+                    <td><?php echo number_format((float)$row['mljewelry_amount'], 2); ?></td>
+                    <td><?php echo number_format((float)$row['mlemergency_amount'], 2); ?></td>
+                    <td><?php echo number_format((float)$row['mlopi_amount'], 2); ?></td>
+                    <td><?php echo number_format((float)$row['ml_fund_amount'], 2); ?></td>
+                    <td><?php echo $row['remarks']; ?></td>
+                </tr>
+                <?php } ?>
+
+                <?php foreach ($directMlfundRows as $row) { ?>
                 <tr>
                     <td><?php echo $row['idno']; ?></td>
                     <td><?php echo $row['name']; ?></td>
@@ -775,6 +884,6 @@ $errorRowsForPdf = array_values(array_merge(
     </div>
     <?php } ?>
 
-    
+    <script src="<?php echo $relative_path; ?>assets/js/admin/import-file/script1.js"></script>
 </body>
 </html>

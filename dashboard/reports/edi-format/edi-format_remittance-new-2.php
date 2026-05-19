@@ -168,7 +168,8 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
         $dlsql .= " AND (
             CASE 
                 WHEN r.ml_matic_status = 'Active' THEN 'Active'
-                WHEN r.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
+                WHEN r.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+                WHEN r.ml_matic_status = 'TBO' THEN 'TBO'
             END
         ) = '$status'
         GROUP BY
@@ -360,13 +361,25 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
                     }
                 }
             }else{
-                if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                    $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
-                }else{
-                    if(empty($region)){
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
+                if($status==='TBO'){
+                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
+                        $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "TO-BE-OPEN-BRANCHES_NEW-FORMAT-VER2.xls";
                     }else{
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
+                        if(empty($region)){
+                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "TO-BE-OPEN-BRANCHES_NEW-FORMAT-VER2.xls";
+                        }else{
+                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "TO-BE-OPEN-BRANCHES_NEW-FORMAT-VER2.xls";
+                        }
+                    }
+                }else{
+                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
+                        $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "CLOSE-BRANCHES_NEW-FORMAT-VER2.xls";
+                    }else{
+                        if(empty($region)){
+                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "CLOSE-BRANCHES_NEW-FORMAT-VER2.xls";
+                        }else{
+                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "CLOSE-BRANCHES_NEW-FORMAT-VER2.xls";
+                        }
                     }
                 }
             }
@@ -605,6 +618,7 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
                     <option value="">Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Pending & Inactive</option>
+                    <option value="TBO">To Be Open</option>
                 </select>
                 <div class="custom-arrow"></div>
             </div>
@@ -714,7 +728,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
         $sql .= " AND (
                 CASE 
                     WHEN r.ml_matic_status = 'Active' THEN 'Active'
-                    WHEN r.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
+                    WHEN r.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+                    WHEN r.ml_matic_status = 'TBO' THEN 'TBO'
                 END
             ) = '$status' 
         GROUP BY 
