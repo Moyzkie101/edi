@@ -224,6 +224,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
         if (!$directMlfundInsertStmt) {
             die('Database prepare failed (direct MLFUND insert): ' . $conn->error);
         }
+        $directMlfundCheckStmt = $conn->prepare(
+            "SELECT 1 FROM edi.mlfund_payroll
+             WHERE payroll_date = ? AND employee_id_no = ?"
+        );
+        if (!$directMlfundCheckStmt) {
+            die('Database prepare failed (direct MLFUND duplicate check): ' . $conn->error);
+        }
 
         foreach ($spreadsheet->getAllSheets() as $worksheet) {
             $sheetName = $worksheet->getTitle();
@@ -270,6 +277,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
 
                     $directFundAmount = (float)str_replace(',', '', $fundRaw);
                     $employeeNameForDirectInsert = trim($lastName . ', ' . $firstName, ', ');
+
+                    $directMlfundCheckStmt->bind_param(
+                        "ss",
+                        $_POST['restricted-date'],
+                        $idNo
+                    );
+                    $directMlfundCheckStmt->execute();
+                    $directMlfundCheckStmt->store_result();
+
+                    if ($directMlfundCheckStmt->num_rows > 0) {
+                        $alreadyExistRows[] = [
+                            'idno' => $idNo,
+                            'name' => $employeeNameForDirectInsert,
+                            'region' => $regionDataForDirectInsert['region'],
+                            'mlregular_amount' => 0,
+                            'mlcomaker_amount' => 0,
+                            'mlpcl_amount' => 0,
+                            'mljewelry_amount' => 0,
+                            'mlopi_amount' => 0,
+                            'mlemergency_amount' => 0,
+                            'ml_fund_amount' => $directFundAmount,
+                            'remarks' => 'already exist'
+                        ];
+                        continue;
+                    }
 
                     $directMlfundInsertStmt->bind_param(
                         "sssssssdssss",
@@ -464,6 +496,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
             }
         }
         $directMlfundInsertStmt->close();
+        $directMlfundCheckStmt->close();
 
         if (!empty($unknownRegionRows)) {
             echo "<script>alert('Import failed: Unknown/invalid region codes detected. Please fix the file and try again.');</script>";
@@ -764,6 +797,9 @@ $errorRowsForPdf = array_values(array_merge(
     <div class="table-container">
         <table id="printableTable">
             <thead>
+                <tr>
+                    <th colspan="11">Payroll Date: <?php echo date("F d, Y", strtotime($_POST['restricted-date'])); ?></th>
+                </tr>
                 <tr>
                     <th>IDNO</th>
                     <th>Name</th>
