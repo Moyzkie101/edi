@@ -548,39 +548,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                         'remarks' => 'already exist'
                     ];
                 } else {
-                    $isSupportRegion = (
-                        strpos(strtoupper((string)$row['region']), 'SUPPORT') !== false
-                        || in_array((string)$row['region_code'], ['HEADOFFICE1', 'HEADOFFICE2'], true)
-                    );
-
-                    $mlcomakerOperationAmount = $isSupportRegion ? 0 : (float)$row['mlcomaker_amount'];
-                    $mlcomakerSupportAmount = $isSupportRegion ? (float)$row['mlcomaker_amount'] : 0;
-                    $mljewelryOperationAmount = $isSupportRegion ? 0 : (float)$row['mljewelry_amount'];
-                    $mljewelrySupportAmount = $isSupportRegion ? (float)$row['mljewelry_amount'] : 0;
-                    $mlopiOperationAmount = $isSupportRegion ? 0 : (float)$row['mlopi_amount'];
-                    $mlopiSupportAmount = $isSupportRegion ? (float)$row['mlopi_amount'] : 0;
-                    $mlpclOperationAmount = $isSupportRegion ? 0 : (float)$row['mlpcl_amount'];
-                    $mlpclSupportAmount = $isSupportRegion ? (float)$row['mlpcl_amount'] : 0;
-                    $mlregularOperationAmount = $isSupportRegion ? 0 : (float)$row['mlregular_amount'];
-                    $mlregularSupportAmount = $isSupportRegion ? (float)$row['mlregular_amount'] : 0;
-
                     $stmt = $conn->prepare(
                         "INSERT INTO " . $database[0] . ".mlfund_payroll_new
                         (payroll_date, mainzone, zone, region_code, region, employee_id_no, employee_name,
-                         mlcomaker_operation_amount, mlcomaker_support_amount,
-                         mljewelry_operation_amount, mljewelry_support_amount,
-                         mlopi_operation_amount, mlopi_support_amount,
-                         mlpcl_operation_amount, mlpcl_support_amount,
-                         mlregular_operation_amount, mlregular_support_amount,
-                         ml_fund_amount, extension_file_type, excel_format_type, uploaded_by, uploaded_date, post_edi)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                        mlcomaker_amount, mljewelry_amount, mlopi_amount,
+                        mlpcl_amount, mlemergency_amount, mlregular_amount,
+                        ml_fund_amount, uploaded_by, uploaded_date, post_edi)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     );
                     if (!$stmt) {
                         die('Database prepare failed (mlfund_payroll_new insert): ' . $conn->error);
                     }
 
                     $stmt->bind_param(
-                        "sssssssdddddddddddsssss",
+                        "sssssssdddddddsss",
                         $_POST['restricted-date'],
                         $_POST['mainzone'],
                         $row['zone'],
@@ -588,19 +569,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excelFile'])) {
                         $row['region'],
                         $row['idno'],
                         $row['name'],
-                        $mlcomakerOperationAmount,
-                        $mlcomakerSupportAmount,
-                        $mljewelryOperationAmount,
-                        $mljewelrySupportAmount,
-                        $mlopiOperationAmount,
-                        $mlopiSupportAmount,
-                        $mlpclOperationAmount,
-                        $mlpclSupportAmount,
-                        $mlregularOperationAmount,
-                        $mlregularSupportAmount,
+                        $row['mlcomaker_amount'],
+                        $row['mljewelry_amount'],
+                        $row['mlopi_amount'],
+                        $row['mlpcl_amount'],
+                        $row['mlemergency_amount'],
+                        $row['mlregular_amount'],
                         $totalFund,
-                        $fileExtension,
-                        $sheetName,
                         $uploadedBy,
                         $uploadedDate,
                         $postEdi
