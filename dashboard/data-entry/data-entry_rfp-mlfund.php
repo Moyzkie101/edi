@@ -42,17 +42,26 @@
     $date = $_POST['payroll_date'] ?? '';
     $displayDate = htmlspecialchars($date, ENT_QUOTES, 'UTF-8');
 
-    $record = null;
+    // Fixed mainzones — always show both
+    $mainzones = ['LNCR', 'VISMIN'];
+    $records = [];
 
     if (isset($_POST['generate'])) {
         if (!isAllowedPayrollDate($date)) {
             echo "<script>alert('Invalid payroll date. Please select only the 15th or the last day of the month.');</script>";
         } else {
-            $stmt = $conn->prepare("SELECT id, payroll_date, ml_fund_amount FROM edi.rfp_mlfund_collection WHERE payroll_date = ? LIMIT 1");
+            // Fetch existing records for both mainzones in one query
+            $stmt = $conn->prepare(
+                "SELECT id, mainzone, ml_fund_amount 
+                 FROM edi.rfp_mlfund_collection 
+                 WHERE payroll_date = ? AND mainzone IN ('LNCR', 'VISMIN')"
+            );
             $stmt->bind_param("s", $date);
             $stmt->execute();
             $result = $stmt->get_result();
-            $record = $result->fetch_assoc();
+            while ($row = $result->fetch_assoc()) {
+                $records[$row['mainzone']] = $row;
+            }
             $stmt->close();
         }
     }
@@ -60,37 +69,48 @@
     if (isset($_POST['submit'])) {
         $tableData = json_decode($_POST['table_data'], true);
         $payroll_date = $_POST['payroll_date'];
-        $user = $_SESSION['username'] ?? 'system';
+        $currentUserFullName = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Unknown User';
 
-        $day = date('d', strtotime($payroll_date));
-        $lastDay = date('t', strtotime($payroll_date));
-
-        if (!in_array($day, [15, $lastDay])) {
-            echo "<script>alert('Invalid payroll date');</script>";
+        if (!isAllowedPayrollDate($payroll_date)) {
+            echo "<script>alert('Invalid payroll date.');</script>";
         } elseif (!empty($tableData)) {
             $success = 0;
-            $failed = 0;
+            $failed  = 0;
 
             foreach ($tableData as $row) {
+                $mainzone  = $row['mainzone'];
                 $ml_amount = (float) $row['ml_fund_amount'];
 
-                $stmt = $conn->prepare("SELECT id FROM edi.rfp_mlfund_collection WHERE payroll_date = ? LIMIT 1");
-                $stmt->bind_param("s", $payroll_date);
+                // Check existing record for this payroll_date + mainzone
+                $stmt = $conn->prepare(
+                    "SELECT id FROM edi.rfp_mlfund_collection 
+                     WHERE payroll_date = ? AND mainzone = ? LIMIT 1"
+                );
+                $stmt->bind_param("ss", $payroll_date, $mainzone);
                 $stmt->execute();
                 $result = $stmt->get_result();
-
-                if ($existing = $result->fetch_assoc()) {
-                    $update = $conn->prepare("UPDATE edi.rfp_mlfund_collection SET ml_fund_amount = ?, modified_by = ?, modified_date = NOW(), post_edi = 'pending' WHERE id = ?");
-                    $update->bind_param("dsi", $ml_amount, $user, $existing['id']);
-                    if ($update->execute()) $success++; else $failed++;
-                    $update->close();
-                } else {
-                    $insert = $conn->prepare("INSERT INTO edi.rfp_mlfund_collection (payroll_date, ml_fund_amount, payroll_type, uploaded_by, uploaded_date, post_edi) VALUES (?, ?, 'Data-Entry', ?, NOW(), 'pending')");
-                    $insert->bind_param("sds", $payroll_date, $ml_amount, $user);
-                    if ($insert->execute()) $success++; else $failed++;
-                    $insert->close();
-                }
+                $existing = $result->fetch_assoc();
                 $stmt->close();
+
+                if ($existing) {
+                    $upd = $conn->prepare(
+                        "UPDATE edi.rfp_mlfund_collection 
+                         SET ml_fund_amount = ?, modified_by = ?, modified_date = NOW(), post_edi = 'pending'
+                         WHERE id = ?"
+                    );
+                    $upd->bind_param("dsi", $ml_amount, $currentUserFullName, $existing['id']);
+                    if ($upd->execute()) $success++; else $failed++;
+                    $upd->close();
+                } else {
+                    $ins = $conn->prepare(
+                        "INSERT INTO edi.rfp_mlfund_collection 
+                         (payroll_date, mainzone, ml_fund_amount, payroll_type, uploaded_by, uploaded_date, post_edi)
+                         VALUES (?, ?, ?, 'Data-Entry', ?, NOW(), 'pending')"
+                    );
+                    $ins->bind_param("ssds", $payroll_date, $mainzone, $ml_amount, $currentUserFullName);
+                    if ($ins->execute()) $success++; else $failed++;
+                    $ins->close();
+                }
             }
 
             echo "<script>alert('Success: $success | Failed: $failed'); window.location.href = 'data-entry_rfp-mlfund.php';</script>";
@@ -166,11 +186,11 @@
         .table-container {
             top: 35px;
             position: relative;
-            max-width: 100%;
+            max-width: 600px;
             overflow-x: auto;
             overflow-y: auto;
             max-height: calc(100vh - 200px);
-            margin: 20px;
+            margin: 20px auto;
             border: 1px solid #ccc;
         }
 
@@ -184,80 +204,184 @@
 
         th, td {
             border: 1px solid #ccc;
-            padding: 8px;
+            padding: 8px 12px;
             text-align: center;
         }
 
         th { background-color: #f2f2f2; font-weight: bold; }
         tr:nth-child(even) { background-color: #f9f9f9; }
-        tr:hover { background-color: #e0e0e0; cursor: pointer; }
 
-        /* Modal styles */
+        tr.selectable-row:hover {
+            background-color: #fde8e8;
+            cursor: pointer;
+        }
+
+        /* Row dirty indicator */
+        tr.selectable-row.row-changed td {
+            background-color: #fff8e1;
+        }
+
+        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
             z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            animation: fadeInOverlay 0.2s ease-out forwards;
         }
 
         .modal-content {
             background-color: #fff;
-            margin: 10% auto;
-            padding: 25px;
-            border-radius: 10px;
-            width: 400px;
-            max-width: 90%;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            margin: 12% auto;
+            padding: 28px 30px;
+            border-radius: 12px;
+            width: 380px;
+            max-width: 92%;
+            box-shadow: 0 6px 28px rgba(0,0,0,0.25);
+            border: 1px solid var(--border-color);
+            transform: scale(0.95) translateY(-10px);
+            opacity: 0;
+            animation: scaleInCard 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
-        .modal-content h3 { margin-top: 0; color: #333; }
+        @keyframes fadeInOverlay {
+            from { background-color: rgba(15, 23, 42, 0); backdrop-filter: blur(0px); }
+            to { background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); }
+        }
 
-        .modal-content label {
-            display: block;
-            margin: 15px 0 5px;
-            font-weight: bold;
+        @keyframes scaleInCard {
+            from {
+                transform: scale(0.95) translateY(-10px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: #222;
+            font-size: 17px;
+            border-bottom: 2px solid #f2f2f2;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+        }
+
+        .modal-info {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            font-size: 14px;
             color: #555;
         }
 
-        .modal-content input[type="text"],
-        .modal-content input[type="number"] {
+        .modal-info span {
+            font-weight: bold;
+            color: #db120b;
+        }
+
+        .modal-content label {
+            display: block;
+            margin: 12px 0 5px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #444;
+        }
+        .modal-content input[type="text"] {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             font-size: 16px;
-            border: 2px solid #ccc;
+            font-family: var(--font-main);
+            background-color: #ffffff;
+            
+            /* Stronger, highly visible border context */
+            border: 2px solid #cbd5e1; 
             border-radius: 8px;
             box-sizing: border-box;
+            outline: none;
+            
+            /* Smooth transition when the user clicks/taps into the field */
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        /* Clear micro-interaction states when active */
+        .modal-content input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(219, 18, 11, 0.15);
+        }
+
+        /* Subtle accent focus states for hover as well */
+        .modal-content input[type="text"]:hover {
+            border-color: #94a3b8;
+        }
+        .modal-content input[type="text"]:focus:hover {
+            border-color: var(--primary);
+        }
+
+        .modal-content input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .modal-content input[type="number"]:focus {
+            outline: none;
+            border-color: #db120b;
         }
 
         .modal-buttons {
-            margin-top: 20px;
+            margin-top: 22px;
             text-align: right;
         }
 
         .modal-buttons button {
-            padding: 10px 20px;
+            padding: 10px 22px;
             border: none;
             border-radius: 20px;
-            font-size: 15px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
             margin-left: 10px;
+            transition: background-color 0.2s;
         }
 
-        .btn-save {
-            background-color: #4fc917;
-            color: white;
-        }
+        .btn-save { background-color: #4fc917; color: white; }
         .btn-save:hover { background-color: #3da012; }
 
-        .btn-close {
-            background-color: #d70c0c;
-            color: white;
-        }
+        .btn-close { background-color: #d70c0c; color: white; }
         .btn-close:hover { background-color: #a00a0a; }
+
+        .hint-text {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        tfoot th {
+            background-color: #f2f2f2;
+        }
+
+        td.amount-cell {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dblclick-hint {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-top: 6px;
+        }
     </style>
 </head>
 
@@ -270,7 +394,7 @@
 
     <div class="import-file">
         <form id="generateForm" action="" method="post">
-            <label for="payroll_date">Payroll date</label>
+            <label for="payroll_date">Payroll Date</label>
             <input type="date" id="payroll_date" name="payroll_date" value="<?php echo $displayDate; ?>" required>
             <input type="submit" class="generate-btn" name="generate" value="Proceed">
         </form>
@@ -286,148 +410,195 @@
         </center>
     </div>
 
-    <div class='table-container'>
+    <div class="table-container">
         <table id="dataTable">
             <thead>
                 <tr>
-                    <th>RFP Payroll Date</th>
+                    <th colspan="2">Payroll Date: <?php echo $displayDate ?: '—'; ?></th>
+                </tr>
+                <tr>
+                    <th>Mainzone</th>
                     <th>ML Fund Amount</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (isset($_POST['generate']) && isAllowedPayrollDate($date)): ?>
+                    <?php
+                        $grand_total = 0;
+                        foreach ($mainzones as $mz):
+                            $rec = $records[$mz] ?? null;
+                            $amount = $rec ? (float)$rec['ml_fund_amount'] : 0.00;
+                            $rowId  = $rec ? $rec['id'] : 'new_' . $mz;
+                            $grand_total += $amount;
+                    ?>
                     <tr class="selectable-row"
-                        data-ml-amount="<?php echo $record ? htmlspecialchars($record['ml_fund_amount']) : '0'; ?>"
+                        data-id="<?php echo htmlspecialchars($rowId); ?>"
+                        data-mainzone="<?php echo htmlspecialchars($mz); ?>"
+                        data-ml-amount="<?php echo $amount; ?>"
                         ondblclick="openEditModal(this)">
-                        <td><?php echo $displayDate; ?></td>
-                        <td style="text-align: right"><?php echo $record ? number_format($record['ml_fund_amount'], 2) : '0.00'; ?></td>
+                        <td><?php echo htmlspecialchars($mz); ?></td>
+                        <td class="amount-cell"><?php echo number_format($amount, 2); ?></td>
                     </tr>
+                    <?php endforeach; ?>
                 <?php elseif (isset($_POST['generate'])): ?>
                     <tr><td colspan="2">Invalid payroll date.</td></tr>
                 <?php else: ?>
-                    <tr><td colspan="2">Please select Payroll Date to display.</td></tr>
+                    <tr><td colspan="2">Please select a Payroll Date to display.</td></tr>
                 <?php endif; ?>
             </tbody>
             <tfoot>
                 <tr>
                     <th>Total</th>
-                    <th id="total-amount" style="text-align: right">
-                        <?php
-                            if (isset($record)) {
-                                echo number_format($record['ml_fund_amount'], 2);
-                            } else {
-                                echo '0.00';
-                            }
-                        ?>
+                    <th class="amount-cell" id="grand-total">
+                        <?php echo isset($grand_total) ? number_format($grand_total, 2) : '0.00'; ?>
                     </th>
                 </tr>
             </tfoot>
         </table>
+        <?php if (isset($_POST['generate']) && isAllowedPayrollDate($date)): ?>
+            <p class="dblclick-hint"><i class="fa fa-info-circle"></i> Double-click a row to edit the amount.</p>
+        <?php endif; ?>
     </div>
 
     <!-- Edit Modal -->
     <div class="modal-overlay" id="editModal">
         <div class="modal-content">
-            <h3>Edit ML Fund Amount</h3>
-            <label>Payroll Date</label>
-            <input type="text" id="modal_payroll_date" readonly>
-            <label>ML Fund Amount</label>
-            <input type="number" id="ml_fund_amount" step="0.01" min="0">
+            <h3><i class="fa fa-edit" style="color: var(--primary);"></i> Edit Data Metric</h3>
+            <div class="modal-info">
+                <div>Payroll Reference: <span id="modal_payroll_date_display"></span></div>
+                <div>Target Mainzone: <span id="modal_mainzone_display"></span></div>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label for="ml_fund_amount" style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">ML Fund Amount</label>
+                <input type="text" id="ml_fund_amount" inputmode="decimal" autocomplete="off" placeholder="0.00">
+                <p class="hint-text">Enter 0 to clear amount. Accepts numeric entries containing up to 2 decimal points max precision.</p>
+            </div>
             <div class="modal-buttons">
-                <button class="btn-close" onclick="closeModal()">Close</button>
-                <button class="btn-save" onclick="saveModalChanges()">Save</button>
+                <button class="btn btn-close" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveModalChanges()">Apply Changes</button>
             </div>
         </div>
     </div>
 
+
     <script>
-        // Store table data changes keyed by payroll_date
         let tableChanges = {};
+        let activeRow    = null;
+
+        // Matches enforceMoneyInput from data-entry-remittance
+        // Strips all non-numeric chars except one dot, limits to 2 decimal places
+        function enforceMoneyInput(selector) {
+            document.querySelectorAll(selector).forEach(function (input) {
+                input.addEventListener("input", function () {
+                    this.value = this.value
+                        .replace(/[^0-9.]/g, '')
+                        .replace(/(\..*)\./g, '$1')
+                        .replace(/^(\d+)(\.\d{0,2}).*$/, '$1$2');
+                });
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            enforceMoneyInput("#ml_fund_amount");
+        });
 
         function openEditModal(row) {
-            const payrollDateInput = document.getElementById("payroll_date").value;
-
-            if (!payrollDateInput) {
-                alert("Please select payroll date first.");
+            const payrollDate = document.getElementById("payroll_date").value;
+            if (!payrollDate) {
+                alert("Please select a payroll date first.");
                 return;
             }
 
+            activeRow = row;
+
+            const mainzone = row.dataset.mainzone;
             const mlAmount = parseFloat(row.dataset.mlAmount || 0);
 
-            document.getElementById("modal_payroll_date").value = payrollDateInput;
-            document.getElementById("ml_fund_amount").value = mlAmount;
+            document.getElementById("modal_payroll_date_display").textContent = payrollDate;
+            document.getElementById("modal_mainzone_display").textContent     = mainzone;
+            document.getElementById("ml_fund_amount").value                   = mlAmount.toFixed(2);
 
             document.getElementById("editModal").style.display = "block";
+            // Auto-focus the amount input
+            setTimeout(() => document.getElementById("ml_fund_amount").focus(), 100);
         }
 
         function closeModal() {
             document.getElementById("editModal").style.display = "none";
+            activeRow = null;
         }
 
         function saveModalChanges() {
-            const payrollDate = document.getElementById("modal_payroll_date").value;
-            const mlAmount = parseFloat(document.getElementById("ml_fund_amount").value);
+            const rawValue = document.getElementById("ml_fund_amount").value.trim();
+            const mlAmount = parseFloat(rawValue);
 
-            if (!payrollDate) {
-                alert("Payroll date is required.");
+            if (rawValue === '' || isNaN(mlAmount) || mlAmount < 0) {
+                alert("Please enter a valid amount (0 or greater).");
                 return;
             }
 
-            if (isNaN(mlAmount)) {
-                alert("Invalid ML Fund amount.");
-                return;
-            }
+            const payrollDate = document.getElementById("payroll_date").value;
+            const mainzone    = activeRow.dataset.mainzone;
+            const rowId       = activeRow.dataset.id;
 
-            tableChanges = {};
-            tableChanges[payrollDate] = {
-                payroll_date: payrollDate,
-                ml_fund_amount: mlAmount,
-                payroll_type: "regular"
+            // Update the in-memory change tracker
+            tableChanges[mainzone] = {
+                id:             rowId.startsWith('new_') ? null : rowId,
+                mainzone:       mainzone,
+                ml_fund_amount: mlAmount
             };
 
-            // Update the table row visually
-            const row = document.querySelector(".selectable-row");
-            if (row) {
-                row.dataset.mlAmount = mlAmount;
-                const cells = row.querySelectorAll("td");
-                if (cells.length >= 2) {
-                    cells[1].textContent = mlAmount.toLocaleString('en-US', { minimumFractionDigits: 2 });
-                }
-            }
+            // Update row display
+            activeRow.dataset.mlAmount = mlAmount;
+            const amountCell = activeRow.querySelector(".amount-cell");
+            amountCell.textContent = mlAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-            // Update footer total
-            const totalCell = document.getElementById("total-amount");
-            if (totalCell) {
-                totalCell.textContent = mlAmount.toLocaleString('en-US', { minimumFractionDigits: 2 });
-            }
+            // Mark row as changed (yellow tint)
+            activeRow.classList.add("row-changed");
 
-            document.getElementById("editModal").style.display = "none";
+            // Recompute grand total from all rows
+            updateGrandTotal();
+
+            closeModal();
         }
 
+        function updateGrandTotal() {
+            let total = 0;
+            document.querySelectorAll(".selectable-row").forEach(function (row) {
+                total += parseFloat(row.dataset.mlAmount || 0);
+            });
+            document.getElementById("grand-total").textContent =
+                total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Submit handler
         document.getElementById("mainForm").addEventListener("submit", function (e) {
             if (Object.keys(tableChanges).length === 0) {
-                alert("No changes detected.");
+                alert("No changes detected. Please edit a row before submitting.");
                 e.preventDefault();
                 return;
             }
 
-            document.getElementById("table_data").value = JSON.stringify(
-                Object.values(tableChanges)
-            );
+            document.getElementById("table_data").value = JSON.stringify(Object.values(tableChanges));
 
-            if (!confirm("Are you sure you want to submit?")) {
+            if (!confirm("Are you sure you want to submit " + Object.keys(tableChanges).length + " record(s)?")) {
                 e.preventDefault();
             }
         });
 
-        // Close modal when clicking outside
+        // Close modal on outside click
         window.addEventListener("click", function (e) {
-            const modal = document.getElementById("editModal");
-            if (e.target === modal) {
-                modal.style.display = "none";
+            if (e.target === document.getElementById("editModal")) {
+                closeModal();
             }
         });
+
+        // Close modal on Escape key
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeModal();
+        });
     </script>
+
     <?php if (isset($_GET['succ']) || isset($_GET['fail'])): ?>
         <script>
             (function(){
