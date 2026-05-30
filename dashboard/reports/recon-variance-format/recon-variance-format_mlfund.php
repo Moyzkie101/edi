@@ -42,15 +42,29 @@
     // ─────────────────────────────────────────────────────────────
     function fetchTotals($conn, $database, $restrictedDate) {
         // Use prepared statements to prevent SQL injection
+
         $stmt = $conn->prepare(
-            "SELECT COALESCE(SUM(ml_fund_amount), 0) AS hrmd_rfp_total
-             FROM `" . $database[0] . "`.rfp_mlfund_collection
-             WHERE payroll_date = ?"
+            "SELECT COALESCE(SUM(ml_fund_amount), 0) AS lncr_total
+            FROM `" . $database[0] . "`.rfp_mlfund_collection
+            WHERE payroll_date = ? AND mainzone = 'LNCR'"
         );
         $stmt->bind_param('s', $restrictedDate);
         $stmt->execute();
-        $hrmdRfpTotal = $stmt->get_result()->fetch_assoc()['hrmd_rfp_total'] ?? 0;
+        $lncrTotal = $stmt->get_result()->fetch_assoc()['lncr_total'] ?? 0;
         $stmt->close();
+
+        $stmt = $conn->prepare(
+            "SELECT COALESCE(SUM(ml_fund_amount), 0) AS vismin_total
+            FROM `" . $database[0] . "`.rfp_mlfund_collection
+            WHERE payroll_date = ? AND mainzone = 'VISMIN'"
+        );
+        $stmt->bind_param('s', $restrictedDate);
+        $stmt->execute();
+        $visminTotal = $stmt->get_result()->fetch_assoc()['vismin_total'] ?? 0;
+        $stmt->close();
+
+        // HRMD RFP total (LNCR + VISMIN combined — keeps your existing logic intact)
+        $hrmdRfpTotal = (float)$lncrTotal + (float)$visminTotal;
 
         $stmt2 = $conn->prepare(
             "SELECT COALESCE(SUM(ml_fund_amount), 0) AS edi_report_total
@@ -66,9 +80,11 @@
         $stmt2->close();
 
         return [
-            'hrmdRfpTotal'   => (float) $hrmdRfpTotal,
-            'ediReportTotal' => (float) $ediReportTotal,
-            'variance'       => (float) $hrmdRfpTotal - (float) $ediReportTotal,
+            'lncrTotal'      => (float)$lncrTotal,
+            'visminTotal'    => (float)$visminTotal,
+            'hrmdRfpTotal'   => $hrmdRfpTotal,
+            'ediReportTotal' => (float)$ediReportTotal,
+            'variance'       => $hrmdRfpTotal - (float)$ediReportTotal,
         ];
     }
 
@@ -98,42 +114,43 @@
                 : 'Payroll Date: ' . $payrollMonth . ' 16 - ' . $payrollDay . ', ' . $payrollYear;
 
             $sheet->setCellValue('A4', $dateLabel);
-            $sheet->getStyle('A4:C4')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            $sheet->getStyle('A4')->getFont()->setBold(true);
-            $sheet->mergeCells('A4:C4');
-            $sheet->getStyle('A4:C4')->getAlignment()
+            $sheet->mergeCells('A4:E4');
+            $sheet->getStyle('A4:E4')->getAlignment()
                 ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                 ->setVertical(Alignment::VERTICAL_CENTER);
 
             $blueHeader = [
                 'font' => ['bold' => true],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
             ];
 
-            foreach (['A5:C5', 'A6:C6', 'A7:C7', 'A8:C8'] as $range) {
-                $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            }
-
-            foreach (['A5:A6', 'B5:B6', 'C5', 'C6', 'A7', 'B7', 'C7'] as $range) {
+            foreach (['A5:C5', 'A6:B6','D5:D6', 'A4:E4', 'C5', 'C6', 'A7', 'B7', 'C7', 'D7', 'E5', 'E6', 'E7'] as $range) {
                 $sheet->getStyle($range)->applyFromArray($blueHeader);
             }
 
-            $sheet->setCellValue('A5', 'HRMD RFP');          $sheet->mergeCells('A5:A6');
-            $sheet->setCellValue('B5', 'EDI REPORT (ARIEL)');$sheet->mergeCells('B5:B6');
-            $sheet->setCellValue('C5', 'HRMD VARIANCE');
-            $sheet->setCellValue('C6', 'HR RFP VS HR EDI');
-            $sheet->setCellValue('A7', 'Amount Total');
-            $sheet->setCellValue('B7', 'Amount Total');
-            $sheet->setCellValue('C7', 'Variance');
+            $sheet->setCellValue('A5', 'HRMD RFP');          $sheet->mergeCells('A5:C5');
+            $sheet->setCellValue('A6', 'MAINZONE');      $sheet->mergeCells('A6:B6');
+            $sheet->setCellValue('D5', 'EDI REPORT (ARIEL)');$sheet->mergeCells('D5:D6');
+            $sheet->setCellValue('E5', 'HRMD VARIANCE');
+            $sheet->setCellValue('E6', 'HR RFP VS HR EDI');
+            $sheet->setCellValue('A7', 'LNCR');
+            $sheet->setCellValue('B7', 'VISMIN');
+            $sheet->setCellValue('C6', 'Amount Total'); $sheet->mergeCells('C6:C7');
+            $sheet->setCellValue('D7', 'Amount Total');
+            $sheet->setCellValue('E7', 'Variance');
 
-            $sheet->setCellValue('A8', $totals['hrmdRfpTotal']);
-            $sheet->setCellValue('B8', $totals['ediReportTotal']);
-            $sheet->setCellValue('C8', $totals['variance']);
+            $sheet->setCellValue('A8', $totals['lncrTotal']);
+            $sheet->setCellValue('B8', $totals['visminTotal']); 
+            $sheet->setCellValue('C8', $totals['hrmdRfpTotal']);
+            $sheet->setCellValue('D8', $totals['ediReportTotal']);
+            $sheet->setCellValue('E8', $totals['variance']);
 
-            $sheet->getStyle('A8:C8')->getNumberFormat()->setFormatCode('#,##0.00');
-            $sheet->getStyle('A8:C8')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('A8:E8')->getNumberFormat()->setFormatCode('#,##0.00');
+            $sheet->getStyle('A8:E8')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('A8:E8')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-            foreach (['A', 'B', 'C'] as $col) {
+            foreach (['A', 'B', 'C', 'D', 'E'] as $col) {
                 $sheet->getColumnDimension($col)->setWidth(25);
             }
 
@@ -338,23 +355,30 @@
         <table>
             <thead>
                 <tr>
-                    <td colspan="3" style="text-align:center; font-weight:bold; background:#f2f2f2">
+                    <td colspan="5" style="text-align:center; font-weight:bold; background:#f2f2f2">
                         Payroll Date: <?php echo htmlspecialchars($dateLabel); ?>
                     </td>
                 </tr>
                 <tr>
-                    <th>HRMD RFP</th>
-                    <th>EDI REPORT (ARIEL)</th>
-                    <th>HRMD VARIANCE<br>HR RFP VS HR EDI</th>
+                    <th colspan="3">HRMD RFP</th>
+                    <th rowspan="2">EDI REPORT (ARIEL)
+                    <th rowspan="2">HRMD VARIANCE<br>HR RFP VS HR EDI
                 </tr>
                 <tr>
-                    <td class="sub-header">Amount Total</td>
-                    <td class="sub-header">Amount Total</td>
-                    <td class="sub-header">Variance</td>
+                    <th colspan="2">MAINZONE</th>
+                    <th rowspan="2">AMOUNT TOTAL</th>
+                </tr>
+                <tr>
+                    <td class="sub-header">LNCR</td>
+                    <td class="sub-header">VISMIN</td>
+                    <td class="sub-header">AMOUNT TOTAL</td>
+                    <td class="sub-header">VARIANCE</td>
                 </tr>
             </thead>
             <tbody>
                 <tr>
+                    <td style="text-align:right;"><?php echo $fmt($tableData['lncrTotal']); ?></td>
+                    <td style="text-align:right;"><?php echo $fmt($tableData['visminTotal']); ?></td>
                     <td style="text-align:right;"><?php echo $fmt($tableData['hrmdRfpTotal']); ?></td>
                     <td style="text-align:right;"><?php echo $fmt($tableData['ediReportTotal']); ?></td>
                     <td style="text-align:right;"><?php echo $fmt($tableData['variance']); ?></td>
