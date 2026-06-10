@@ -104,6 +104,7 @@
                 gl_region,
                 ml_matic_region,
                 code,
+                branch_name,
                 ml_matic_branch_name
             FROM masterdata.branch_profile
         ),
@@ -115,8 +116,8 @@
                     WHEN nd.zone = 'NCR' THEN 'NCR'
                 ELSE nd.zone END AS new_zone,
                 nd.gl_region AS new_region,
-                nd.branch_id,
-                nd.ml_matic_branch_name AS new_branch_name,
+                COALESCE(NULLIF(nd.branch_id, ''), p.branch_code, '') AS branch_id,
+                COALESCE(NULLIF(nd.ml_matic_branch_name, ''), NULLIF(nd.branch_name, ''), p.branch_name) AS new_branch_name,
 
                 p.payroll_date,
                 p.basic_pay_regular,
@@ -144,7 +145,11 @@
             FROM 
                 " . $database[0] . ".payroll_edi_report p
             JOIN filtered_branch_data nd 
-                ON p.branch_code = nd.code 
+                ON (
+                    (p.branch_code IS NOT NULL AND p.branch_code <> '' AND p.branch_code = nd.code)
+                    OR
+                    ((p.branch_code IS NULL OR p.branch_code = '') AND p.branch_name = nd.branch_name)
+                )
                 AND (
                     (nd.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') 
                         AND p.ml_matic_region = nd.ml_matic_region)
@@ -156,37 +161,55 @@
                 AND NOT p.description IN ('Sick-Leave', '13thMonth', 'midYearBonus')
                 AND p.status is null
                 AND p.remarks is null";
-                if ($mainzone !== 'ALL' || $zone !== 'ALL'){
-                    $dlsql .= " AND p.mainzone = '$mainzone' ";
-                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                        $dlsql .= " AND p.ml_matic_region = '$zone' AND p.zone LIKE '%$region%' ";
-                    }else{
-                        $dlsql .= " AND p.zone = '$zone' AND p.region_code LIKE '%$region%' AND NOT p.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
+                if ($mainzone === 'ALL'){
+                    $dlsql .= " AND p.mainzone IN ('LNCR','VISMIN') ";
+                    if ($zone === 'ALL'){
+                        $dlsql .= " AND p.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN') ";
+                    } elseif($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
+                        $dlsql .= " AND p.ml_matic_region = '$zone' ";
+                        if (!empty($region)) {
+                            $dlsql .= " AND p.zone LIKE '%$region%' ";
+                        }
+                    } else {
+                        $dlsql .= " AND p.zone = '$zone' ";
+                        if (!empty($region)) {
+                            $dlsql .= " AND p.region_code LIKE '%$region%' ";
+                        }
+                        $dlsql .= " AND NOT p.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
                     }
-                    
-                $dlsql .= " AND (
-                        CASE 
-                            WHEN p.ml_matic_status = 'Active' THEN 'Active'
-                            WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
-                            WHEN p.ml_matic_status = 'TBO' THEN 'TBO'
-                        END
-                    ) = '$status'";
-                }else{
-                $dlsql .= " AND (
-                        CASE 
-                            WHEN p.ml_matic_status = 'Active' THEN 'Active'
-                            WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
-                            WHEN p.ml_matic_status = 'TBO' THEN 'TBO'
-                        END
-                    ) = '$status'";
+                } else {
+                    $dlsql .= " AND p.mainzone = '$mainzone' ";
+                    if ($zone === 'ALL') {
+                        $dlsql .= " AND p.zone IN ('LZN','NCR', 'VIS', 'JVIS', 'MIN') ";
+                    } elseif($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
+                        $dlsql .= " AND p.ml_matic_region = '$zone' ";
+                        if (!empty($region)) {
+                            $dlsql .= " AND p.zone LIKE '%$region%' ";
+                        }
+                    } else {
+                        $dlsql .= " AND p.zone = '$zone' ";
+                        if (!empty($region)) {
+                            $dlsql .= " AND p.region_code LIKE '%$region%' ";
+                        }
+                        $dlsql .= " AND NOT p.ml_matic_region IN ('LNCR Showroom', 'VISMIN Showroom') ";
+                    }
                 }
+
+                $dlsql .= " AND (
+                        CASE 
+                            WHEN p.ml_matic_status = 'Active' THEN 'Active'
+                            WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+                            WHEN p.ml_matic_status = 'TBO' THEN 'TBO'
+                        END
+                    ) = '$status'";
             $dlsql .= " GROUP BY
                 new_zone,
                 new_region,
                 nd.ml_matic_branch_name,
+                nd.branch_name,
                 nd.branch_id,
-                p.payroll_date,
-
+                p.branch_code,
+                p.branch_name,
                 p.payroll_date,
                 p.basic_pay_regular,
                 p.basic_pay_trainee,
@@ -229,6 +252,11 @@
         $spreadsheet = new PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
+        if(mysqli_num_rows($dlresult) <= 0) {
+            echo "<script>alert('No payroll records found for the selected filters. Please generate the report again and verify the selected status/date.'); window.history.back();</script>";
+            exit();
+        }
+
         if(mysqli_num_rows($dlresult) > 0) {
             $headerRow1 = ['Payroll for '. date('F d, Y', strtotime($restrictedDate)), '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''];
             $headerRow2 = ['', '', '', '', 'Salary - Regular', 'Salary - Trainee', 'BM\'s Allowance', 'Officer\'s Allowance', 'Overtime - Regular Employee', 'Overtime - Trainee', 'COLA', 'Productivity Bonus', 'Employee Refund', 'Salary Adjustment', 'Graveyard Allowance', 'Late - Regular Employee', 'Late - Trainee', 'LWOP - Regular Employee', 'LWOP - Trainee', 'Employees Accountability (Fake, Coated, etc.)', 'SSS', 'SSS Loan', 'PhilHealth', 'PagIBIG', 'PagIBIG Loan', 'HMO', 'SAKO', 'OPEC', 'Other Payroll Deductions', 'Payroll '. date('F Y', strtotime($restrictedDate))];
@@ -367,7 +395,7 @@
             }
 
             // Output single workbook (one sheet)
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Type: application/vnd.ms-excel');
             if($status === 'Active'){
                 if($mainzone !== 'ALL' || $zone !== 'ALL'){
                     if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
@@ -406,24 +434,24 @@
                     $filename = "EDI_Payroll_Report_NATIONWIDE_{$restrictedDate_raw}_NEW-FORMAT-(To-Be-Open).xls";
                 }
 
-            } else {
+            } elseif($status === 'Inactive') {
                 // Inactive remains unchanged
                 if($mainzone !== 'ALL' || $zone !== 'ALL'){
                     if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
                         if(empty($region)){
-                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$restrictedDate_raw}_NEW-FORMAT-CLOSED-BRANCH.xls";
                         }else{
-                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$region}_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$region}_{$restrictedDate_raw}_NEW-FORMAT-CLOSED-BRANCH.xls";
                         }
                     }else{
                         if(empty($region)){
-                            $filename = "EDI_Payroll_Report_{$zone}_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                            $filename = "EDI_Payroll_Report_{$zone}_{$restrictedDate_raw}_NEW-FORMAT-CLOSED-BRANCH.xls";
                         }else{
-                            $filename = "EDI_Payroll_Report_{$zone}_{$region}_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                            $filename = "EDI_Payroll_Report_{$zone}_{$region}_{$restrictedDate_raw}_NEW-FORMAT-CLOSED-BRANCH.xls";
                         }
                     }
                 }else{
-                    $filename = "EDI_Payroll_Report_NATIONWIDE_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                    $filename = "EDI_Payroll_Report_NATIONWIDE_{$restrictedDate_raw}_NEW-FORMAT-CLOSED-BRANCH.xls";
                 }
             }
             header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -652,7 +680,7 @@
                 <select name="status" id="status" autocomplete="off" required>
                     <option value="">Select Status</option>
                     <option value="Active">Active</option>
-                    <option value="Inactive">Pending & Inactive</option>?>
+                    <option value="Inactive">Pending & Inactive</option>
                     <option value="TBO">To Be Open (TBO)</option>
                 </select>
                 <div class="custom-arrow"></div>
@@ -785,6 +813,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                         p.region ";
 
         $result = mysqli_query($conn, $sql);
+
+        if (!$result) {
+            die("Query failed: " . mysqli_error($conn));
+        }
 
          // Check if there are results
          if (mysqli_num_rows($result) > 0) {
@@ -969,8 +1001,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 			
 			echo "<script>
             
-            var dlbutton = document.getElementById('showdl1');
-            dlbutton.style.display = 'block';
+            var dlbutton1 = document.getElementById('showdl1');
+            if (dlbutton1) {
+                dlbutton1.style.display = 'block';
+            }
             
             </script>";
 

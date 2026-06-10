@@ -89,6 +89,14 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
     $region = $_SESSION['region'] ?? '';
     $status = $_SESSION['status'] ?? '';
     $restrictedDate = $_SESSION['restrictedDate'] ?? '';
+    $status = trim($status);
+    $statusFilenameSuffix = '';
+
+    if ($status === 'Inactive') {
+        $statusFilenameSuffix = '_CLOSE-BRANCHES';
+    } elseif ($status === 'TBO') {
+        $statusFilenameSuffix = '_TO-BE-OPEN-BRANCHES';
+    }
 
     $dlsql = "WITH filtered_branch_data AS (
         SELECT
@@ -101,6 +109,7 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
             gl_region,
             ml_matic_region,
             code,
+            branch_name,
             ml_matic_branch_name
         FROM masterdata.branch_profile
     ),
@@ -113,8 +122,8 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
                 WHEN nd.zone = 'NCR' THEN 'NCR'
             ELSE nd.zone END AS new_zone,
             nd.gl_region AS new_region,
-            nd.branch_id,
-            nd.ml_matic_branch_name AS new_branch_name,
+            COALESCE(NULLIF(nd.branch_id, ''), r.branch_code, '') AS branch_id,
+            COALESCE(NULLIF(nd.ml_matic_branch_name, ''), NULLIF(nd.branch_name, ''), r.branch_name) AS new_branch_name,
             
             r.remitance_date,
             r.dr1, -- SSS ERS
@@ -142,7 +151,11 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
 
         FROM edi.remitance_edi_report r
         JOIN filtered_branch_data nd 
-        ON	r.branch_code = nd.code
+        ON	(
+            (r.branch_code IS NOT NULL AND r.branch_code <> '' AND r.branch_code = nd.code)
+            OR
+            ((r.branch_code IS NULL OR r.branch_code = '') AND r.branch_name = nd.branch_name)
+        )
         AND (
             (nd.ml_matic_region IN ('VISMIN Showroom', 'LNCR Showroom') 
                 AND r.ml_matic_region = nd.ml_matic_region)
@@ -176,7 +189,10 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
             new_zone,
             new_region,
             nd.ml_matic_branch_name,
+            nd.branch_name,
             nd.branch_id,
+            r.branch_code,
+            r.branch_name,
             r.remitance_date,
             r.dr1, -- SSS ERS
             r.ee_dr1, -- SSS EES
@@ -209,6 +225,11 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
 
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
+
+    if(mysqli_num_rows($dlresult) <= 0) {
+        echo "<script>alert('No remittance records found for the selected filters. Please generate the report again and verify the selected status/date.'); window.history.back();</script>";
+        exit();
+    }
 
     if($mainzone === 'ALL' || $zone === 'ALL') {
         if(mysqli_num_rows($dlresult) > 0) {
@@ -274,8 +295,8 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
 
             }
             // Output single workbook (one sheet) after writing all rows
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            $filename = 'EDI_Remittance_Report_NATIONWIDE_' . $restrictedDate . '_NEW-FORMAT-VER2.xls';
+            header('Content-Type: application/vnd.ms-excel');
+            $filename = 'EDI_Remittance_Report_NATIONWIDE_' . $restrictedDate . $statusFilenameSuffix . '_NEW-FORMAT-VER2.xls';
             header('Content-Disposition: attachment; filename="' . $filename . '"');
             header('Cache-Control: max-age=0');
 
@@ -349,38 +370,14 @@ function generateDownload($conn, $mainzone, $zone, $region, $status, $restricted
             }
         
             // If execution reaches here (other branch), output workbook
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            if($status==='Active'){
-                if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                    $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
-                }else{
-                    if(empty($region)){
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
-                    }else{
-                        $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "_NEW-FORMAT-VER2.xls";
-                    }
-                }
+            header('Content-Type: application/vnd.ms-excel');
+            if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
+                $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . $statusFilenameSuffix . "_NEW-FORMAT-VER2.xls";
             }else{
-                if($status==='TBO'){
-                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                        $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "TO-BE-OPEN-BRANCHES_NEW-FORMAT-VER2.xls";
-                    }else{
-                        if(empty($region)){
-                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "TO-BE-OPEN-BRANCHES_NEW-FORMAT-VER2.xls";
-                        }else{
-                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "TO-BE-OPEN-BRANCHES_NEW-FORMAT-VER2.xls";
-                        }
-                    }
+                if(empty($region)){
+                    $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . $statusFilenameSuffix . "_NEW-FORMAT-VER2.xls";
                 }else{
-                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
-                        $filename = "EDI_Remittance_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate . "CLOSE-BRANCHES_NEW-FORMAT-VER2.xls";
-                    }else{
-                        if(empty($region)){
-                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $restrictedDate . "CLOSE-BRANCHES_NEW-FORMAT-VER2.xls";
-                        }else{
-                            $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . "CLOSE-BRANCHES_NEW-FORMAT-VER2.xls";
-                        }
-                    }
+                    $filename = "EDI_Remittance_Report_" . $zone . "_" . $region . "_" . $restrictedDate . $statusFilenameSuffix . "_NEW-FORMAT-VER2.xls";
                 }
             }
             header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -743,6 +740,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
 
     $result = mysqli_query($conn, $sql);
 
+    if (!$result) {
+        die("Query failed: " . mysqli_error($conn));
+    }
+
     // Check if there are results
     if (mysqli_num_rows($result) > 0) {
 
@@ -893,8 +894,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
         </script>
 		
 		<script>
-            var dlbtn = document.getElementById('showdl1');
-            dlbtn.style.display = 'block';  
+            var dlbtn1 = document.getElementById('showdl1');
+            if (dlbtn1) {
+                dlbtn1.style.display = 'block';
+            }
         </script>";
 
         echo "<div id='showBranches' style='display: block; position: absolute; top: 190px; color: red; left: 20px;'>";
