@@ -167,14 +167,16 @@
                 $dlsql .= " AND (
                         CASE 
                             WHEN p.ml_matic_status = 'Active' THEN 'Active'
-                            WHEN p.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
+                            WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+                            WHEN p.ml_matic_status = 'TBO' THEN 'TBO'
                         END
                     ) = '$status'";
                 }else{
                 $dlsql .= " AND (
                         CASE 
                             WHEN p.ml_matic_status = 'Active' THEN 'Active'
-                            WHEN p.ml_matic_status IN ('Pending', 'Inactive', 'TBO') THEN 'Inactive'
+                            WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+                            WHEN p.ml_matic_status = 'TBO' THEN 'TBO'
                         END
                     ) = '$status'";
                 }
@@ -370,37 +372,58 @@
                 if($mainzone !== 'ALL' || $zone !== 'ALL'){
                     if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
                         if(empty($region)){
-                            $filename = "EDI_Payroll_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$restrictedDate_raw}_NEW-FORMAT.xls";
                         }else{
-                            $filename = "EDI_Payroll_Report_" . $mainzone . "_SHOWROOM_" . $region . "_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$region}_{$restrictedDate_raw}_NEW-FORMAT.xls";
                         }
                     }else{
                         if(empty($region)){
-                            $filename = "EDI_Payroll_Report_" . $zone . "_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                            $filename = "EDI_Payroll_Report_{$zone}_{$restrictedDate_raw}_NEW-FORMAT.xls";
                         }else{
-                            $filename = "EDI_Payroll_Report_" . $zone . "_" . $region . "_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                            $filename = "EDI_Payroll_Report_{$zone}_{$region}_{$restrictedDate_raw}_NEW-FORMAT.xls";
                         }
                     }
                 }else{
-                    $filename = "EDI_Payroll_Report_NATIONWIDE_" . $restrictedDate_raw . "_NEW-FORMAT.xls";
+                    $filename = "EDI_Payroll_Report_NATIONWIDE_{$restrictedDate_raw}_NEW-FORMAT.xls";
                 }
-            } else {
+
+            } elseif($status === 'TBO') {   // ADD THIS ENTIRE BLOCK
                 if($mainzone !== 'ALL' || $zone !== 'ALL'){
                     if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
                         if(empty($region)){
-                            $filename = "EDI_Payroll_Report_" . $mainzone . "_SHOWROOM_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$restrictedDate_raw}_NEW-FORMAT-(To-Be-Open).xls";
                         }else{
-                            $filename = "EDI_Payroll_Report_" . $mainzone . "_SHOWROOM_" . $region . "_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive, Pending and TO BE OPEN)";
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$region}_{$restrictedDate_raw}_NEW-FORMAT-(To-Be-Open).xls";
                         }
                     }else{
                         if(empty($region)){
-                            $filename = "EDI_Payroll_Report_" . $zone . "_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                            $filename = "EDI_Payroll_Report_{$zone}_{$restrictedDate_raw}_NEW-FORMAT-(To-Be-Open).xls";
                         }else{
-                            $filename = "EDI_Payroll_Report_" . $zone . "_" . $region . "_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                            $filename = "EDI_Payroll_Report_{$zone}_{$region}_{$restrictedDate_raw}_NEW-FORMAT-(To-Be-Open).xls";
                         }
                     }
                 }else{
-                    $filename = "EDI_Payroll_Report_NATIONWIDE_" . $restrictedDate_raw . "_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                    $filename = "EDI_Payroll_Report_NATIONWIDE_{$restrictedDate_raw}_NEW-FORMAT-(To-Be-Open).xls";
+                }
+
+            } else {
+                // Inactive remains unchanged
+                if($mainzone !== 'ALL' || $zone !== 'ALL'){
+                    if($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom'){
+                        if(empty($region)){
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                        }else{
+                            $filename = "EDI_Payroll_Report_{$mainzone}_SHOWROOM_{$region}_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                        }
+                    }else{
+                        if(empty($region)){
+                            $filename = "EDI_Payroll_Report_{$zone}_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                        }else{
+                            $filename = "EDI_Payroll_Report_{$zone}_{$region}_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
+                        }
+                    }
+                }else{
+                    $filename = "EDI_Payroll_Report_NATIONWIDE_{$restrictedDate_raw}_NEW-FORMAT-(Inactive, Pending and TO BE OPEN).xls";
                 }
             }
             header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -630,6 +653,7 @@
                     <option value="">Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Pending & Inactive</option>?>
+                    <option value="TBO">To Be Open (TBO)</option>
                 </select>
                 <div class="custom-arrow"></div>
             </div>
@@ -747,6 +771,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     CASE 
                         WHEN p.ml_matic_status = 'Active' THEN 'Active'
                         WHEN p.ml_matic_status IN ('Pending', 'Inactive') THEN 'Inactive'
+                        WHEN p.ml_matic_status = 'TBO' THEN 'TBO'
                     END
                 ) = '$status' 
                     GROUP BY 
