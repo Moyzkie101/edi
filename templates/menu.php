@@ -257,6 +257,7 @@
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('KP DOMESTIC', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/summary-detailed-format/summary-detailed-format_payroll.php" role="menuitem">Payroll</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/summary-detailed-format/payroll_missing_branches.php" role="menuitem">Missing Branches by Payroll</a>
                                     <!-- <a id="user" href="#">Provision</a>
                                     <a id="user" href="#">Remitance</a> -->
                                 <?php else: ?>
