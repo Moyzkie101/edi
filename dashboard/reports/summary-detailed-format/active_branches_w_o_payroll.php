@@ -91,16 +91,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'get_regions') {
     exit();
 }
 
-function getMissingPayrollBranches($conn, $conn1, $payrollDate, $mainzone , $region ) {
+function getActiveBranchesWithoutPayroll($conn, $conn1, $payrollDate, $mainzone, $region) {
     $sql = "
-        WITH normalized_payroll AS (
-            SELECT DISTINCT
-                TRIM(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(branch_name), '  ', ' '), '  ', ' '), '  ', ' '), '  ', ' ')) AS norm_branch_name
-            FROM edi.payroll
-            WHERE payroll_date = ?
-            AND description = 'payroll'
-            AND remarks IS NULL
-        )
         SELECT
             bp.mainzone,
             bp.zone,
@@ -116,29 +108,15 @@ function getMissingPayrollBranches($conn, $conn1, $payrollDate, $mainzone , $reg
             AND p.payroll_date = ?
             AND p.description = 'payroll'
             AND p.remarks IS NULL
-        LEFT JOIN normalized_payroll np
-            ON np.norm_branch_name = TRIM(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(bp.branch_name), '  ', ' '), '  ', ' '), '  ', ' '), '  ', ' '))
-        WHERE (
-            (
-                /* Non-TBO branches: must have a clean numeric code AND no bos_code match found */
-                (
-                    bp.ml_matic_status != 'TBO' OR bp.ml_matic_status IS NULL
-                )
-                AND bp.code IS NOT NULL
-                AND bp.code != ''
-                AND bp.code REGEXP '^[0-9]+\$'
-                AND p.bos_code IS NULL
-            )
-            OR (
-                /* TBO branches: code can be blank/non-numeric, judged purely by branch_name match */
-                bp.ml_matic_status = 'TBO'
-                AND np.norm_branch_name IS NULL
-            )
-        )
+        WHERE LOWER(TRIM(COALESCE(bp.ml_matic_status, ''))) = 'active'
+            AND bp.code IS NOT NULL
+            AND bp.code != ''
+            AND bp.code REGEXP '^[0-9]+$'
+            AND p.bos_code IS NULL
     ";
 
-    $types = 'ss';
-    $params = [$payrollDate, $payrollDate];
+    $types = 's';
+    $params = [$payrollDate];
 
     if ($mainzone !== '') {
         $sql .= " AND bp.mainzone = ?";
@@ -147,9 +125,9 @@ function getMissingPayrollBranches($conn, $conn1, $payrollDate, $mainzone , $reg
     }
 
     if ($region !== '') {
-    $sql .= " AND bp.region = ?";
-    $types .= 's';
-    $params[] = $region;
+        $sql .= " AND bp.region = ?";
+        $types .= 's';
+        $params[] = $region;
     }
 
     $stmt = mysqli_prepare($conn1, $sql);
@@ -161,44 +139,55 @@ function getMissingPayrollBranches($conn, $conn1, $payrollDate, $mainzone , $reg
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
 
-    $missing = [];
+    $activeBranches = [];
     while ($row = mysqli_fetch_assoc($result)) {
-        $missing[] = $row;
+        $activeBranches[] = $row;
     }
 
     mysqli_stmt_close($stmt);
 
-    usort($missing, function ($a, $b) {
+    usort($activeBranches, function ($a, $b) {
         return [$a['mainzone'], $a['zone'], $a['branch_name']]
             <=> [$b['mainzone'], $b['zone'], $b['branch_name']];
     });
 
-    return $missing;
+    return $activeBranches;
 }
 
 $mainzone = isset($_POST['mainzone']) ? trim($_POST['mainzone']) : '';
 $region = isset($_POST['region']) ? trim($_POST['region']) : '';
 $restrictedDate = isset($_POST['restricted-date']) ? trim($_POST['restricted-date']) : '';
 
-$missingBranches = [];
+$activeBranches = [];
 $hasSearched = false;
 
 if (isset($_POST['generate'])) {
     $hasSearched = true;
-    $missingBranches = getMissingPayrollBranches($conn, $conn1, $restrictedDate, $mainzone, $region);
+    $activeBranches = getActiveBranchesWithoutPayroll($conn, $conn1, $restrictedDate, $mainzone, $region);
 }
 
 if (isset($_POST['download'])) {
-    $missingBranches = getMissingPayrollBranches($conn, $conn1, $restrictedDate, $mainzone, $region);
+    $activeBranches = getActiveBranchesWithoutPayroll($conn, $conn1, $restrictedDate, $mainzone, $region);
 
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
-    $sheet->setTitle('Missing Payroll');
+    $sheet->setTitle('Active Branches Without Payroll');
+
+    $sheet->setCellValue('A1', 'Payroll Date:');
+    $sheet->setCellValue('B1', $restrictedDate);
+
+    $sheet->setCellValue('A2', 'Mainzone:');
+    $sheet->setCellValue('B2', $mainzone !== '' ? $mainzone : 'ALL');
+
+    $sheet->setCellValue('A3', 'Region:');
+    $sheet->setCellValue('B3', $region !== '' ? $region : 'ALL');
+
+    $sheet->getStyle('A1:A3')->getFont()->setBold(true);
 
     $sheet->fromArray(['Zone', 'Mainzone', 'Region', 'Region Code', 'BOS Code', 'Branch Name', 'ML Matic Status'], null, 'A1');
 
     $rowIndex = 2;
-    foreach ($missingBranches as $row) {
+    foreach ($activeBranches as $row) {
         $sheet->fromArray([
             $row['zone'],
             $row['mainzone'],
@@ -215,7 +204,7 @@ if (isset($_POST['download'])) {
         $sheet->getColumnDimension($col)->setAutoSize(true);
     }
 
-    $filename = 'missing_payroll_' . str_replace('-', '', $restrictedDate);
+    $filename = 'Active_Branches_W_O_Payroll_' . str_replace('-', '', $restrictedDate);
     if ($mainzone !== '') {
         $filename .= '_' . preg_replace('/\s+/', '_', $mainzone);
     }
@@ -371,7 +360,7 @@ $regionOptions = getRegionOptions($conn1, $mainzone);
         <?php include $relative_path . 'templates/sidebar.php' ?>
     </div>
 
-    <center><h2>Missing Branches <span style="font-size: 22px; color: red;">[by payroll]</span></h2></center>
+    <center><h2>Active Branches <span style="font-size: 22px; color: red;">[W/o payroll]</span></h2></center>
 
     <div class="import-file">
         <form id="downloadForm" action="" method="post">
@@ -406,7 +395,7 @@ $regionOptions = getRegionOptions($conn1, $mainzone);
             <input type="submit" class="generate-btn" name="generate" value="Proceed">
         </form>
 
-        <div id="showdl1" <?php echo empty($missingBranches) ? 'style="display:none"' : ''; ?>>
+        <div id="showdl1" <?php echo empty($activeBranches) ? 'style="display:none"' : ''; ?>>
             <form id="exportForm" action="" method="post">
                 <input type="hidden" name="mainzone" value="<?php echo htmlspecialchars($mainzone); ?>">
                 <input type="hidden" name="region" value="<?php echo htmlspecialchars($region); ?>">
@@ -416,9 +405,9 @@ $regionOptions = getRegionOptions($conn1, $mainzone);
         </div>
     </div>
 
-    <?php if (!empty($missingBranches)): ?>
+    <?php if (!empty($activeBranches)): ?>
             <div style="margin: 20px; font-size: 12px; color: #333;">
-                Total Missing Branches: <span style="color: #db120b;"> <?php echo count($missingBranches); ?></span>
+                Total Active Branches: <span style="color: #db120b;"> <?php echo count($activeBranches); ?></span>
             </div>
             <div class="table-container">
                 <table>
@@ -434,7 +423,7 @@ $regionOptions = getRegionOptions($conn1, $mainzone);
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($missingBranches as $branch): ?>
+                        <?php foreach ($activeBranches as $branch): ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($branch['zone']); ?></td>
                                 <td><?php echo htmlspecialchars($branch['mainzone']); ?></td>
