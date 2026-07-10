@@ -15,7 +15,7 @@
 <header>
     <div class="logo-container">
         <img src="assets/picture/Diamante.png" alt="" class="welcome-logo">
-        <div class="logo-text">Payroll System</div>
+        <div class="logo-text">Payroll</div>
     </div>
 
     <nav>
@@ -28,41 +28,41 @@
 <!-- HERO -->
 <section class="hero" id="hero">
     <div class="hero-text">
-        <h1>Smart & Efficient <span>Payroll Management</span></h1>
+        <span class="hero-badge">Excel Import • Auto-Reconciliation</span>
+        <h1>Accurate Payroll, <span>Reconciled Instantly</span></h1>
         <p>
-            Simplify employee salary processing, automate deductions,
-            and generate reports with ease using our modern payroll system.
+            Import your Excel payroll reports and automatically reconcile every entry. Instantly identify variances, streamline payroll reviews, and reduce manual reconciliation effort.
         </p>
         <a href="login.php" class="btn">Get Started</a>
     </div>
 
-   
     <div class="hero-box">
-         <img src="./video/payroll.gif" alt="Payroll animation" style="width:100%; border-radius:12px; margin-bottom:16px;">
-            <h3>Welcome Back!</h3>
-            <p>Login to manage payroll</p>
-            <a href="login.php" class="btn">Login</a>
+        <img src="./video/payroll.png" alt="Payroll animation" style="width:100%; border-radius:12px; margin-bottom:16px;">
     </div>
 </section>
 
 <!-- FEATURES -->
 <section class="features" id="features">
     <h2>Why Choose Our System?</h2>
+    <p class="features-subtitle">Everything you need to reconcile payroll data accurately and catch discrepancies before they cost you.</p>
 
     <div class="feature-grid">
         <div class="feature">
-            <h3>Automated Payroll</h3>
-            <p>Quick and accurate salary computation.</p>
+            <div class="feature-icon">⇄</div>
+            <h3>Smart Reconciliation</h3>
+            <p>Import Excel payroll reports and automatically match every payroll record, quickly identifying variances and reducing manual reconciliation.</p>
         </div>
 
         <div class="feature">
-            <h3>Secure Data</h3>
-            <p>Advanced security for employee records.</p>
+            <div class="feature-icon">🔒</div>
+            <h3>Secure Payroll Data</h3>
+            <p>Payroll files and sensitive payroll data are protected with enterprise-grade security, ensuring confidentiality and data integrity.</p>
         </div>
 
         <div class="feature">
-            <h3>Reports & Insights</h3>
-            <p>Generate detailed payroll reports instantly.</p>
+            <div class="feature-icon">📊</div>
+            <h3>Variance Reporting</h3>
+            <p>View clear, real-time variance reports that highlight discrepancies, making them easy to review and resolve.</p>
         </div>
     </div>
 </section>

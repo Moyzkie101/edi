@@ -257,7 +257,6 @@
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('KP DOMESTIC', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>reports/summary-detailed-format/summary-detailed-format_payroll.php" role="menuitem">Payroll</a>
-                                    <a class="user-link" href="<?php echo $base_url; ?>reports/summary-detailed-format/payroll_missing_branches.php" role="menuitem">Missing Branches by Payroll</a>
                                     <!-- <a id="user" href="#">Provision</a>
                                     <a id="user" href="#">Remitance</a> -->
                                 <?php else: ?>
@@ -280,6 +279,18 @@
                                     <a class="user-link" href="#" aria-disabled="true" role="menuitem">ML Fund (ID NO)</a>
                                     <!-- <a id="user" href="#">Provision</a>
                                     <a id="user" href="#">Remitance</a> -->
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="dropdown-group">
+                            <button class="group-btn" type="button">Payroll Branch Status Reports</button>
+                            <div class="group-content" role="submenu">
+                                <?php if (in_array('CAD', $roles)): ?>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/summary-detailed-format/active_branches_w_o_payroll.php" role="menuitem">Active Branches Without Payroll Reports</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>reports/summary-detailed-format/inactive_tbo_w_transactions.php" role="menuitem">Inactive AND TBO Branches with Payroll Transactions</a>
+                                <?php else: ?>
+                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">ML Fund</a>
+                                    <a class="user-link" href="#" aria-disabled="true" role="menuitem">ML Fund (ID NO)</a>
                                 <?php endif; ?>
                             </div>
                         </div>
