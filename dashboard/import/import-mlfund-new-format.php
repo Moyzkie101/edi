@@ -134,6 +134,7 @@ function parseExcelFile($filePath, $mainzone, $payrollDate, $conn1, $database)
     $unknownRegionRows           = [];
     $invalidLoanTypeRows         = [];
     $invalidIdRows               = [];
+    $invalidAmountRows           = [];
     $duplicateInFileRows         = [];
     $conflictingRegionRows       = [];
     $seenDuplicateRows           = [];
@@ -186,8 +187,21 @@ function parseExcelFile($filePath, $mainzone, $payrollDate, $conn1, $database)
             }
 
             // ── Standard loan-type rows ──────────────────────────────────────
-            if (!is_numeric(str_replace(',', '', $fundRaw))) continue;
-            $fund = (float)str_replace(',', '', $fundRaw);
+            $fundCleaned = str_replace(',', '', $fundRaw);
+            if ($fundRaw === '' || !is_numeric($fundCleaned)) {
+                $invalidAmountRows[] = [
+                    'sheet_name' => $sheetName,
+                    'idno'       => $idNo,
+                    'name'       => trim($lastName . ', ' . $firstName, ', '),
+                    'loan_type'  => $loanTypeRaw,
+                    'fund_raw'   => $fundRaw,
+                    'remarks'    => $fundRaw === ''
+                                    ? 'missing fund amount'
+                                    : 'invalid fund amount: "' . $fundRaw . '"',
+                ];
+                continue;
+            }
+            $fund = (float)$fundCleaned;
 
             if ($idNo === '' || !preg_match('/^\d{8}$/', $idNo)) {
                 $invalidIdRows[] = ['sheet_name' => $sheetName, 'idno' => $idNo,
@@ -297,7 +311,8 @@ function parseExcelFile($filePath, $mainzone, $payrollDate, $conn1, $database)
     return compact(
         'dataRows', 'directMlfundRows',
         'unknownRegionRows', 'invalidLoanTypeRows',
-        'invalidIdRows', 'duplicateInFileRows', 'conflictingRegionRows'
+        'invalidIdRows', 'invalidAmountRows',
+        'duplicateInFileRows', 'conflictingRegionRows'
     );
 }
 
@@ -316,6 +331,7 @@ $directOverwritten = [];  // direct MLFUND overwritten (orange)
 $unknownRegionRows     = [];
 $invalidLoanTypeRows   = [];
 $invalidIdRows         = [];
+$invalidAmountRows     = [];
 $duplicateInFileRows   = [];
 $conflictingRegionRows = [];
 $tempFilePath  = '';
@@ -367,12 +383,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $unknownRegionRows     = $parsed['unknownRegionRows'];
         $invalidLoanTypeRows   = $parsed['invalidLoanTypeRows'];
         $invalidIdRows         = $parsed['invalidIdRows'];
+        $invalidAmountRows     = $parsed['invalidAmountRows'];
         $duplicateInFileRows   = $parsed['duplicateInFileRows'];
         $conflictingRegionRows = $parsed['conflictingRegionRows'];
 
         $hasErrors = !empty($unknownRegionRows)   || !empty($invalidLoanTypeRows) ||
-                     !empty($invalidIdRows)        || !empty($duplicateInFileRows) ||
-                     !empty($conflictingRegionRows);
+                     !empty($invalidIdRows)        || !empty($invalidAmountRows)   ||
+                     !empty($duplicateInFileRows)  || !empty($conflictingRegionRows);
 
         if ($hasErrors) {
             // Errors found — abort everything, keep temp file for error display only
@@ -642,7 +659,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ─────────────────────────────────────────────────────────────────────────────
 $errorRowsForPdf = array_values(array_merge(
     $unknownRegionRows, $invalidLoanTypeRows,
-    $invalidIdRows, $duplicateInFileRows, $conflictingRegionRows
+    $invalidIdRows, $invalidAmountRows,
+    $duplicateInFileRows, $conflictingRegionRows
 ));
 
 $hasErrors        = !empty($errorRowsForPdf);
@@ -690,86 +708,149 @@ $totalNoChange    = count($noChangeRows)  + count($directNoChange);
             margin-left:25px; background:#fff; color:#F14A51;
         }
 
-        /* Loading */
+        /* ── Loading overlay ── */
         #loading-overlay {
             display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-            background:rgba(255,255,255,0.7); z-index:9999;
+            background:rgba(255,255,255,0.75); z-index:9999;
+            backdrop-filter:blur(2px);
         }
         .loading-spinner {
             position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-            width:50px; height:50px; border-radius:50%;
-            border:5px solid #f3f3f3; border-top:5px solid #3498db;
-            animation:spin 1s linear infinite;
+            width:52px; height:52px; border-radius:50%;
+            border:5px solid #e9ecef; border-top:5px solid #d70c0c;
+            animation:spin 0.85s linear infinite;
         }
         @keyframes spin {
             0%   { transform:translate(-50%,-50%) rotate(0deg); }
             100% { transform:translate(-50%,-50%) rotate(360deg); }
         }
 
-        /* Table */
+        /* ── Results table ── */
         .table-container {
-            position:relative; top:35px; max-width:100%; overflow:auto;
-            max-height:calc(100vh - 200px); margin:20px; border:1px solid #ccc;
+            max-width:100%; overflow:auto;
+            max-height:calc(100vh - 220px);
+            margin:0 20px 24px;
+            border:1px solid #dee2e6;
+            border-radius:10px;
+            box-shadow:0 2px 8px rgba(0,0,0,.06);
         }
         table { width:100%; border-collapse:collapse; font-size:13px; }
-        th, td { border:1px solid #ccc; padding:5px; text-align:center; }
-        th { background:#f2f2f2; font-weight:bold; position:sticky; top:0; z-index:1; }
-        tr:nth-child(even) { background:#f9f9f9; }
+        th, td { border:1px solid #dee2e6; padding:7px 8px; text-align:center; white-space:nowrap; }
+        th {
+            background:#f8f9fa; font-weight:700; font-size:12px;
+            letter-spacing:.4px; text-transform:uppercase;
+            position:sticky; top:0; z-index:2;
+            border-bottom:2px solid #dee2e6;
+        }
+        tr:nth-child(even) td { background:rgba(0,0,0,.018); }
+        tbody tr:hover td { filter:brightness(.96); transition:filter .15s; }
 
-        /* Row status colours */
-        .row-imported   { background:#d4edda !important; color:#155724; }  /* green  */
-        .row-changed    { background:#fff3cd !important; color:#664d03; }  /* yellow */
-        .row-overwritten{ background:#ffd580 !important; color:#5a3e00; }  /* amber  */
-        .row-nochange   { background:#e2e3e5 !important; color:#383d41; }  /* grey   */
-        .row-error      { background:#f8d7da !important; color:#721c24; }  /* red    */
+        /* ── Row status colours ── */
+        .row-imported    { background:#d1f0da !important; color:#0f5132; }
+        .row-changed     { background:#fff8db !important; color:#5c4a00; }
+        .row-overwritten { background:#ffe5a0 !important; color:#5a3e00; }
+        .row-nochange    { background:#e9ecef !important; color:#495057; }
+        .row-error       { background:#fce4e4 !important; color:#7b1d1d; }
 
-        /* Changed cell highlight */
-        .cell-changed { font-weight:700; text-decoration:underline dotted; }
+        /* ── Changed-cell diff display ── */
+        .cell-changed { font-weight:700; }
+        .cell-changed .old-val {
+            display:block; font-size:10px; font-weight:400;
+            text-decoration:line-through; opacity:.55; line-height:1.2;
+        }
+        .cell-changed .new-val { display:block; font-size:13px; font-weight:700; line-height:1.3; }
 
-        /* Action bar */
+        /* ── Action bar (overwrite prompt — sits ABOVE table) ── */
         .action-bar {
-            display:flex; align-items:center; justify-content:center;
-            flex-wrap:wrap; gap:12px; margin:16px 20px;
-            padding:14px 20px; background:#fffbea;
-            border:2px solid #f0c040; border-radius:12px;
+            display:flex; align-items:center; justify-content:space-between;
+            flex-wrap:wrap; gap:12px;
+            margin:0 20px 14px;
+            padding:14px 20px;
+            background:linear-gradient(135deg,#fffbe6 0%,#fff8d0 100%);
+            border:2px solid #e6b800;
+            border-radius:12px;
+            box-shadow:0 3px 10px rgba(230,184,0,.18);
         }
-        .action-bar .summary-text {
-            font-size:14px; color:#495057; flex:1 1 100%; text-align:center; margin-bottom:4px;
+        .action-bar-left {
+            display:flex; align-items:center; gap:12px; flex:1 1 auto;
         }
-        .btn-overwrite {
-            background:#d70c0c; color:#fff; border:none; border-radius:10px;
-            padding:10px 22px; font-size:13px; font-weight:700; cursor:pointer;
-        }
-        .btn-overwrite:hover { background:#b30a0a; }
-        .btn-cancel {
-            background:#6c757d; color:#fff; border:none; border-radius:10px;
-            padding:10px 22px; font-size:13px; font-weight:700;
-            text-decoration:none; display:inline-block; cursor:pointer;
-        }
-        .btn-cancel:hover { background:#565e64; }
+        .action-bar-left .bar-icon { font-size:26px; color:#c98800; flex-shrink:0; }
+        .action-bar-left .bar-text { font-size:13px; color:#4a3800; line-height:1.5; }
+        .action-bar-left .bar-text strong { font-size:14px; color:#2d2200; }
+        .action-bar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
 
-        /* Legend */
-        .legend {
-            display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
-            margin:10px 20px 0; font-size:12px;
+        /* ── Buttons ── */
+        .btn-overwrite {
+            display:inline-flex; align-items:center; gap:7px;
+            background:linear-gradient(135deg,#e53935,#c0392b);
+            color:#fff; border:none; border-radius:9px;
+            padding:10px 20px; font-size:13px; font-weight:700;
+            cursor:pointer; white-space:nowrap;
+            box-shadow:0 3px 8px rgba(192,57,43,.35);
+            transition:background .2s, transform .1s, box-shadow .2s;
         }
-        .legend-item {
-            display:flex; align-items:center; gap:5px;
-            padding:4px 10px; border-radius:20px; font-weight:600;
+        .btn-overwrite:hover {
+            background:linear-gradient(135deg,#c62828,#a93226);
+            box-shadow:0 5px 14px rgba(192,57,43,.45);
+            transform:translateY(-1px);
         }
-        .legend-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+        .btn-overwrite:active { transform:translateY(0); }
+
+        .btn-cancel {
+            display:inline-flex; align-items:center; gap:7px;
+            background:#f8f9fa; color:#495057;
+            border:1px solid #ced4da; border-radius:9px;
+            padding:10px 18px; font-size:13px; font-weight:600;
+            text-decoration:none; cursor:pointer; white-space:nowrap;
+            transition:background .2s, border-color .2s;
+        }
+        .btn-cancel:hover { background:#e9ecef; border-color:#adb5bd; color:#343a40; }
 
         button.export-btn {
-            border-radius:12px; padding:8px 14px;
-            background:red; color:white; border:none; cursor:pointer;
+            display:inline-flex; align-items:center; gap:7px;
+            border-radius:9px; padding:8px 16px; font-size:13px; font-weight:600;
+            background:linear-gradient(135deg,#e53935,#c0392b);
+            color:#fff; border:none; cursor:pointer;
+            box-shadow:0 2px 6px rgba(192,57,43,.3);
+            transition:background .2s, box-shadow .2s;
+        }
+        button.export-btn:hover {
+            background:linear-gradient(135deg,#c62828,#a93226);
+            box-shadow:0 4px 10px rgba(192,57,43,.4);
         }
 
-        /* Phase notice */
-        .phase-notice {
-            text-align:center; font-size:13px; margin:8px 0;
-            padding:8px 16px; border-radius:8px; font-weight:600;
+        /* ── Legend strip ── */
+        .legend {
+            display:flex; flex-wrap:wrap; gap:8px;
+            justify-content:center; align-items:center;
+            margin:0 20px 12px; padding:10px 16px;
+            background:#fff; border:1px solid #dee2e6;
+            border-radius:10px;
         }
-        .phase-done { background:#d1e7dd; color:#0a3622; }
+        .legend-label {
+            font-size:11px; font-weight:700; color:#6c757d;
+            text-transform:uppercase; letter-spacing:.5px; margin-right:4px;
+        }
+        .legend-item {
+            display:inline-flex; align-items:center; gap:5px;
+            padding:4px 11px; border-radius:20px;
+            font-size:12px; font-weight:600;
+            border:1px solid rgba(0,0,0,.08);
+        }
+        .legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; flex-shrink:0; }
+
+        /* ── Status banners ── */
+        .banner {
+            display:flex; align-items:center; gap:12px;
+            margin:0 20px 14px; padding:13px 18px;
+            border-radius:10px; font-size:13px; font-weight:600;
+            border-left:5px solid transparent;
+        }
+        .banner-success { background:#d1f0da; color:#0f5132; border-left-color:#198754; }
+        .banner-error   { background:#fce4e4; color:#7b1d1d; border-left-color:#dc3545; }
+        .banner i { font-size:18px; flex-shrink:0; }
+        .banner-text { line-height:1.5; }
+        .banner-text span { display:block; font-size:12px; font-weight:400; opacity:.8; margin-top:2px; }
     </style>
 </head>
 <body>
@@ -813,66 +894,114 @@ $totalNoChange    = count($noChangeRows)  + count($directNoChange);
     </div>
 </div>
 
-<!-- ── Phase 2 summary banner ── -->
+<!-- ── Phase 2 success banner ── -->
 <?php if ($phase === '2' && ($totalImported > 0 || $totalOverwritten > 0)): ?>
-<p class="phase-notice phase-done">
-    ✅ Import complete —
-    <?php if ($totalImported > 0)    echo $totalImported    . ' record(s) imported. '; ?>
-    <?php if ($totalOverwritten > 0) echo $totalOverwritten . ' record(s) overwritten. '; ?>
-    <?php if ($totalNoChange > 0)    echo $totalNoChange    . ' record(s) had no change.'; ?>
-</p>
+<div class="banner banner-success">
+    <i class="fa-solid fa-circle-check"></i>
+    <div class="banner-text">
+        Import complete
+        <span>
+            <?php if ($totalImported > 0)    echo $totalImported    . ' record(s) imported.&nbsp;&nbsp;'; ?>
+            <?php if ($totalOverwritten > 0) echo $totalOverwritten . ' record(s) overwritten.&nbsp;&nbsp;'; ?>
+            <?php if ($totalNoChange > 0)    echo $totalNoChange    . ' record(s) had no change.'; ?>
+        </span>
+    </div>
+</div>
 <?php endif; ?>
 
 <!-- ── Results section ── -->
 <?php if ($hasResults): ?>
 
-    <!-- Legend -->
+    <!-- ── Overwrite action bar — ABOVE the table, only when changed rows exist ── -->
+    <?php if ($phase === '1' && $hasChanged && !$hasErrors): ?>
+    <div class="action-bar">
+        <div class="action-bar-left">
+            <i class="fa-solid fa-triangle-exclamation bar-icon"></i>
+            <div class="bar-text">
+                <strong><?php echo $totalChanged; ?> record(s) have changed amounts</strong><br>
+                The yellow rows below differ from the current database values.
+                New and no-change records have already been saved.
+                Click <em>Overwrite</em> to update only the changed records.
+            </div>
+        </div>
+        <div class="action-bar-right">
+            <form method="POST" id="overwriteForm">
+                <input type="hidden" name="phase"             value="2">
+                <input type="hidden" name="mainzone"          value="<?php echo htmlspecialchars($postedMainzone, ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="restricted-date"   value="<?php echo htmlspecialchars($postedDate,     ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="temp_file_path"    value="<?php echo htmlspecialchars($tempFilePath,   ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="original_filename" value="<?php echo htmlspecialchars($postedFileName, ENT_QUOTES, 'UTF-8'); ?>">
+                <button type="submit" class="btn-overwrite"
+                        onclick="return confirmOverwrite(<?php echo $totalChanged; ?>)">
+                    <i class="fa-solid fa-rotate"></i>
+                    Overwrite <?php echo $totalChanged; ?> Changed Record(s)
+                </button>
+            </form>
+            <a href="" class="btn-cancel">
+                <i class="fa-solid fa-xmark"></i> Cancel
+            </a>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- ── Error block notice ── -->
+    <?php if ($hasErrors): ?>
+    <div class="banner banner-error">
+        <i class="fa-solid fa-circle-xmark"></i>
+        <div class="banner-text">
+            Import blocked — errors detected in the file
+            <span>Fix the rows highlighted in red below, then re-upload the file.</span>
+        </div>
+        <?php if (!empty($errorRowsForPdf)): ?>
+        <button type="button" class="export-btn" onclick="exportErrorsToPDF()" style="margin-left:auto;flex-shrink:0;">
+            <i class="fa-solid fa-file-pdf"></i> Export Errors to PDF
+        </button>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- ── Legend strip ── -->
     <div class="legend">
-        <?php if ($totalImported > 0 || !empty($directImported)): ?>
-        <span class="legend-item" style="background:#d4edda; color:#155724;">
-            <span class="legend-dot" style="background:#155724;"></span> Imported (<?php echo $totalImported; ?>)
+        <span class="legend-label">Legend:</span>
+        <?php if ($totalImported > 0): ?>
+        <span class="legend-item" style="background:#d1f0da;color:#0f5132;">
+            <span class="legend-dot" style="background:#198754;"></span> Imported (<?php echo $totalImported; ?>)
         </span>
         <?php endif; ?>
         <?php if ($hasChanged): ?>
-        <span class="legend-item" style="background:#fff3cd; color:#664d03;">
-            <span class="legend-dot" style="background:#f0c040;"></span> Data Changed — pending overwrite (<?php echo $totalChanged; ?>)
+        <span class="legend-item" style="background:#fff8db;color:#5c4a00;">
+            <span class="legend-dot" style="background:#e6b800;"></span> Data Changed (<?php echo $totalChanged; ?>)
         </span>
         <?php endif; ?>
         <?php if ($totalOverwritten > 0): ?>
-        <span class="legend-item" style="background:#ffd580; color:#5a3e00;">
+        <span class="legend-item" style="background:#ffe5a0;color:#5a3e00;">
             <span class="legend-dot" style="background:#e6a817;"></span> Overwritten (<?php echo $totalOverwritten; ?>)
         </span>
         <?php endif; ?>
         <?php if ($totalNoChange > 0): ?>
-        <span class="legend-item" style="background:#e2e3e5; color:#383d41;">
+        <span class="legend-item" style="background:#e9ecef;color:#495057;">
             <span class="legend-dot" style="background:#6c757d;"></span> No Change (<?php echo $totalNoChange; ?>)
         </span>
         <?php endif; ?>
         <?php if ($hasErrors): ?>
-        <span class="legend-item" style="background:#f8d7da; color:#721c24;">
+        <span class="legend-item" style="background:#fce4e4;color:#7b1d1d;">
             <span class="legend-dot" style="background:#dc3545;"></span> Error (<?php echo count($errorRowsForPdf); ?>)
         </span>
         <?php endif; ?>
     </div>
 
-    <?php if (!empty($errorRowsForPdf)): ?>
-    <div class="display_data" style="margin:10px 20px 0;">
-        <button type="button" class="export-btn" onclick="exportErrorsToPDF()">
-            <i class="fa-solid fa-file-pdf" style="margin-right:6px;"></i> Export Errors to PDF
-        </button>
-    </div>
-    <?php endif; ?>
-
+    <!-- ── Results table ── -->
     <div class="table-container">
         <table id="printableTable">
             <thead>
                 <tr>
-                    <th colspan="12">
-                        Payroll Date: <?php echo date('F d, Y', strtotime($postedDate)); ?>
-                        &nbsp;|&nbsp; Mainzone: <?php echo htmlspecialchars($postedMainzone, ENT_QUOTES, 'UTF-8'); ?>
-                        <?php if ($hasChanged && $phase === '1'): ?>
-                        &nbsp;|&nbsp; <span style="color:#664d03;">⚠ Yellow rows have changed amounts — confirm below to overwrite</span>
-                        <?php endif; ?>
+                    <th colspan="12" style="text-align:center;padding:9px 12px;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600;color:#495057;">
+                        Payroll Date: <strong><?php echo date('F d, Y', strtotime($postedDate)); ?></strong>
+                        &nbsp;&nbsp;|&nbsp;&nbsp;
+                        Mainzone: <strong><?php echo htmlspecialchars($postedMainzone, ENT_QUOTES, 'UTF-8'); ?></strong>
+                        <!-- <?php if ($totalOverwritten > 0): ?>
+                        &nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#5a3e00;">⚠ Overwrite applied</span>
+                        <?php endif; ?> -->
                     </th>
                 </tr>
                 <tr>
@@ -905,20 +1034,20 @@ $totalNoChange    = count($noChangeRows)  + count($directNoChange);
 
                     if ($showDiff && $dbVal !== null && abs($newVal - $dbVal) > 0.001) {
                         echo '<td class="cell-changed">'
-                            . '<span style="text-decoration:line-through;opacity:.6;">' . number_format($dbVal, 2) . '</span>'
-                            . ' → ' . number_format($newVal, 2)
+                            . '<span class="old-val">' . number_format($dbVal, 2) . '</span>'
+                            . '<span class="new-val">' . number_format($newVal, 2) . '</span>'
                             . '</td>';
                     } else {
                         echo '<td>' . number_format($newVal, 2) . '</td>';
                     }
                 }
 
-                $total    = (float)($row['ml_fund_amount'] ?? 0);
-                $dbTotal  = isset($row['db_ml_fund_amount']) ? (float)$row['db_ml_fund_amount'] : null;
+                $total   = (float)($row['ml_fund_amount'] ?? 0);
+                $dbTotal = isset($row['db_ml_fund_amount']) ? (float)$row['db_ml_fund_amount'] : null;
                 if ($showDiff && $dbTotal !== null && abs($total - $dbTotal) > 0.001) {
                     echo '<td class="cell-changed">'
-                        . '<span style="text-decoration:line-through;opacity:.6;">' . number_format($dbTotal, 2) . '</span>'
-                        . ' → ' . number_format($total, 2)
+                        . '<span class="old-val">' . number_format($dbTotal, 2) . '</span>'
+                        . '<span class="new-val">' . number_format($total, 2) . '</span>'
                         . '</td>';
                 } else {
                     echo '<td>' . number_format($total, 2) . '</td>';
@@ -943,7 +1072,7 @@ $totalNoChange    = count($noChangeRows)  + count($directNoChange);
                 echo '<td>' . htmlspecialchars($row['name'] ?? '',       ENT_QUOTES, 'UTF-8') . '</td>';
                 echo '<td>' . htmlspecialchars($row['sheet_name'] ?? '', ENT_QUOTES, 'UTF-8')
                     . ($extra ? ' (' . htmlspecialchars($extra, ENT_QUOTES, 'UTF-8') . ')' : '') . '</td>';
-                echo '<td colspan="8">-</td>';
+                echo '<td colspan="7">-</td>';
                 echo '<td>' . htmlspecialchars($row['remarks'] ?? '', ENT_QUOTES, 'UTF-8') . '</td>';
                 echo '<td><i class="fa-solid fa-circle-xmark" style="color:#721c24;"></i></td>';
                 echo '</tr>';
@@ -958,6 +1087,7 @@ $totalNoChange    = count($noChangeRows)  + count($directNoChange);
             <?php foreach ($unknownRegionRows     as $r) renderErrorRow($r, 'unknown region'); ?>
             <?php foreach ($invalidLoanTypeRows   as $r) renderErrorRow($r, $r['loan_type'] ?? ''); ?>
             <?php foreach ($invalidIdRows         as $r) renderErrorRow($r); ?>
+            <?php foreach ($invalidAmountRows     as $r) renderErrorRow($r, $r['fund_raw']  ?? ''); ?>
             <?php foreach ($duplicateInFileRows   as $r) renderErrorRow($r, $r['loan_type'] ?? ''); ?>
             <?php foreach ($conflictingRegionRows as $r): ?>
             <tr class="row-error">
@@ -975,41 +1105,7 @@ $totalNoChange    = count($noChangeRows)  + count($directNoChange);
         </table>
     </div>
 
-    <!-- ── Overwrite action bar — only appears when changed rows exist AND no errors ── -->
-    <?php if ($phase === '1' && $hasChanged && !$hasErrors): ?>
-    <div class="action-bar">
-        <div class="summary-text">
-            <i class="fa-solid fa-triangle-exclamation" style="color:#664d03;margin-right:6px;"></i>
-            <strong><?php echo $totalChanged; ?> record(s)</strong> in the file have
-            <strong>different amounts</strong> compared to what is currently in the database.
-            Only these records will be overwritten — imported and no-change records are already saved.
-        </div>
-
-        <form method="POST" id="overwriteForm">
-            <input type="hidden" name="phase"             value="2">
-            <input type="hidden" name="mainzone"          value="<?php echo htmlspecialchars($postedMainzone, ENT_QUOTES, 'UTF-8'); ?>">
-            <input type="hidden" name="restricted-date"   value="<?php echo htmlspecialchars($postedDate,     ENT_QUOTES, 'UTF-8'); ?>">
-            <input type="hidden" name="temp_file_path"    value="<?php echo htmlspecialchars($tempFilePath,   ENT_QUOTES, 'UTF-8'); ?>">
-            <input type="hidden" name="original_filename" value="<?php echo htmlspecialchars($postedFileName, ENT_QUOTES, 'UTF-8'); ?>">
-            <button type="submit" class="btn-overwrite"
-                    onclick="return confirmOverwrite(<?php echo $totalChanged; ?>)">
-                <i class="fa-solid fa-rotate" style="margin-right:6px;"></i>
-                Overwrite <?php echo $totalChanged; ?> Changed Record(s)
-            </button>
-        </form>
-
-        <a href="" class="btn-cancel">
-            <i class="fa-solid fa-xmark" style="margin-right:6px;"></i> Cancel
-        </a>
-    </div>
-    <?php endif; ?>
-
-    <!-- Error notice -->
-    <?php if ($hasErrors): ?>
-    <div style="text-align:center;margin:16px;color:#721c24;font-weight:600;font-size:14px;">
-        ❌ Import blocked due to errors above. Fix the highlighted rows and re-upload the file.
-    </div>
-    <?php endif; ?>
+    <!-- action bar and error notice are now rendered ABOVE the table -->
 
 <?php endif; ?>
 
