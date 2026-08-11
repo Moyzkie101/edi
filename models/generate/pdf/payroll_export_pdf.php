@@ -43,17 +43,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</thead>';
     $html .= '<tbody>';
     foreach ($messages as $msg) {
-        if ($msg['type'] === 'error') {
-            $class = $msg['type'] === 'success' ? 'success' : 'error';
+        if (($msg['type'] ?? '') === 'error') {
+            $class = ($msg['type'] ?? '') === 'success' ? 'success' : 'error';
+            $sheet = $msg['sheet'] ?? '';
+            $branchCode = $msg['A'] ?? '';
+            $branchName = $msg['B'] ?? '';
+            $region = $msg['V'] ?? '';
+            $regionCode = $msg['region_code'] ?? '';
+            $message = $msg['message'] ?? '';
+
             $html .= "<tr class='$class'>
-                        <td>" . ucfirst($msg['type']) . "</td>
-                        <td>{$msg['sheet']}</td>
-                        <td>{$msg['A']}</td>
-                        <td>{$msg['B']}</td>
-                        <td>{$msg['V']}</td>
-                        <td>{$msg['region_code']}</td>
-                        <td>{$msg['message']}</td>
-                      </tr>";
+                        <td>" . ucfirst($msg['type'] ?? '') . "</td>
+                        <td>$sheet</td>
+                        <td>$branchCode</td>
+                        <td>$branchName</td>
+                        <td>$region</td>
+                        <td>$regionCode</td>
+                        <td>$message</td>
+                    </tr>";
         }
     }
     $html .= '</tbody></table>';

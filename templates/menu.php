@@ -79,11 +79,11 @@
                 
                 <li class="dropdown">
                     <button class="dropdown-btn" type="button" aria-haspopup="true" aria-expanded="false">
-                        Post EDI
+                            EDI
                     </button>
                     <div class="dropdown-content" role="menu">
                         <div class="dropdown-group">
-                            <button class="group-btn" type="button">Payroll Format</button>
+                            <button class="group-btn" type="button">Post Edi Payroll Format</button>
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('CAD', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>post-edi/post-edi_payroll.php" role="menuitem">Payroll</a>
@@ -99,7 +99,7 @@
                             </div>
                         </div>
                         <div class="dropdown-group">
-                            <button class="group-btn" type="button">Remittance Format</button>
+                            <button class="group-btn" type="button">Post Edi Remittance Format</button>
                             <div class="group-content" role="submenu">
                                 <?php if (in_array('CAD', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>post-edi/post-edi_remittance-old.php" role="menuitem">Remmitance OLD</a>
@@ -110,7 +110,30 @@
                                 <?php endif; ?>
                             </div>
                         </div>
-                        
+                        <div class="dropdown-group">
+                            <button class="group-btn" type="button">Unpost Edi</button>
+                            <div class="group-content" role="submenu">
+                                <?php if (in_array('CAD', $roles)): ?>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/unpost-edi_payroll.php" role="menuitem">Payroll</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/unpost-edi_remittance-new.php" role="menuitem">Remittance-New</a>
+                                <?php else: ?>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Payroll</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remittance-New</a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="dropdown-group">
+                            <button class="group-btn" type="button">Unmatched Edi</button>
+                            <div class="group-content" role="submenu">
+                                <?php if (in_array('CAD', $roles)): ?>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/check_unmatched_payroll.php" role="menuitem">Payroll</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/check_unmatched_remittance.php" role="menuitem">Remittance-New</a>
+                                <?php else: ?>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Payroll</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remittance-New<</a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                 </li>
 

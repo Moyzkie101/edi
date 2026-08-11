@@ -70,11 +70,10 @@
         $region = $_SESSION['region'] ?? '';
         $restrictedDate = $_SESSION['restrictedDate'] ?? '';
     
-        if (checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate)) {
-            // Set a flag for already posted data
+        if (hasNoPendingRecords($conn, $database, $mainzone, $zone, $region, $restrictedDate)) {
             $_SESSION['swal_message'] = [
                 'title' => 'Warning!',
-                'text' => 'Data already posted.',
+                'text' => 'No pending records left to post for this selection — everything matched is already posted.',
                 'icon' => 'warning'
             ];
         } else {
@@ -118,84 +117,63 @@
     }
     
     // Function to check for pending records
-    function checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate) {
-        if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
-            $sql = "SELECT post_edi 
-                    FROM " . $database[0] . ".remitance r
-                    INNER JOIN " . $database[1] . ".branch_profile bp
-                    ON 
-                        (
-                            (
-                                r.bos_code IS NOT NULL
-                                AND r.bos_code = bp.code
-                                AND r.region_code = bp.region_code
-                            )
-                            OR
-                            (
-                                r.bos_code IS NULL
-                                AND r.region_code = bp.region_code
-                                AND r.zone = bp.zone
-                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
-                                AND bp.ml_matic_status = 'TBO'
-                            )
-                        ) 
-                    WHERE 
-                        bp.mainzone = '$mainzone'
-                        AND r.remitance_date = '$restrictedDate'
-                        AND bp.ml_matic_region = '$zone'
-                        AND NOT (bp.code = 18 AND r.zone = 'VIS')  -- to exclude duljo branch
-                        AND r.zone like '%$region%'
-                        AND r.remitance_format_type='NEW'
-                        
-                ";
-        }else{
-            $sql = "SELECT post_edi 
-                    FROM " . $database[0] . ".remitance r
-                    INNER JOIN " . $database[1] . ".branch_profile bp
-                    ON 
-                        (
-                            (
-                                r.bos_code IS NOT NULL
-                                AND r.bos_code = bp.code
-                                AND r.region_code = bp.region_code
-                            )
-                            OR
-                            (
-                                r.bos_code IS NULL
-                                AND r.region_code = bp.region_code
-                                AND r.zone = bp.zone
-                                AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
-                                AND bp.ml_matic_status = 'TBO'
-                            )
-                        ) 
-                    WHERE 
-                        bp.mainzone = '$mainzone'
-                    AND r.zone = '$zone'
-                    AND r.zone != 'JVIS' -- to exclude sm seaside showroom
-                    AND bp.region_code LIKE '%$region%'
-                    AND r.remitance_date = '$restrictedDate'
-                    AND bp.ml_matic_region != 'LNCR Showroom'
-                    AND bp.ml_matic_region != 'VISMIN Showroom'
-                    AND r.remitance_format_type='NEW'
-                    
-                ";
-        }
-        
-        $result = $conn->query($sql);
-        
-        if ($result) {
-            while ($row = mysqli_fetch_assoc($result)) {
-                if ($row['post_edi'] === 'posted') {
-                    return true;
-                }
+    function hasNoPendingRecords($conn, $database, $mainzone, $zone, $region, $restrictedDate): bool
+        {
+            $isShowroom = ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom');
+            $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+
+            if ($isShowroom) {
+                $where = "bp.mainzone = ?
+                        AND r.remitance_date = ?
+                        AND bp.ml_matic_region = ?
+                        AND NOT (bp.code = 18 AND r.zone = 'VIS')
+                        AND r.remitance_format_type = 'NEW'";
+                $types  = 'sss';
+                $values = [$mainzone, $restrictedDate, $zone];
+                if (!$allRegions) { $where .= " AND r.zone = ?"; $types .= 's'; $values[] = $region; }
+            } else {
+                $where = "bp.mainzone = ?
+                        AND r.zone = ?
+                        AND r.zone != 'JVIS'
+                        AND r.remitance_date = ?
+                        AND bp.ml_matic_region != 'LNCR Showroom'
+                        AND bp.ml_matic_region != 'VISMIN Showroom'
+                        AND r.remitance_format_type = 'NEW'";
+                $types  = 'sss';
+                $values = [$mainzone, $zone, $restrictedDate];
+                if (!$allRegions) { $where .= " AND bp.region_code = ?"; $types .= 's'; $values[] = $region; }
             }
+
+            $sql = "SELECT COUNT(*) AS pending_count
+                    FROM " . $database[0] . ".remitance r
+                    INNER JOIN " . $database[1] . ".branch_profile bp
+                        ON (
+                            (r.bos_code IS NOT NULL AND r.bos_code = bp.code AND r.region_code = bp.region_code)
+                            OR
+                            (r.bos_code IS NULL AND r.region_code = bp.region_code AND r.zone = bp.zone
+                            AND TRIM(LOWER(r.branch_name)) = TRIM(LOWER(bp.branch_name))
+                            AND bp.ml_matic_status = 'TBO')
+                        )
+                    WHERE $where AND r.post_edi = 'pending'";
+
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param($types, ...$values);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            return ((int) $row['pending_count']) === 0;
         }
-        return false;
-    }
 
     // function to insert data
     function insertData($conn, $database, $mainzone, $zone, $region, $restrictedDate) {
         $errors = [];
+
+        $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+        $regionClauseShowroomFetch  = $allRegions ? '' : ("AND r.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+        $regionClauseNormalFetch    = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
+        $regionClauseShowroomUpdate = $allRegions ? '' : ("AND r.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+        $regionClauseNormalUpdate   = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
 
         if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
             $fetchQuery = "SELECT
@@ -264,7 +242,7 @@
                         AND r.remitance_date = '$restrictedDate'
                         AND bp.ml_matic_region = '$zone'
                         AND NOT (bp.code = 18 AND r.zone = 'VIS')  -- to exclude duljo branch
-                        AND r.zone like '%$region%'
+                        $regionClauseShowroomFetch
                         AND r.post_edi = 'pending'
                         AND r.remitance_format_type='NEW'
                     GROUP BY 
@@ -345,7 +323,7 @@
                         bp.mainzone = '$mainzone'
                         AND r.zone = '$zone'
                         AND r.zone != 'JVIS' -- to exclude sm seaside showroom
-                        AND bp.region_code LIKE '%$region%'
+                        $regionClauseNormalFetch
                         AND r.remitance_date = '$restrictedDate'
                         AND bp.ml_matic_region != 'LNCR Showroom'
                         AND bp.ml_matic_region != 'VISMIN Showroom'
@@ -535,7 +513,7 @@
                                     AND r.remitance_date = '$restrictedDate'
                                     AND bp.ml_matic_region = '$zone'
                                     AND NOT (bp.code = 18 AND r.zone = 'VIS')  -- to exclude duljo branch
-                                    AND r.zone like '%$region%'
+                                    $regionClauseShowroomUpdate
                                     AND r.remitance_format_type='NEW'
                                     
                                 ";
@@ -564,7 +542,7 @@
                                         bp.mainzone = '$mainzone'
                                     AND r.zone = '$zone'
                                     AND r.zone != 'JVIS' -- to exclude sm seaside showroom
-                                    AND bp.region_code LIKE '%$region%'
+                                    $regionClauseNormalUpdate
                                     AND r.remitance_date = '$restrictedDate'
                                     AND bp.ml_matic_region != 'LNCR Showroom'
                                     AND bp.ml_matic_region != 'VISMIN Showroom'
@@ -860,6 +838,10 @@ $zone = $_POST['zone'];
 $region = $_POST['region'];
 $restrictedDate = $_POST['restricted-date']; 
 
+$allRegions = ($region === '' || strtoupper($region) === 'ALL');
+$regionClauseShowroom = $allRegions ? '' : ("AND bp.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+$regionClauseNormal   = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
+
 $_SESSION['mainzone'] = $mainzone;
 $_SESSION['zone'] = $zone;
 $_SESSION['region'] = $region;
@@ -927,7 +909,7 @@ if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
                 bp.mainzone = '$mainzone'
                 AND r.remitance_date = '$restrictedDate'
                 AND bp.ml_matic_region = '$zone'
-                AND bp.zone LIKE '%$region%'
+                $regionClauseShowroom
                 AND NOT (bp.code = 18 AND r.zone = 'VIS')  -- to exclude duljo branch
                 AND r.post_edi = 'pending'
                 AND r.remitance_format_type='NEW'
@@ -1005,7 +987,7 @@ if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
                 bp.mainzone = '$mainzone'
                 AND bp.zone = '$zone'
                 AND r.zone != 'JVIS' -- to exclude sm seaside showroom
-                AND bp.region_code LIKE '%$region%'
+                $regionClauseNormal
                 AND r.remitance_date = '$restrictedDate'
                 AND bp.ml_matic_region != 'LNCR Showroom'
                 AND bp.ml_matic_region != 'VISMIN Showroom'

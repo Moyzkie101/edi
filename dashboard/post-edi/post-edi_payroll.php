@@ -70,11 +70,11 @@
         $region = $_SESSION['region'] ?? '';
         $restrictedDate = $_SESSION['restrictedDate'] ?? '';
     
-        if (checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate)) {
-            // Set a flag for already posted data
+        if (hasNoPendingRecords($conn, $database, $mainzone, $zone, $region, $restrictedDate)) {
+
             $_SESSION['swal_message'] = [
                 'title' => 'Warning!',
-                'text' => 'Data already posted.',
+                'text' => 'No pending records left to post for this selection — everything matched is already posted.',
                 'icon' => 'warning'
             ];
         } else {
@@ -118,84 +118,69 @@
     }
     
     // Function to check for pending records
-    function checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate) {
-        if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
-            $sql = "SELECT post_edi 
-                    FROM " . $database[0] . ".payroll p
-                    INNER JOIN " . $database[1] . ".branch_profile bp
-                    ON 
-                        (
-                        (
-                            p.bos_code IS NOT NULL
-                            AND p.bos_code = bp.code
-                            AND p.region_code = bp.region_code
-                        )
-                        OR
-                        (
-                            p.bos_code IS NULL
-                            AND p.region_code = bp.region_code
-                            AND p.zone = bp.zone
-                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
-                            AND bp.ml_matic_status = 'TBO'
-                        )
-                    ) 
-                    WHERE 
-                        bp.mainzone = '$mainzone'
-                        AND p.payroll_date = '$restrictedDate'
-                        AND bp.ml_matic_region = '$zone'
-                        AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
-                        AND p.zone like '%$region%'
+    function hasNoPendingRecords($conn, $database, $mainzone, $zone, $region, $restrictedDate): bool
+        {
+            $isShowroom = ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom');
+            $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+
+            if ($isShowroom) {
+                $where = "bp.mainzone = ?
+                        AND p.payroll_date = ?
+                        AND bp.ml_matic_region = ?
+                        AND NOT (bp.code = 18 AND p.zone = 'VIS')
                         AND p.description = 'payroll'
-                        AND p.remarks is null
-                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
-        }else{
-            $sql = "SELECT post_edi 
+                        AND p.remarks IS NULL
+                        AND p.description NOT IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
+                $types  = 'sss';
+                $values = [$mainzone, $restrictedDate, $zone];
+                if (!$allRegions) { $where .= " AND p.zone = ?"; $types .= 's'; $values[] = $region; }
+            } else {
+                $where = "bp.mainzone = ?
+                        AND p.zone = ?
+                        AND p.zone != 'JVIS'
+                        AND p.payroll_date = ?
+                        AND bp.ml_matic_region != 'LNCR Showroom'
+                        AND bp.ml_matic_region != 'VISMIN Showroom'
+                        AND p.description = 'payroll'
+                        AND p.remarks IS NULL
+                        AND p.description NOT IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
+                $types  = 'sss';
+                $values = [$mainzone, $zone, $restrictedDate];
+                // Exact match instead of substring LIKE — was matching 'A' inside 'CA', 'LA', etc.
+                if (!$allRegions) { $where .= " AND bp.region_code = ?"; $types .= 's'; $values[] = $region; }
+            }
+
+            $sql = "SELECT COUNT(*) AS pending_count
                     FROM " . $database[0] . ".payroll p
                     INNER JOIN " . $database[1] . ".branch_profile bp
-                    ON 
-                        (
-                        (
-                            p.bos_code IS NOT NULL
-                            AND p.bos_code = bp.code
-                            AND p.region_code = bp.region_code
-                        )
-                        OR
-                        (
-                            p.bos_code IS NULL
-                            AND p.region_code = bp.region_code
-                            AND p.zone = bp.zone
+                        ON (
+                            (p.bos_code IS NOT NULL AND p.bos_code = bp.code AND p.region_code = bp.region_code)
+                            OR
+                            (p.bos_code IS NULL AND p.region_code = bp.region_code AND p.zone = bp.zone
                             AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
-                            AND bp.ml_matic_status = 'TBO'
+                            AND bp.ml_matic_status = 'TBO')
                         )
-                    ) 
-                    WHERE 
-                        bp.mainzone = '$mainzone'
-                    AND p.zone = '$zone'
-                    AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                    AND bp.region_code LIKE '%$region%'
-                    AND p.payroll_date = '$restrictedDate'
-                    AND bp.ml_matic_region != 'LNCR Showroom'
-                    AND bp.ml_matic_region != 'VISMIN Showroom'
-                    AND p.description = 'payroll'
-                    AND p.remarks is null
-                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
+                    WHERE $where AND p.post_edi = 'pending'";
+
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param($types, ...$values);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            // true = nothing pending left to post (block); false = there's still something to post
+            return ((int) $row['pending_count']) === 0;
         }
-        //echo $sql;
-        $result = $conn->query($sql);
-        
-        if ($result) {
-            while ($row = mysqli_fetch_assoc($result)) {
-                if ($row['post_edi'] === 'posted') {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 
     // function to insert data
     function insertData($conn, $database, $mainzone, $zone, $region, $restrictedDate) {
         $errors = [];
+
+        $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+        $regionClauseShowroomFetch  = $allRegions ? '' : ("AND p.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+        $regionClauseNormalFetch    = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
+        $regionClauseShowroomUpdate = $allRegions ? '' : ("AND bp.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+        $regionClauseNormalUpdate   = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
 
         if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
             $fetchQuery = "SELECT
@@ -274,7 +259,7 @@
                         bp.mainzone = '$mainzone'
                         AND p.payroll_date = '$restrictedDate'
                         AND bp.ml_matic_region = '$zone'
-                        AND p.zone like '%$region%'
+                        $regionClauseShowroomFetch
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.post_edi = 'pending'
                         AND p.description = 'payroll'
@@ -367,7 +352,7 @@
                         bp.mainzone = '$mainzone'
                         AND p.zone = '$zone'
                         AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                        AND bp.region_code LIKE '%$region%'
+                        $regionClauseNormalFetch
                         AND p.payroll_date = '$restrictedDate'
                         AND bp.ml_matic_region != 'LNCR Showroom'
                         AND bp.ml_matic_region != 'VISMIN Showroom'
@@ -504,7 +489,7 @@
                                     AND p.payroll_date = '$restrictedDate'
                                     AND bp.ml_matic_region = '$zone'
                                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  
-                                    AND bp.zone like '%$region%'
+                                    $regionClauseShowroomUpdate
                                     and p.description = 'payroll'
                                     AND p.remarks is null
                                     AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
@@ -533,14 +518,15 @@
                                     WHERE
                                         bp.mainzone = '$mainzone'
                                     AND bp.zone = '$zone'
-                                    AND p.zone != 'JVIS' 
-                                    AND bp.region_code LIKE '%$region%'
+                                    AND p.zone != 'JVIS'
+                                    $regionClauseNormalUpdate
                                     AND p.payroll_date = '$restrictedDate'
                                     AND bp.ml_matic_region != 'LNCR Showroom'
                                     AND bp.ml_matic_region != 'VISMIN Showroom'
-                                    and p.description = 'payroll'
+                                    AND p.description = 'payroll'
                                     AND p.remarks is null
-                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')";
+                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')
+                                    AND p.post_edi = 'pending' ";
                 }
 
                 if ($conn->query($updatePost) === TRUE) {
@@ -826,6 +812,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     $zone = $_POST['zone'];
     $restrictedDate = $_POST['restricted-date'];
 
+    $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+    $regionClauseShowroom = $allRegions ? '' : ("AND p.zone = '" . $conn->real_escape_string($region) . "' ");
+    $regionClauseNormal   = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
+
     $_SESSION['mainzone'] = $mainzone;
     $_SESSION['zone'] = $zone;
     $_SESSION['region'] = $region;
@@ -903,8 +893,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     bp.mainzone = '$mainzone'
                     AND p.payroll_date = '$restrictedDate'
                     AND bp.ml_matic_region = '$zone'
-                    AND bp.zone like '%$region%'
-                    AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
+                    $regionClauseShowroom
+                    AND NOT (bp.code = 18 AND p.zone = 'VIS') -- to exclude duljo branch
                     AND p.description = 'payroll'
                     AND p.remarks is null
                     AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')
@@ -989,14 +979,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                 WHERE
                     bp.mainzone = '$mainzone'
                     AND bp.zone = '$zone'
-                    AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                    AND bp.region_code LIKE '%$region%'
+                    AND p.zone != 'JVIS'
+                    $regionClauseNormal
                     AND p.payroll_date = '$restrictedDate'
                     AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
                     AND p.description = 'payroll'
                     AND p.remarks is null
                     AND NOT p.description IN ('13thMonth', 'midYearBonus', 'Sick-Leave')
+                    AND p.post_edi = 'pending'
                 GROUP BY 
                     bp.code,
                     p.cost_center,
