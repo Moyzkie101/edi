@@ -361,6 +361,50 @@
 
 <?php
 
+function saveUploadForLater(array $uploadData, string $sessionKey): string
+{
+    if (empty($uploadData['tmp_name']) || !is_uploaded_file($uploadData['tmp_name'])) {
+        throw new RuntimeException('Invalid upload payload.');
+    }
+
+    if (!empty($_SESSION[$sessionKey]) && is_file($_SESSION[$sessionKey])) {
+        @unlink($_SESSION[$sessionKey]);
+    }
+
+    $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename($uploadData['name']));
+    $targetPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'edi_' . uniqid('', true) . '_' . $safeName;
+
+    if (!move_uploaded_file($uploadData['tmp_name'], $targetPath)) {
+        throw new RuntimeException('Unable to preserve uploaded file.');
+    }
+
+    $_SESSION[$sessionKey] = $targetPath;
+
+    return $targetPath;
+}
+
+function getStoredUploadPath(string $sessionKey): ?string
+{
+    $path = $_SESSION[$sessionKey] ?? '';
+
+    if (!is_string($path) || $path === '' || !is_file($path)) {
+        return null;
+    }
+
+    return $path;
+}
+
+function clearStoredUpload(string $sessionKey): void
+{
+    $path = $_SESSION[$sessionKey] ?? '';
+
+    if (is_string($path) && $path !== '' && is_file($path)) {
+        @unlink($path);
+    }
+
+    unset($_SESSION[$sessionKey]);
+}
+
 require '../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -580,26 +624,19 @@ function insertData($spreadsheet, $conn, $database, $restrictedDate, $mainzone) 
 
 if (isset($_POST['upload'])) {
 
-    
     $check_mainzone = $_POST['mainzone'];
-    $filePath = $_FILES['excelFile']['tmp_name'];
-    $fileName = $_FILES['excelFile']['name'];
-    $spreadsheet = IOFactory::load($filePath);
     $restrictedDate = $_POST['restricted-date'];
 
-    $destination = '../../uploaded_excel_files/' . $fileName; 
+    try {
+        $storedPath = saveUploadForLater($_FILES['excelFile'], 'pending_upload_path');
+        $spreadsheet = IOFactory::load($storedPath);
 
-    if (move_uploaded_file($filePath, $destination)) {
-
-        $_SESSION['existingFile'] = $destination;
-        $_SESSION['existingDate'] =  $restrictedDate;
-        $_SESSION['existingMainzone'] =  $check_mainzone;
-
-    } else {
-
-        echo "<script>alert('File upload failed.'); window.location.href='import-remittance-new.php';</script>";
+        $_SESSION['existingFile'] = $storedPath;
+        $_SESSION['existingDate'] = $restrictedDate;
+        $_SESSION['existingMainzone'] = $check_mainzone;
+    } catch (RuntimeException $e) {
+        echo "<script>alert('" . addslashes($e->getMessage()) . "'); window.location.href='import-remittance-new.php';</script>";
         exit;
-
     }
 
     // Array to store messages
@@ -1016,12 +1053,20 @@ if (isset($_POST['upload'])) {
 
 if (isset($_GET['proceed']) && $_GET['proceed'] === 'true') {
 
-    $filePath = $_SESSION['existingFile'];
-    $date = $_SESSION['existingDate'];
-    $mainzone = $_SESSION['existingMainzone'];
+    $filePath = getStoredUploadPath('pending_upload_path');
+
+    if ($filePath === null) {
+        echo "<script>alert('The uploaded file is no longer available.'); window.location.href='import-remittance-new.php';</script>";
+        exit;
+    }
+
+    $date = $_SESSION['existingDate'] ?? '';
+    $mainzone = $_SESSION['existingMainzone'] ?? '';
     $spreadsheet = IOFactory::load($filePath);
 
-    $insertSuccess = insertData($spreadsheet, $conn, $database, $date, $mainzone);
+    $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
+
+    clearStoredUpload('pending_upload_path');
 
     if ($insertSuccess) {
         echo "<script>alert('Data successfully loaded.'); window.location.href='import-remittance-new.php';</script>";
@@ -1032,12 +1077,15 @@ if (isset($_GET['proceed']) && $_GET['proceed'] === 'true') {
 
 if (isset($_POST['overrideData'])) {
 
-    $filePath = $_SESSION['existingFile'];
-    $date = $_SESSION['existingDate'];
-    $mainzone = $_SESSION['existingMainzone'];
+    $filePath = getStoredUploadPath('pending_upload_path');
 
+    if ($filePath === null) {
+        echo "<script>alert('The uploaded file is no longer available.'); window.location.href='import-remittance-new.php';</script>";
+        exit;
+    }
 
-
+    $date = $_SESSION['existingDate'] ?? '';
+    $mainzone = $_SESSION['existingMainzone'] ?? '';
     $spreadsheet = IOFactory::load($filePath);
 
     // Your existing logic to get region codes and delete records
@@ -1087,7 +1135,7 @@ if (isset($_POST['overrideData'])) {
             echo "<script>alert('Opps! Unable to Override. Data Already Posted.'); window.location.href='import-remittance-new.php';</script>";
         }
     }
-
+    clearStoredUpload('pending_upload_path');
 }
 
 ?> 
