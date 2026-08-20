@@ -21,40 +21,29 @@
         foreach($roles as $role) {
             switch($role) {
                 case 'SYSTEM':
-                    // Handle SYSTEM role - no access to this page
                     break;
                 case 'ML WALLET':
-                    // Handle ML WALLET role - no access to this page
                     break;
                 case 'HRMD':
-                    // Handle HRMD role - no access to this page
                     break;
                 case 'CAD':
-                    // Handle CAD role - allow access to this page
                     $hasRequiredRole = true;
                     break;
                 case 'ML FUND':
-                    // Handle ML FUND role - no access to this page
                     break;
                 case 'KP DOMESTIC':
-                    // Handle KP DOMESTIC role - no access to this page
                     break;
                 case 'FINANCE':
-                    // Handle FINANCE role - no access to this page
                     break;
                 case 'HO RFP':
-                    // Handle HO RFP role - no access to this page
                     break;
                 case 'TELECOMS':
-                    // Handle TELECOMS role - no access to this page
                     break;
                 default:
-                    // Handle unknown role - no access
                     break;
             }
         }
         
-        // If user doesn't have required role, redirect to logout
         if (!$hasRequiredRole) {
             header('location: ' . $auth_url . 'logout.php');
             session_destroy();
@@ -71,11 +60,10 @@
         $restrictedDate = $_SESSION['restrictedDate'] ?? '';
         $endDate = $_SESSION['endDate'] ?? '';
     
-        if (checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate, $endDate)) {
-            // Set a flag for already posted data
+        if (hasNoPendingRecords($conn, $database, $mainzone, $zone, $region, $restrictedDate, $endDate)) {
             $_SESSION['swal_message'] = [
                 'title' => 'Warning!',
-                'text' => 'Data already posted.',
+                'text' => 'No pending records left to post for this selection — everything matched is already posted.',
                 'icon' => 'warning'
             ];
         } else {
@@ -117,96 +105,93 @@
         // Unset the message after displaying it
         unset($_SESSION['swal_message']);
     }
-    
-    // Function to check for pending records
-    function checkPostingRecord($conn, $database, $mainzone, $zone, $region, $restrictedDate, $endDate) {
-        if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
-            $sql = "SELECT post_edi 
-                    FROM " . $database[0] . ".payroll p
-                    INNER JOIN " . $database[1] . ".branch_profile bp
-                    ON 
-                        (
-                        (
-                            p.bos_code IS NOT NULL
-                            AND p.bos_code = bp.code
-                            AND p.region_code = bp.region_code
-                        )
-                        OR
-                        (
-                            p.bos_code IS NULL
-                            AND p.region_code = bp.region_code
-                            AND p.zone = bp.zone
-                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
-                            AND bp.ml_matic_status = 'TBO'
-                        )
-                    ) 
-                    WHERE 
-                        bp.mainzone = '$mainzone'";
-                    
-                    if($restrictedDate === $endDate){
-                            $sql .= " AND p.payroll_date = '$restrictedDate'";
-                    }else{
-                            $sql .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                    }
-                        $sql .= " AND bp.ml_matic_region = '$zone'
-                        AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
-                        AND p.zone like '%$region%'
-                        AND p.description = 'Sick-Leave'
-                        AND p.remarks is null 
-                        AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
-        }else{
-            $sql = "SELECT post_edi 
-                    FROM " . $database[0] . ".payroll p
-                    INNER JOIN " . $database[1] . ".branch_profile bp
-                    ON 
-                        (
-                        (
-                            p.bos_code IS NOT NULL
-                            AND p.bos_code = bp.code
-                            AND p.region_code = bp.region_code
-                        )
-                        OR
-                        (
-                            p.bos_code IS NULL
-                            AND p.region_code = bp.region_code
-                            AND p.zone = bp.zone
-                            AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
-                            AND bp.ml_matic_status = 'TBO'
-                        )
-                    ) 
-                    WHERE 
-                        bp.mainzone = '$mainzone'
-                    AND p.zone = '$zone'
-                    AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                    AND bp.region_code LIKE '%$region%'";
-                    
-                    if($restrictedDate === $endDate){
-                            $sql .= " AND p.payroll_date = '$restrictedDate'";
-                    }else{
-                            $sql .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
-                    }
-                        $sql .= " AND bp.ml_matic_region != 'LNCR Showroom'
+
+    function hasNoPendingRecords($conn, $database, $mainzone, $zone, $region, $restrictedDate, $endDate): bool
+    {
+        $isShowroom = ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom');
+        $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+        $singleDate = ($restrictedDate === $endDate);
+
+        if ($isShowroom) {
+            $where = "bp.mainzone = ?
+                    AND bp.ml_matic_region = ?
+                    AND NOT (bp.code = 18 AND p.zone = 'VIS')
+                    AND p.description = 'Sick-Leave'
+                    AND p.remarks IS NULL
+                    AND p.description NOT IN ('13thMonth', 'midYearBonus', 'payroll')";
+            $types  = 'ss';
+            $values = [$mainzone, $zone];
+
+            if ($singleDate) {
+                $where .= " AND p.payroll_date = ?";
+                $types .= 's';
+                $values[] = $restrictedDate;
+            } else {
+                $where .= " AND p.payroll_date BETWEEN ? AND ?";
+                $types .= 'ss';
+                $values[] = $restrictedDate;
+                $values[] = $endDate;
+            }
+
+            if (!$allRegions) { $where .= " AND p.zone = ?"; $types .= 's'; $values[] = $region; }
+        } else {
+            $where = "bp.mainzone = ?
+                    AND p.zone = ?
+                    AND p.zone != 'JVIS'
+                    AND bp.ml_matic_region != 'LNCR Showroom'
                     AND bp.ml_matic_region != 'VISMIN Showroom'
                     AND p.description = 'Sick-Leave'
-                    AND p.remarks is null 
-                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
-        }
-        //echo $sql;
-        $result = $conn->query($sql);
-        
-        if ($result) {
-            while ($row = mysqli_fetch_assoc($result)) {
-                if ($row['post_edi'] === 'posted') {
-                    return true;
-                }
+                    AND p.remarks IS NULL
+                    AND p.description NOT IN ('13thMonth', 'midYearBonus', 'payroll')";
+            $types  = 'ss';
+            $values = [$mainzone, $zone];
+
+            if ($singleDate) {
+                $where .= " AND p.payroll_date = ?";
+                $types .= 's';
+                $values[] = $restrictedDate;
+            } else {
+                $where .= " AND p.payroll_date BETWEEN ? AND ?";
+                $types .= 'ss';
+                $values[] = $restrictedDate;
+                $values[] = $endDate;
             }
+
+            // Exact match instead of substring LIKE — was matching 'A' inside 'CA', 'LA', etc.
+            if (!$allRegions) { $where .= " AND bp.region_code = ?"; $types .= 's'; $values[] = $region; }
         }
-        return false;
+
+        $sql = "SELECT COUNT(*) AS pending_count
+                FROM " . $database[0] . ".payroll p
+                INNER JOIN " . $database[1] . ".branch_profile bp
+                    ON (
+                        (p.bos_code IS NOT NULL AND p.bos_code = bp.code AND p.region_code = bp.region_code)
+                        OR
+                        (p.bos_code IS NULL AND p.region_code = bp.region_code AND p.zone = bp.zone
+                        AND TRIM(LOWER(p.branch_name)) = TRIM(LOWER(bp.branch_name))
+                        AND bp.ml_matic_status = 'TBO')
+                    )
+                WHERE $where AND p.post_edi = 'pending'";
+
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$values);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        // true = nothing pending left to post (block); false = there's still something to post
+        return ((int) $row['pending_count']) === 0;
     }
 
     // function to insert data
     function insertData($conn, $database, $mainzone, $zone, $region, $restrictedDate, $endDate) {
         $errors = [];
+
+        $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+        $regionClauseShowroomFetch  = $allRegions ? '' : ("AND p.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+        $regionClauseNormalFetch    = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
+        $regionClauseShowroomUpdate = $allRegions ? '' : ("AND bp.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+        $regionClauseNormalUpdate   = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
 
         if ($zone === 'LNCR Showroom' || $zone === 'VISMIN Showroom') {
             $fetchQuery = "SELECT
@@ -289,7 +274,7 @@
                             $fetchQuery .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
                     }
                         $fetchQuery .= " AND bp.ml_matic_region = '$zone'
-                        AND p.zone like '%$region%'
+                        $regionClauseShowroomFetch
                         AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                         AND p.post_edi = 'pending'
                         AND p.description = 'Sick-Leave'
@@ -382,7 +367,7 @@
                         bp.mainzone = '$mainzone'
                         AND p.zone = '$zone'
                         AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                        AND bp.region_code LIKE '%$region%'";
+                        $regionClauseNormalFetch";
                     
                     if($restrictedDate === $endDate){
                             $fetchQuery .= " AND p.payroll_date = '$restrictedDate'";
@@ -529,10 +514,11 @@
                     }
                         $updatePost .= " AND bp.ml_matic_region = '$zone'
                                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  
-                                    AND bp.zone like '%$region%'
+                                    $regionClauseShowroomUpdate
                                     and p.description = 'Sick-Leave'
                                     AND p.remarks is null
-                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
+                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
+                                    AND p.post_edi = 'pending'";
                                     
                 }else{
                     $updatePost = "UPDATE " . $database[0] . ".payroll p
@@ -559,7 +545,7 @@
                                         bp.mainzone = '$mainzone'
                                     AND bp.zone = '$zone'
                                     AND p.zone != 'JVIS' 
-                                    AND bp.region_code LIKE '%$region%'";
+                                    $regionClauseNormalUpdate";
                                 
                     if($restrictedDate === $endDate){
                             $updatePost .= " AND p.payroll_date = '$restrictedDate'";
@@ -570,7 +556,8 @@
                                     AND bp.ml_matic_region != 'VISMIN Showroom'
                                     and p.description = 'Sick-Leave'
                                     AND p.remarks is null 
-                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')";
+                                    AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
+                                    AND p.post_edi = 'pending'";
                 }
 
                 if ($conn->query($updatePost) === TRUE) {
@@ -636,9 +623,9 @@
             border: 2px solid #ccc;
             border-radius: 15px;
             background-color: #f9f9f9;
-            -webkit-appearance: none; /* Remove default arrow in WebKit browsers */
-            -moz-appearance: none; /* Remove default arrow in Firefox */
-            appearance: none; /* Remove default arrow in most modern browsers */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
             color: #F14A51;
         }
         .custom-select-wrapper {
@@ -721,34 +708,33 @@
             top: 35px;
             position: relative;
             max-width: 100%;
-            overflow-x: auto; /* Enable horizontal scrolling */
-            overflow-y: auto; /* Enable vertical scrolling */
-            max-height: calc(100vh - 200px); /* Adjust max-height as needed based on your layout */
-            margin: 20px; /* Adjust margin as needed */
-            border: 1px solid #ccc; /* Optional: Add border around the table container */
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+            margin: 20px;
+            border: 1px solid #ccc;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            border: 1px solid #ccc; /* Border around the table */
-            /* white-space: nowrap; */
+            border: 1px solid #ccc;
             font-size: 12px;
         }
 
         th, td {
-            border: 1px solid #ccc; /* Borders for table cells */
-            padding: 5px; /* Padding inside cells */
-            text-align: center; /* Center-align text in cells */
+            border: 1px solid #ccc;
+            padding: 5px;
+            text-align: center;
         }
 
         th {
-            background-color: #f2f2f2; /* Light gray background for headers */
-            font-weight: bold; /* Bold font for headers */
+            background-color: #f2f2f2;
+            font-weight: bold;
         }
 
         tr:nth-child(even) {
-            background-color: #f9f9f9; /* Alternating row colors */
+            background-color: #f9f9f9;
         }
 
         tr:hover {
@@ -782,9 +768,7 @@
                 <label for="zone">Zone</label>
                 <select name="zone" id="zone" autocomplete="off" required onchange="updateRegions()">
                     <option value="">Select Zone</option>
-                    <!-- Zones will be populated dynamically by JavaScript -->
                     <?php
-                        // If a zone is selected, display it after the page reloads
                         if (isset($_POST['zone'])) {
                             echo '<option value="' . htmlspecialchars($_POST['zone']) . '" selected>' . htmlspecialchars($_POST['zone']) . '</option>';
                         }
@@ -795,11 +779,9 @@
             <div class="custom-select-wrapper">
                 <label for="region">Region</label>
                 <select name="region" id="region" autocomplete="off">
-                    <option value="">Select Region</option>
-                    <!-- Regions will be populated dynamically by JavaScript -->
+                    <option value="ALL">All Regions</option>
                     <?php
-                        // If a region is selected, display it after the page reloads
-                        if (isset($_POST['region'])) {
+                        if (isset($_POST['region']) && $_POST['region'] !== 'ALL') {
                             echo '<option value="' . htmlspecialchars($_POST['region']) . '" selected>' . htmlspecialchars($_POST['region']) . '</option>';
                         }
                     ?>
@@ -808,11 +790,11 @@
             </div>
             <div class="custom-select-wrapper">
                 <label for="restricted-date">Start date </label>
-                <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? $_POST['restricted-date'] : '';?>" required>
+                <input type="date" id="restricted-date" name="restricted-date" value="<?php echo isset($_POST['restricted-date']) ? htmlspecialchars($_POST['restricted-date']) : '';?>" required>
             </div>
             <div class="custom-select-wrapper">
                 <label for="end-date">End date </label>
-                <input type="date" id="end-date" name="end-date" value="<?php echo isset($_POST['end-date']) ? $_POST['end-date'] : '';?>" required>
+                <input type="date" id="end-date" name="end-date" value="<?php echo isset($_POST['end-date']) ? htmlspecialchars($_POST['end-date']) : '';?>" required>
             </div>
             
             <input type="submit" class="generate-btn" name="generate" value="Proceed">
@@ -830,7 +812,7 @@
     //for fetching zone
     function updateZone() {
         var mainzone = document.getElementById("mainzone").value;
-        var selectedZone = document.getElementById("zone").value; // Get the currently selected zone, if any
+        var selectedZone = document.getElementById("zone").value;
         
         var xhr = new XMLHttpRequest();
         xhr.open("POST", "../../fetch/get_zone.php", true);
@@ -840,42 +822,46 @@
                 document.getElementById("zone").innerHTML = xhr.responseText;
             }
         };
-        // Pass the current zone as well to preserve the selection
         xhr.send("mainzone=" + mainzone + "&selected_zone=" + selectedZone);
     }
 
-    // Ensure the zones are updated automatically on page load based on the current mainzone
     window.onload = function() {
         var mainzone = document.getElementById("mainzone").value;
         if (mainzone !== "") {
-            updateZone(); // Fetch and set the zones automatically if a mainzone is already selected
+            updateZone();
         }
     };
     
     // Function to fetch regions based on the selected zone
     function updateRegions() {
         var zone = document.getElementById("zone").value;
-        var selectedRegion = document.getElementById("region").value; // Get the currently selected region, if any
+        var selectedRegion = document.getElementById("region").value;
 
         var xhr = new XMLHttpRequest();
         xhr.open("POST", "../../fetch/get_regions.php", true);
         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
-                document.getElementById("region").innerHTML = xhr.responseText;
+                // Prepend an "All Regions" option ahead of whatever the
+                // backend returns, so the operator can still choose to
+                // post every region under the selected zone at once.
+                document.getElementById("region").innerHTML =
+                    '<option value="ALL">All Regions</option>' + xhr.responseText;
             }
         };
-        // Pass the current region as well to preserve the selection
         xhr.send("zone=" + zone + "&selected_region=" + selectedRegion);
     }
 
-    // Ensure the regions are updated automatically when a zone is selected or when the page reloads
     document.getElementById("zone").addEventListener('change', updateRegions);
 
     window.onload = function() {
+        var mainzone = document.getElementById("mainzone").value;
+        if (mainzone !== "") {
+            updateZone();
+        }
         var zone = document.getElementById("zone").value;
         if (zone !== "") {
-            updateRegions(); // Fetch and set the regions automatically if a zone is already selected
+            updateRegions();
         }
     };
 </script>
@@ -893,7 +879,6 @@
             cancelButtonText: 'No'
         }).then((result) => {
             if (result.isConfirmed) {
-                // If confirmed, redirect to process
                 window.location.href = 'post-edi_sick-leave.php?proceed=true';
             } else {
                 window.location.href = 'post-edi_sick-leave.php';
@@ -911,6 +896,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
     $zone = $_POST['zone'];
     $restrictedDate = $_POST['restricted-date'];
     $endDate = $_POST['end-date'];
+
+    $allRegions = ($region === '' || strtoupper($region) === 'ALL');
+    $regionClauseShowroom = $allRegions ? '' : ("AND p.zone LIKE '%" . $conn->real_escape_string($region) . "%' ");
+    $regionClauseNormal   = $allRegions ? '' : ("AND bp.region_code = '" . $conn->real_escape_string($region) . "' ");
 
     $_SESSION['mainzone'] = $mainzone;
     $_SESSION['zone'] = $zone;
@@ -994,11 +983,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                         $sql .= " AND p.payroll_date BETWEEN '$restrictedDate' AND '$endDate'";
                 }
                 $sql .= " AND bp.ml_matic_region = '$zone'
-                    AND bp.zone like '%$region%'
+                    $regionClauseShowroom
                     AND NOT (bp.code = 18 AND p.zone = 'VIS')  -- to exclude duljo branch
                     AND p.description = 'Sick-Leave'
                     AND p.remarks is null 
                     AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
+                    AND p.post_edi = 'pending'
                 GROUP BY 
                     bp.code,
                     p.cost_center,
@@ -1081,7 +1071,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     bp.mainzone = '$mainzone'
                     AND bp.zone = '$zone'
                     AND p.zone != 'JVIS' -- to exclude sm seaside showroom
-                    AND bp.region_code LIKE '%$region%'";
+                    $regionClauseNormal";
                 
                 if($restrictedDate === $endDate){
                         $sql .= " AND p.payroll_date = '$restrictedDate'";
@@ -1093,6 +1083,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['generate'])) {
                     AND p.description = 'Sick-Leave'
                     AND p.remarks is null 
                     AND NOT p.description IN ('13thMonth', 'midYearBonus', 'payroll')
+                    AND p.post_edi = 'pending'
                 GROUP BY 
                     bp.code,
                     p.cost_center,

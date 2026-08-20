@@ -621,15 +621,15 @@ if (isset($_POST['upload'])) {
                     $region = $msg['V'] ?? '';
                     $regionCode = $msg['region_code'] ?? '';
                     $message = $msg['message'] ?? '';
-
+    
                     echo "<tr class='$class'>
-                        <td>" . ucfirst($msg['type'] ?? '') . "</td>
-                        <td>$sheet</td>
-                        <td>$branchCode</td>
-                        <td>$branchName</td>
-                        <td>$region</td>
-                        <td>$regionCode</td>
-                        <td>$message</td>";
+                        <td>" . htmlspecialchars(ucfirst($msg['type'] ?? '')) . "</td>
+                        <td>" . htmlspecialchars((string) $sheet) . "</td>
+                        <td>" . htmlspecialchars((string) $branchCode) . "</td>
+                        <td>" . htmlspecialchars((string) $branchName) . "</td>
+                        <td>" . htmlspecialchars((string) $region) . "</td>
+                        <td>" . htmlspecialchars((string) $regionCode) . "</td>
+                        <td>" . htmlspecialchars((string) $message) . "</td>";
             
                     if ($msg['withButton'] === 'true') {
                         echo "<script> document.getElementById('overrideBtn').style.display = 'flex'; </script>";
@@ -816,6 +816,7 @@ if (isset($_POST['upload'])) {
                     'A' => $cellValues['A'],
                     'B' => $cellValues['B'],
                     'V' => $region_description,
+                    'region_code' => $cellValues['V'], 
                     'message' => "Region '$region_description', date '{$_POST['restricted-date']}', and mainzone '$check_mainzone' already exist."
                 ];
             }
@@ -876,6 +877,7 @@ if (isset($_POST['upload'])) {
                     'A' => $cellValues['A'],
                     'B' => $cellValues['B'],
                     'V' => $region_description,
+                    'region_code' => $cellValues['V'],
                     'message' => "Region '$region_description' does not match the selected mainzone '$check_mainzone'."
                 ];
             }
@@ -941,6 +943,7 @@ if (isset($_POST['upload'])) {
                         'A' => $branchCode,
                         'B' => $detail['B'],
                         'V' => $region_description,
+                        'region_code' => $detail['V'], 
                         'message' => "Duplicate value '{$branchCode}' found in column A, Row {$detail['row']}."
                     ];
                 }
@@ -1043,7 +1046,7 @@ if (isset($_POST['overrideData'])) {
             }
 
             // Display messages
-            displayMessages($messages);
+            displayMessages($messages ?? []);
 
         }else{
             echo "<script>alert('Opps! Unable to Override. Data Already Posted.'); window.location.href='import-payroll.php';</script>";
