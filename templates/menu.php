@@ -116,9 +116,15 @@
                                 <?php if (in_array('CAD', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>post-edi/unpost-edi_payroll.php" role="menuitem">Payroll</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>post-edi/unpost-edi_remittance-new.php" role="menuitem">Remittance-New</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/unpost-edi_mid-year-bonus.php" role="menuitem">Mid Year Bonus</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/unpost-edi_13th-month.php" role="menuitem">13th Month</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/unpost-edi_sick-leave.php" role="menuitem">Sick Leave</a>
                                 <?php else: ?>
                                     <a class="user-link" href="#" role="menuitem" aria-disabled="true">Payroll</a>
                                     <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remittance-New</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Mid Year Bonus</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">13th Month</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Sick Leave</a>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -128,9 +134,15 @@
                                 <?php if (in_array('CAD', $roles)): ?>
                                     <a class="user-link" href="<?php echo $base_url; ?>post-edi/check_unmatched_payroll.php" role="menuitem">Payroll</a>
                                     <a class="user-link" href="<?php echo $base_url; ?>post-edi/check_unmatched_remittance.php" role="menuitem">Remittance-New</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/check_unmatched_mid_year_bonus.php" role="menuitem">Mid Year Bonus</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/check_unmatched_13th_month.php" role="menuitem">13th Month</a>
+                                    <a class="user-link" href="<?php echo $base_url; ?>post-edi/check_unmatched_sick_leave.php" role="menuitem">Sick Leave</a>
                                 <?php else: ?>
                                     <a class="user-link" href="#" role="menuitem" aria-disabled="true">Payroll</a>
                                     <a class="user-link" href="#" role="menuitem" aria-disabled="true">Remittance-New<</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Mid Year Bonus</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">13th Month</a>
+                                    <a class="user-link" href="#" role="menuitem" aria-disabled="true">Sick Leave</a>
                                 <?php endif; ?>
                             </div>
                         </div>

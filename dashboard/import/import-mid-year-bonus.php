@@ -328,7 +328,7 @@
     <div class="top-content">
         <?php include $relative_path . 'templates/sidebar.php' ?>
     </div>
-    <center><h2>13TH MONTH <span>[IMPORT]</span></h2></center>
+    <center><h2>MID YEAR <span>[IMPORT]</span></h2></center>
     <div id="loading-overlay">
         <div class="loading-spinner"></div>
     </div>
@@ -376,6 +376,50 @@
 </html>
 
 <?php
+
+function saveUploadForLater(array $uploadData, string $sessionKey): string
+{
+    if (empty($uploadData['tmp_name']) || !is_uploaded_file($uploadData['tmp_name'])) {
+        throw new RuntimeException('Invalid upload payload.');
+    }
+
+    if (!empty($_SESSION[$sessionKey]) && is_file($_SESSION[$sessionKey])) {
+        @unlink($_SESSION[$sessionKey]);
+    }
+
+    $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename($uploadData['name']));
+    $targetPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'edi_' . uniqid('', true) . '_' . $safeName;
+
+    if (!move_uploaded_file($uploadData['tmp_name'], $targetPath)) {
+        throw new RuntimeException('Unable to preserve uploaded file.');
+    }
+
+    $_SESSION[$sessionKey] = $targetPath;
+
+    return $targetPath;
+}
+
+function getStoredUploadPath(string $sessionKey): ?string
+{
+    $path = $_SESSION[$sessionKey] ?? '';
+
+    if (!is_string($path) || $path === '' || !is_file($path)) {
+        return null;
+    }
+
+    return $path;
+}
+
+function clearStoredUpload(string $sessionKey): void
+{
+    $path = $_SESSION[$sessionKey] ?? '';
+
+    if (is_string($path) && $path !== '' && is_file($path)) {
+        @unlink($path);
+    }
+
+    unset($_SESSION[$sessionKey]);
+}
 
 require '../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -474,24 +518,18 @@ function insertData($spreadsheet, $conn, $conn1, $database, $restrictedDate, $ma
 if (isset($_POST['upload'])) {
     
         $check_mainzone = $_POST['mainzone'];
-        $filePath = $_FILES['excelFile']['tmp_name'];
-        $fileName = $_FILES['excelFile']['name'];
-        $spreadsheet = IOFactory::load($filePath);
         $restrictedDate = $_POST['restricted-date'];
 
-        $destination = '../../uploaded_excel_files/' . $fileName; 
+        try {
+            $storedPath = saveUploadForLater($_FILES['excelFile'], 'pending_upload_path');
+            $spreadsheet = IOFactory::load($storedPath);
 
-        if (move_uploaded_file($filePath, $destination)) {
-
-            $_SESSION['existingFile'] = $destination;
-            $_SESSION['existingDate'] =  $restrictedDate;
-            $_SESSION['existingMainzone'] =  $check_mainzone;
-
-        } else {
-
-            echo "<script>alert('File upload failed.'); window.location.href='import-payroll.php';</script>";
+            $_SESSION['existingFile'] = $storedPath;
+            $_SESSION['existingDate'] = $restrictedDate;
+            $_SESSION['existingMainzone'] = $check_mainzone;
+        } catch (RuntimeException $e) {
+            echo "<script>alert('" . addslashes($e->getMessage()) . "'); window.location.href='import-mid-year-bonus.php';</script>";
             exit;
-
         }
 
         // Array to store messages
@@ -574,16 +612,23 @@ if (isset($_POST['upload'])) {
                 </thead>";
             echo '<tbody>';
             foreach ($messages as $msg) {
-                if ($msg['type'] === 'error') {
-                    $class = $msg['type'] === 'success' ? 'success' : 'error';
+                if (($msg['type'] ?? '') === 'error') {
+                    $class = ($msg['type'] ?? '') === 'success' ? 'success' : 'error';
+                    $sheet = $msg['sheet'] ?? '';
+                    $branchCode = $msg['A'] ?? '';
+                    $branchName = $msg['B'] ?? '';
+                    $region = $msg['V'] ?? '';
+                    $regionCode = $msg['region_code'] ?? '';
+                    $message = $msg['message'] ?? '';
+    
                     echo "<tr class='$class'>
-                        <td>" . ucfirst($msg['type']) . "</td>
-                        <td>{$msg['sheet']}</td>
-                        <td>{$msg['A']}</td>
-                        <td>{$msg['B']}</td>
-                        <td>{$msg['V']}</td>
-                        <td>{$msg['region_code']}</td>
-                        <td>{$msg['message']}</td>";
+                        <td>" . htmlspecialchars(ucfirst($msg['type'] ?? '')) . "</td>
+                        <td>" . htmlspecialchars((string) $sheet) . "</td>
+                        <td>" . htmlspecialchars((string) $branchCode) . "</td>
+                        <td>" . htmlspecialchars((string) $branchName) . "</td>
+                        <td>" . htmlspecialchars((string) $region) . "</td>
+                        <td>" . htmlspecialchars((string) $regionCode) . "</td>
+                        <td>" . htmlspecialchars((string) $message) . "</td>";
             
                     if ($msg['withButton'] === 'true') {
                         echo "<script> document.getElementById('overrideBtn').style.display = 'flex'; </script>";
@@ -770,6 +815,7 @@ if (isset($_POST['upload'])) {
                     'A' => $cellValues['A'],
                     'B' => $cellValues['B'],
                     'V' => $region_description,
+                    'region_code' => $cellValues['V'], 
                     'message' => "Region '$region_description', date '{$_POST['restricted-date']}', and mainzone '$check_mainzone' already exist."
                 ];
             }
@@ -830,6 +876,7 @@ if (isset($_POST['upload'])) {
                     'A' => $cellValues['A'],
                     'B' => $cellValues['B'],
                     'V' => $region_description,
+                    'region_code' => $cellValues['V'], 
                     'message' => "Region '$region_description' does not match the selected mainzone '$check_mainzone'."
                 ];
             }
@@ -895,6 +942,7 @@ if (isset($_POST['upload'])) {
                         'A' => $branchCode,
                         'B' => $detail['B'],
                         'V' => $region_description,
+                        'region_code' => $detail['V'],
                         'message' => "Duplicate value '{$branchCode}' found in column A, Row {$detail['row']}."
                     ];
                 }
@@ -908,9 +956,9 @@ if (isset($_POST['upload'])) {
         
         echo "<script>
                 if (confirm('File is ready to upload. Do you want to continue?')) {
-                    window.location.href = 'import-payroll.php?proceed=true';
+                    window.location.href = 'import-mid-year-bonus.php?proceed=true';
                 } else {
-                    window.location.href = 'import-payroll.php';
+                    window.location.href = 'import-mid-year-bonus.php';
                 }
             </script>";
 
@@ -922,25 +970,39 @@ if (isset($_POST['upload'])) {
 
 if (isset($_GET['proceed']) && $_GET['proceed'] === 'true') {
 
-    $filePath = $_SESSION['existingFile'];
-    $date = $_SESSION['existingDate'];
-    $mainzone = $_SESSION['existingMainzone'];
+    $filePath = getStoredUploadPath('pending_upload_path');
+
+    if ($filePath === null) {
+        echo "<script>alert('The uploaded file is no longer available.'); window.location.href='import-mid-year-bonus.php';</script>";
+        exit;
+    }
+
+    $date = $_SESSION['existingDate'] ?? '';
+    $mainzone = $_SESSION['existingMainzone'] ?? '';
     $spreadsheet = IOFactory::load($filePath);
 
     $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
-    
+
+    clearStoredUpload('pending_upload_path');
+
     if ($insertSuccess) {
-        echo "<script>alert('Data successfully loaded.'); window.location.href='import-payroll.php';</script>";
+        echo "<script>alert('Data successfully loaded.'); window.location.href='import-mid-year-bonus.php';</script>";
     } else {
-        echo "<script>alert('Failed to upload.'); window.location.href='import-payroll.php';</script>";
+        echo "<script>alert('Failed to upload.'); window.location.href='import-mid-year-bonus.php';</script>";
     }
 }
 
 if (isset($_POST['overrideData'])) {
     
-    $filePath = $_SESSION['existingFile'];
-    $date = $_SESSION['existingDate'];
-    $mainzone = $_SESSION['existingMainzone'];
+    $filePath = getStoredUploadPath('pending_upload_path');
+
+    if ($filePath === null) {
+        echo "<script>alert('The uploaded file is no longer available.'); window.location.href='import-mid-year-bonus.php';</script>";
+        exit;
+    }
+
+    $date = $_SESSION['existingDate'] ?? '';
+    $mainzone = $_SESSION['existingMainzone'] ?? '';
     $spreadsheet = IOFactory::load($filePath);
 
     // Get region codes and delete records
@@ -949,7 +1011,7 @@ if (isset($_POST['overrideData'])) {
         $startRow = 5;
         $endRow = $sheet->getHighestRow();
         for ($row = $startRow; $row <= $endRow; $row++) {
-            $regionCode = $sheet->getCell('W' . $row)->getValue();
+            $regionCode = $sheet->getCell('V' . $row)->getValue();
             if (!empty($regionCode) && !in_array($regionCode, $regionCodesToDelete)) {
                 $regionCodesToDelete[] = $regionCode;
             }
@@ -977,19 +1039,19 @@ if (isset($_POST['overrideData'])) {
             $insertSuccess = insertData($spreadsheet, $conn, $conn1, $database, $date, $mainzone);
 
             if ($insertSuccess) {
-                echo "<script>alert('Data successfully loaded.'); window.location.href='import-payroll.php';</script>";
+                echo "<script>alert('Data successfully loaded.'); window.location.href='import-mid-year-bonus.php';</script>";
             } else {
-                echo "<script>alert('Insertion Failed.'); window.location.href='import-payroll.php';</script>";
+                echo "<script>alert('Insertion Failed.'); window.location.href='import-mid-year-bonus.php';</script>";
             }
 
             // Display messages
-            displayMessages($messages);
+            displayMessages($messages ?? []);
 
         }else{
-            echo "<script>alert('Opps! Unable to Override. Data Already Posted.'); window.location.href='import-payroll.php';</script>";
+            echo "<script>alert('Opps! Unable to Override. Data Already Posted.'); window.location.href='import-mid-year-bonus.php';</script>";
         }
     }
-   
+    clearStoredUpload('pending_upload_path');
 }
 
 ?> 
